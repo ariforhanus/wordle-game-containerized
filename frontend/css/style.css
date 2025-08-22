@@ -102,6 +102,7 @@ h1 {
 .account-menu {
     position: relative;
     margin-left: auto;
+    visibility: visible;
 }
 
 .account-btn {
@@ -171,11 +172,13 @@ h1 {
     font-size: 14px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    font-weight: bold;
 }
 
 .account-dropdown li a:hover,
 .account-dropdown li button:hover {
     background-color: var(--ltgray);
+
 }
 
 .account-dropdown li a i,
@@ -184,18 +187,15 @@ h1 {
     width: 20px;
 }
 
-.user-info {
-    border-top: 1px solid var(--ltgray);
-    padding-top: 8px;
-}
 
 .username {
     font-weight: 600;
     color: var(--blue);
 }
 
-/* Logout Butonları - Genel Stil */
-.logout-btn {
+
+@media (max-width: 767px){
+  .logout-btn {
     color: white !important;
     font-weight: 500;
     transition: all 0.3s ease;
@@ -204,20 +204,29 @@ h1 {
     padding: 12px 20px;
     margin: 8px 16px;
     text-align: center;
-    width: calc(100% - 32px);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    font-size: 16px;
+    font-size: 20px;
 }
 
 .logout-btn:hover {
-    background-color: rgba(255, 255, 255, 0.2) !important;
+    background-color: rgba(255, 255, 255, 0.2);
     color: var(--blue) !important;
 }
 
-/* Responsive */
+.user-info {
+
+    padding-top: 8px;
+}
+
+
+}
+
+
+/* Logout Butonları - Genel Stil */
+
 @media (min-width: 768px) {
     .desktop-menu {
         display: block;
@@ -239,10 +248,12 @@ h1 {
     
     .burger {
         display: flex;
+        margin-left: 0;
     }
     
     .account-menu {
         margin-left: 0;
+        visibility: hidden;
     }
 }
 
@@ -419,12 +430,12 @@ body {
   width: 100vw;
   height: 100vh;
 
-  background-color: rgba(0, 0, 0, 0.5); /* ekranı karartır */
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
 
-  z-index: 9999; /* Her şeyin üstünde olsun */
+  z-index: 9999;
 }
 
 .loading i {

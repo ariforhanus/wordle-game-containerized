@@ -1,7 +1,6 @@
-// API base URL
+
 const API_BASE_URL = 'http://localhost:8091';
 
-// Alert gösterme fonksiyonu
 function showAlert(message, type = 'danger') {
     const alertContainer = document.getElementById('alertContainer');
     alertContainer.innerHTML = `
@@ -12,7 +11,6 @@ function showAlert(message, type = 'danger') {
     `; 
 }
 
-// Form validation
 function validateForm(form) {
     if (!form.checkValidity()) {
         event.preventDefault();
@@ -23,7 +21,6 @@ function validateForm(form) {
     return true;
 }
 
-// Login form işlemi
 if (document.getElementById('loginForm')) {
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -47,13 +44,11 @@ if (document.getElementById('loginForm')) {
             
             if (response.ok) {
                 const data = await response.json();
-                // JWT token'ı localStorage'a kaydet
                 localStorage.setItem('jwtToken', data.token);
                 localStorage.setItem('tokenExpiry', data.expiresIn);
                 
                 showAlert('Giriş başarılı! Yönlendiriliyorsunuz...', 'success');
                 
-                // Ana sayfaya yönlendir
                 setTimeout(() => {
                     window.location.href = '../game.html';
                 }, 1500);
@@ -67,7 +62,6 @@ if (document.getElementById('loginForm')) {
     });
 }
 
-// Register form işlemi
 if (document.getElementById('registerForm')) {
     document.getElementById('registerForm').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -80,7 +74,6 @@ if (document.getElementById('registerForm')) {
         const password = formData.get('password');
         const confirmPassword = formData.get('confirmPassword');
         
-        // Şifre kontrolü
         if (password !== confirmPassword) {
             showAlert('Şifreler eşleşmiyor!');
             return;
@@ -102,7 +95,6 @@ if (document.getElementById('registerForm')) {
             if (response.ok) {
                 showAlert('Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...', 'success');
                 
-                // Login sayfasına yönlendir
                 setTimeout(() => {
                     window.location.href = 'login.html';
                 }, 1500);
@@ -117,7 +109,6 @@ if (document.getElementById('registerForm')) {
     });
 }
 
-// JWT token kontrolü
 function checkAuthStatus() {
     const token = localStorage.getItem('jwtToken');
     const expiry = localStorage.getItem('tokenExpiry');
@@ -125,9 +116,8 @@ function checkAuthStatus() {
     if (token && expiry) {
         const now = Date.now();
         if (now < parseInt(expiry)) {
-            return true; // Token geçerli
+            return true;
         } else {
-            // Token süresi dolmuş, temizle
             localStorage.removeItem('jwtToken');
             localStorage.removeItem('tokenExpiry');
         }
@@ -135,16 +125,13 @@ function checkAuthStatus() {
     return false;
 }
 
-// Logout fonksiyonu
 function logout() {
     localStorage.removeItem('jwtToken');
     localStorage.removeItem('tokenExpiry');
     window.location.href = 'auth/login.html';
 }
 
-// Sayfa yüklendiğinde auth durumunu kontrol et
 document.addEventListener('DOMContentLoaded', function() {
-    // Eğer kullanıcı zaten giriş yapmışsa ve login/register sayfalarındaysa ana sayfaya yönlendir
     if (checkAuthStatus() && (window.location.pathname.includes('login.html') || window.location.pathname.includes('register.html'))) {
         window.location.href = '../game.html';
     }
