@@ -42,7 +42,7 @@ class ScorServiceTest {
             Score s = inv.getArgument(0);
             Field f = Score.class.getDeclaredField("id");
             f.setAccessible(true);
-            f.set(s, 1L);//TODO: solve problem in this section
+            f.set(s, 1L);
             s.setWonAt(Instant.parse("2025-08-22T08:00:00Z"));
             return s;
         });

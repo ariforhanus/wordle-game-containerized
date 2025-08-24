@@ -73,8 +73,8 @@ public class ScoreService {
                 s.getScore(),
                 s.getAttempts(),
                 s.getUsername(),
-                s.getDurationMs(),
                 s.getId(),
+                s.getDurationMs(),
                 s.getWord(),
                 s.getWonAt()
         );
