@@ -1,0 +1,57 @@
+services:
+  postgres:
+      image: "postgres:17.4"
+      container_name: postgres
+      hostname: "postgres"
+      volumes:
+          - ./.docker/postgres:/var/lib/postgresql/data"
+      healthcheck:
+          interval: 5s
+          timeout: 3s
+          retries: 10
+      ports:
+          - "5432:5432"
+      environment:
+          POSTGRES_USER: "postgres"
+          POSTGRES_PASSWORD: "admin@1234"
+          POSTGRES_DB: "PGDatabase"
+          ACCEPT_EULA: "Y"
+      restart: unless-stopped
+
+
+
+  backend:
+      build:
+          context: ./backend
+          dockerfile: Dockerfile
+      image: wordle-game-backend:latest
+      container_name: wordle-backend
+      depends_on:
+          postgres:
+              condition: service_healthy
+
+
+  pgadmin:
+      image: "dpage/pgadmin4:9.4.0"
+      container_name: pgadmin
+      depends_on: 
+          - postgres
+      environment:
+          PGADMIN_DEFAULT_EMAIL: postgres@pgadmin.org
+          PGADMIN_DEFAULT_PASSWORD: admin
+          PGADMIN_CONFIG_SERVER_MODE: 'False'
+
+          POSTGRES_USER: "postgres"
+          POSTGRES_PASSWORD: "admin@1234"
+
+      volumes:
+          - ./.docker/pgadmin:/root/.pgadmin
+          - ./pgadmin-default-config/servers.json:/pgadmin4/servers.json
+
+      ports:
+          - "5050:80"
+      restart: unless-stopped
+
+networks:
+  default: 
+    name: wordle-net
