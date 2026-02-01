@@ -6,22 +6,40 @@ const API_BASE_URL = (window.location.hostname === 'localhost' && window.locatio
 
 function showAlert(message, type = 'danger') {
     const alertContainer = document.getElementById('alertContainer');
+    const icon = type === 'success' 
+        ? '<i class="fa-solid fa-circle-check"></i>' 
+        : '<i class="fa-solid fa-circle-exclamation"></i>';
     alertContainer.innerHTML = `
-        <div class="alert alert-${type} py-2 alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="custom-alert custom-alert-${type}" role="alert">
+            ${icon}
+            <span>${message}</span>
         </div>
-    `; 
+    `;
+    
+    // Hata durumunda tüm validation stillerini kaldır
+    if (type === 'danger') {
+        document.querySelectorAll('form').forEach(form => {
+            form.classList.remove('was-validated');
+        });
+        // Input'lardan valid/invalid class'larını kaldır
+        document.querySelectorAll('.is-valid, .is-invalid').forEach(el => {
+            el.classList.remove('is-valid', 'is-invalid');
+        });
+    }
 }
 
 function validateForm(form) {
-    if (!form.checkValidity()) {
-        event.preventDefault();
-        event.stopPropagation();
-        return false;
-    }
-    form.classList.add('was-validated');
-    return true;
+    // Sadece boş alan kontrolü yap, Bootstrap validation kullanma
+    const inputs = form.querySelectorAll('input[required]');
+    let isValid = true;
+    
+    inputs.forEach(input => {
+        if (!input.value.trim()) {
+            isValid = false;
+        }
+    });
+    
+    return isValid;
 }
 
 if (document.getElementById('loginForm')) {
@@ -131,7 +149,15 @@ function checkAuthStatus() {
 function logout() {
     localStorage.removeItem('jwtToken');
     localStorage.removeItem('tokenExpiry');
-    window.location.href = 'auth/login.html';
+    // Dile göre login sayfasına yönlendir
+    const path = window.location.pathname;
+    if (path.includes('/en/')) {
+        window.location.href = '/en/auth/login.html';
+    } else if (path.includes('/tr/')) {
+        window.location.href = '/tr/auth/login.html';
+    } else {
+        window.location.href = '/';
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {

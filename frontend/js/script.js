@@ -26,6 +26,42 @@ let remainingLife = 5;
 let gameStartMs = Date.now();
 let scoreSent = false;
 
+// Valid words set - local dosyadan yüklenir
+let validWords = new Set();
+
+// URL'den dil algıla: /en/game.html → "en", /tr/game.html → "tr"
+function detectLanguage() {
+    const path = window.location.pathname;
+    if (path.includes('/tr/')) return 'tr';
+    if (path.includes('/en/')) return 'en';
+    return 'en'; // default
+}
+
+const LANG = detectLanguage();
+console.log('Language:', LANG);
+
+// Türkçe için doğru uppercase (i→İ, ı→I)
+function toUpper(str) {
+    if (LANG === 'tr') {
+        return str.toLocaleUpperCase('tr-TR');
+    }
+    return str.toUpperCase();
+}
+
+// Kelime listesini yükle
+async function loadValidWords() {
+    try {
+        const file = LANG === 'tr' ? '/words_tr_possible.txt' : '/words_en_possible.txt';
+        const res = await fetch(file);
+        const text = await res.text();
+        const words = text.split('\n').map(w => toUpper(w.trim())).filter(w => w.length === 5);
+        validWords = new Set(words);
+        console.log(`Loaded ${validWords.size} valid words for ${LANG}`);
+    } catch (e) {
+        console.error('Failed to load valid words:', e);
+    }
+}
+
 // Account dropdown functionality
 if (accountBtn && accountDropdown) {
     accountBtn.addEventListener("click", () => {
@@ -150,8 +186,11 @@ async function init() {
         return;
     }
 
+    // Valid words listesini yükle
+    await loadValidWords();
+
     const today = await getTodaysWord();
-    let CORRECT_WORD = today.word.toUpperCase();
+    let CORRECT_WORD = toUpper(today.word);
     let DEFINITION = today.definition;
     console.log(CORRECT_WORD);
     console.log(today.definition);
@@ -161,7 +200,7 @@ async function init() {
         return;
     }
 
-    let inputLetter = event.target.textContent?.trim().toUpperCase();
+    let inputLetter = toUpper(event.target.textContent?.trim() || '');
     if (!inputLetter) return;
 
     if (isLetter(inputLetter)) {
@@ -187,7 +226,7 @@ async function init() {
             //Do nothing
             return;
         }
-        inputLetter = event.key.toUpperCase();
+        inputLetter = toUpper(event.key);
         if (isLetter(inputLetter)) {
             addLetter(inputLetter);
         }
@@ -208,21 +247,53 @@ async function init() {
 
     });
 
-    const hintButton = document.querySelector(".hint-button");
-    if (hintButton) {
+    // Hint system - only for English Practice mode
+    const hintButton = document.getElementById("hint-btn");
+    const hintEnablePopup = document.getElementById("hint-enable-popup");
+    const hintDisplayPopup = document.getElementById("hint-display-popup");
+    const hintEnableBtn = document.getElementById("hint-enable-btn");
+    const hintCancelBtn = document.getElementById("hint-cancel-btn");
+    let hintsEnabled = false;
+
+    if (hintButton && LANG === 'en') {
         hintButton.addEventListener("click", () => {
-            const popup = document.querySelector(".hint-popup");
-            const hintText = document.querySelector(".hint-text");
-            if (hintText) hintText.textContent = DEFINITION;
-            if (popup) popup.classList.remove("hidden");
+            if (!hintsEnabled) {
+                // Show enable confirmation popup
+                if (hintEnablePopup) hintEnablePopup.classList.remove("hidden");
+            } else {
+                // Show hint
+                const hintText = hintDisplayPopup?.querySelector(".hint-text");
+                if (hintText) hintText.textContent = DEFINITION;
+                if (hintDisplayPopup) hintDisplayPopup.classList.remove("hidden");
+            }
         });
     }
 
-    const hintOkButton = document.querySelector(".hint-ok-button");
+    // Hint enable button
+    if (hintEnableBtn) {
+        hintEnableBtn.addEventListener("click", () => {
+            hintsEnabled = true;
+            if (hintButton) hintButton.classList.remove("hint-disabled");
+            if (hintEnablePopup) hintEnablePopup.classList.add("hidden");
+            // Show the hint immediately after enabling
+            const hintText = hintDisplayPopup?.querySelector(".hint-text");
+            if (hintText) hintText.textContent = DEFINITION;
+            if (hintDisplayPopup) hintDisplayPopup.classList.remove("hidden");
+        });
+    }
+
+    // Hint cancel button
+    if (hintCancelBtn) {
+        hintCancelBtn.addEventListener("click", () => {
+            if (hintEnablePopup) hintEnablePopup.classList.add("hidden");
+        });
+    }
+
+    // Hint display OK button
+    const hintOkButton = hintDisplayPopup?.querySelector(".hint-ok-button");
     if (hintOkButton) {
         hintOkButton.addEventListener("click", () => {
-            const popup = document.querySelector(".hint-popup");
-            if (popup) popup.classList.add("hidden");
+            if (hintDisplayPopup) hintDisplayPopup.classList.add("hidden");
         });
     }
 
@@ -275,17 +346,17 @@ init();
 
 
 async function getTodaysWord() {
-    // Use relative path for nginx proxy, fallback to direct backend URL for local development
-    const apiUrl = window.location.hostname === 'localhost' && window.location.port === '5500' 
-        ? "http://localhost:8091/api/word" 
-        : "/api/word";
+    // Practice mode: Her refresh yeni random kelime
+    const baseUrl = window.location.hostname === 'localhost' && window.location.port === '5500' 
+        ? "http://localhost:8091" 
+        : "";
+    const apiUrl = `${baseUrl}/api/word/random?lang=${LANG}`;
     const res = await fetch(apiUrl);
     const data = await res.json();
     return {
-        word: data.word.toUpperCase(),
+        word: toUpper(data.word),
         definition: data.definition
     };
-    //TODO format kontrolü we try-catch eklenecek hata olursa getLocalWordFallback() fonksiyonu çağırılacak.
 }
 
 
@@ -299,7 +370,8 @@ function getLocalWordFallback() {
 }
 
 function isLetter(letter) {
-    return /^[a-zA-Z]$/.test(letter);
+    // İngilizce ve Türkçe harfler
+    return /^[a-zA-ZçÇğĞıİöÖşŞüÜ]$/.test(letter);
 }
 
 function addLetter(letter) {
@@ -329,48 +401,70 @@ async function validateWord(currentGuess) {
 
 
 
-async function commit(CORRECT_WORD, DEF_TEXT) {
-
-    //TODO check commit function.
-
-
-    loading(true);
-    const response = await fetch("https://words.dev-apis.com/validate-word", {
-        method: "POST",
-        body: JSON.stringify(
-            {
-                "word": currentGuess
+// Klavye tuşunu güncelle (renk önceliği: correct > close > wrong)
+function updateKeyboardKey(letter, status) {
+    const keys = document.querySelectorAll(".key");
+    for (const key of keys) {
+        if (toUpper(key.textContent.trim()) === toUpper(letter)) {
+            // Öncelik kontrolü: correct > close > wrong
+            if (status === "correct") {
+                // Correct her zaman uygulanır
+                key.classList.remove("close", "wrong");
+                key.classList.add("correct");
+            } else if (status === "close") {
+                // Close sadece correct değilse uygulanır
+                if (!key.classList.contains("correct")) {
+                    key.classList.remove("wrong");
+                    key.classList.add("close");
+                }
+            } else if (status === "wrong") {
+                // Wrong sadece close veya correct değilse uygulanır
+                if (!key.classList.contains("correct") && !key.classList.contains("close")) {
+                    key.classList.add("wrong");
+                }
             }
-        )
-    })
-    loading(false);
+            break;
+        }
+    }
+}
+
+async function commit(CORRECT_WORD, DEF_TEXT) {
+    // Local validation - API kullanmıyoruz
+    const isItValid = validWords.has(toUpper(currentGuess));
     
     let map = makeMap(CORRECT_WORD);
-    const responsedData = await response.json();
-    const isItValid = responsedData.validWord;
-    console.log(isItValid);
 
+    // Harf durumlarını sakla (önce correct'ları işle)
+    let letterStatuses = [];
 
     if (isItValid && currentGuess.length === ANSWER_LENGTH) {
+        // Önce correct olanları bul
         for (let i = 0; i < ANSWER_LENGTH; i++) {
             if (currentGuess[i] === CORRECT_WORD[i]) {
                 letters[currentRow * ANSWER_LENGTH + i].classList.add("correct");
+                letterStatuses[i] = "correct";
                 map[CORRECT_WORD[i]]--;
             }
-
         }
+        // Sonra close ve wrong olanları bul
         for (let i = 0; i < ANSWER_LENGTH; i++) {
             if (currentGuess[i] === CORRECT_WORD[i]) {
+                // Zaten correct olarak işaretlendi
             }
             else if (CORRECT_WORD.includes(currentGuess[i]) && map[currentGuess[i]] != 0) {
                 letters[currentRow * ANSWER_LENGTH + i].classList.add("close");
-                map[CORRECT_WORD[i]]--;
-                console.log(map);
+                letterStatuses[i] = "close";
+                map[currentGuess[i]]--;
             }
             else {
                 letters[currentRow * ANSWER_LENGTH + i].classList.add("wrong");
-                console.log(map);
+                letterStatuses[i] = "wrong";
             }
+        }
+
+        // Klavye tuşlarını güncelle
+        for (let i = 0; i < ANSWER_LENGTH; i++) {
+            updateKeyboardKey(currentGuess[i], letterStatuses[i]);
         }
     }
     else if (!isItValid && currentGuess.length === ANSWER_LENGTH) {
@@ -426,28 +520,28 @@ function loading(status) {
 function winner(correctWord, definitionText) {
     brandName?.classList.add("winner");
     done = true;
-    if (resultText && resultDef && resultPopup) {
-        resultText.textContent = `Tebrikler! Kelime: ${correctWord}`;
-        resultDef.textContent  = `Anlam: ${definitionText}`;
+    if (resultText && resultPopup) {
+        if (LANG === 'tr') {
+            resultText.textContent = `Tebrikler! Kelime: ${correctWord}`;
+        } else {
+            resultText.textContent = `Congratulations! Word: ${correctWord}`;
+            if (resultDef) resultDef.textContent = `Meaning: ${definitionText}`;
+        }
         resultPopup.classList.remove("hidden");
     }
-
-    if(scoreSent) return;
-    scoreSent = true;
-
-    const durationMs = Date.now() - gameStartMs;
-    const attempts = TOTAL_TRIES - remainingLife;
-    const word = correctWord;
-
-    sendScore({ attempts, durationMs, word}).then(resp=> console.log("Score Saved:", resp));
+    // Practice mode: Skor kaydedilmez
 }
 
 function loser(correctWord, definitionText) {
     brandName?.classList.add("loser");
     done = true;
-    if (resultText && resultDef && resultPopup) {
-        resultText.textContent = `Game Over! Correct Word: ${capFirst(correctWord)}`; //TODO: capfirst çalışmıyor
-        resultDef.textContent  = `Meaning: ${definitionText}`;
+    if (resultText && resultPopup) {
+        if (LANG === 'tr') {
+            resultText.textContent = `Kaybettin! Kelime: ${capFirst(correctWord)}`;
+        } else {
+            resultText.textContent = `Game Over! Word: ${capFirst(correctWord)}`;
+            if (resultDef) resultDef.textContent = `Meaning: ${definitionText}`;
+        }
         resultPopup.classList.remove("hidden");
     }
 }

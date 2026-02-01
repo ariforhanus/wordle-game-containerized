@@ -99,7 +99,7 @@ public class AuthController {
 
             var user = users.findByUsername(req.getUsername())
                     .orElseThrow(() -> new UsernameNotFoundException("Kullanıcı bulunamadı."));
-            String token = jwt.generateToken(user.getId());
+            String token = jwt.generateToken(user.getId(), user.getUsername());
             return ResponseEntity.ok(new JwtResponse(token, jwtExpMs));
 
         } catch (BadCredentialsException ex){

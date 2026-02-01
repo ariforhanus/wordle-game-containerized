@@ -7,11 +7,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "scores", indexes = {
         @Index(name = "idx_scores_score_desc", columnList = "score"),
-        @Index(name = "idx_scores_won_at", columnList = "wonAt")
+        @Index(name = "idx_scores_won_at", columnList = "wonAt"),
+        @Index(name = "idx_scores_user_date_lang", columnList = "userId, playedAt, language")
 })
 public class Score {
 
@@ -19,10 +21,18 @@ public class Score {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    private Long userId;
+
     @NotBlank
     @Size(min = 2, max = 20)
     @Column(nullable = false, length = 20)
     private String username;
+
+    @NotBlank
+    @Size(min = 2, max = 5)
+    @Column(nullable = false, length = 5)
+    private String language = "en";  // en, tr
 
     @Min(1) @Max(6)
     @Column(nullable = false)
@@ -35,6 +45,9 @@ public class Score {
     private Instant wonAt = Instant.now();
 
     @Column(nullable = false)
+    private LocalDate playedAt = LocalDate.now();
+
+    @Column(nullable = false)
     private int score;
 
     @Size(max = 5)
@@ -42,12 +55,39 @@ public class Score {
 
     public Score(){}
 
-    public Score(String username, int attempts, long durationMs, int score, String word) {
+    public Score(Long userId, String username, String language, int attempts, long durationMs, int score, String word) {
+        this.userId = userId;
         this.username = username;
+        this.language = language;
         this.attempts = attempts;
         this.durationMs = durationMs;
         this.score = score;
         this.word = word;
+        this.playedAt = LocalDate.now();
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public LocalDate getPlayedAt() {
+        return playedAt;
+    }
+
+    public void setPlayedAt(LocalDate playedAt) {
+        this.playedAt = playedAt;
     }
 
     public Long getId() {

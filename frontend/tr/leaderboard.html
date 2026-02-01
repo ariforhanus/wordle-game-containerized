@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Günlük Skor Tablosu - Türkçe</title>
+    <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/svgs/solid/gamepad.svg">
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="brand">
+        <span class="mobile-logo">Wordle</span>
+        
+        <div class="burger">
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+
+        <div class="desktop-menu">
+            <ul>
+                <li><a href="game.html"><i class="fa-solid fa-gamepad"></i> Pratik</a></li>
+                <li><a href="daily.html"><i class="fa-solid fa-calendar-day"></i> Günlük</a></li>
+                <li><a href="leaderboard.html"><i class="fa-solid fa-trophy"></i> Skor Tablosu</a></li>
+                <li><a href="/en/leaderboard.html"><i class="fa-solid fa-globe"></i> EN</a></li>
+            </ul>
+        </div>
+
+        <div class="account-menu">
+            <button class="account-btn" id="accountBtn">
+                <i class="fa-solid fa-user"></i>
+            </button>
+            <div class="account-dropdown" id="accountDropdown">
+                <ul>
+                    <li class="guest-only"><a href="auth/login.html"><i class="fa-solid fa-sign-in-alt"></i> Giriş Yap</a></li>
+                    <li class="guest-only"><a href="auth/register.html"><i class="fa-solid fa-user-plus"></i> Kayıt Ol</a></li>
+                    <li class="user-info hidden" id="userInfo">
+                        <button class="logout-btn"><i class="fa-solid fa-sign-out-alt"></i> Çıkış Yap</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <nav class="fullscreen-menu hidden">
+        <button class="close-menu">&times;</button>
+        <ul>
+            <li class="auth-section">
+                <div class="auth-links">
+                    <a href="auth/login.html"><i class="fa-solid fa-sign-in-alt"></i> Giriş Yap</a>
+                    <a href="auth/register.html"><i class="fa-solid fa-user-plus"></i> Kayıt Ol</a>
+                </div>
+                <div class="user-info hidden" id="mobileUserInfo">
+                    <button class="logout-btn"><i class="fa-solid fa-sign-out-alt"></i> Çıkış Yap</button>
+                </div>
+            </li>
+            <li><a href="game.html"><i class="fa-solid fa-gamepad"></i> Pratik</a></li>
+            <li><a href="daily.html"><i class="fa-solid fa-calendar-day"></i> Günlük Meydan Okuma</a></li>
+            <li><a href="leaderboard.html"><i class="fa-solid fa-trophy"></i> Skor Tablosu</a></li>
+            <li><a href="/en/leaderboard.html"><i class="fa-solid fa-globe"></i> English</a></li>
+        </ul>
+    </nav>
+
+    <div class="leaderboard-page">
+        <div class="leaderboard-card">
+            <div class="leaderboard-title">
+                <i class="fa-solid fa-trophy"></i> Günlük Skorlar
+            </div>
+            <div class="leaderboard-subtitle">Bugün oynayanların skorları</div>
+
+            <div id="leaderboard-loading">Yükleniyor...</div>
+            
+            <!-- Play First Message -->
+            <div class="play-first-section hidden" id="play-first">
+                <div class="play-first-icon"><i class="fa-solid fa-lock"></i></div>
+                <p class="play-first-text">Skor tablosunu görmek için bugünün oyununu oyna!</p>
+                <a href="daily.html" class="play-first-btn">
+                    <i class="fa-solid fa-play"></i> Günlük Oyunu Oyna
+                </a>
+            </div>
+            
+            <table class="leaderboard-table hidden" id="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th class="leaderboard-rank">#</th>
+                        <th>Kullanıcı</th>
+                        <th>Skor</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body"></tbody>
+            </table>
+            <div class="leaderboard-empty hidden" id="leaderboard-empty">Bugün henüz skor yok.</div>
+        </div>
+    </div>
+
+    <script src="../js/script.js" defer></script>
+    <script src="../js/leaderboard.js" defer></script>
+</body>
+</html>

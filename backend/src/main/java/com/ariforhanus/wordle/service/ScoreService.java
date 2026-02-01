@@ -8,9 +8,11 @@ import com.ariforhanus.wordle.repository.ScoreRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,10 +28,21 @@ public class ScoreService {
         this.repo = repo;
     }
 
-    public ScoreResponse saveFor(String username, ScoreRequest req) {
+    /**
+     * Daily challenge için skor kaydet
+     */
+    public ScoreResponse saveForDaily(Long userId, String username, String language, ScoreRequest req) {
+        // Bugün bu dilde zaten oynadı mı kontrol et
+        Optional<Score> existing = repo.findByUserIdAndPlayedAtAndLanguage(userId, LocalDate.now(), language);
+        if (existing.isPresent()) {
+            throw new IllegalStateException("User already played today in " + language);
+        }
+        
         int score = calcScore(req.getAttempts(), req.getDurationMs());
         Score s = new Score(
+                userId,
                 username,
+                language,
                 req.getAttempts(),
                 req.getDurationMs(),
                 score,
@@ -39,18 +52,26 @@ public class ScoreService {
         return toResp(saved);
     }
 
-    public List<ScoreResponse> topGlobal(){
-        List<Score> list = repo.findTop10ByOrderByScoreDesc();
+    /**
+     * Kullanıcı bugün bu dilde daily challenge oynadı mı?
+     */
+    public Optional<ScoreResponse> getDailyStatus(Long userId, String language) {
+        return repo.findByUserIdAndPlayedAtAndLanguage(userId, LocalDate.now(), language)
+                .map(this::toResp);
+    }
+
+    public List<ScoreResponse> topGlobal(String language){
+        List<Score> list = repo.findTop10ByLanguageOrderByScoreDesc(language);
         return list.stream().map(this::toResp).collect(Collectors.toList());
     }
 
-    public List<ScoreResponse> dailyTop(int limit, ZoneId zone){
+    public List<ScoreResponse> dailyTop(String language, int limit, ZoneId zone){
         Instant start = ZonedDateTime.now(zone).toLocalDate().atStartOfDay(zone).toInstant();
         Instant end =  ZonedDateTime.now(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toInstant();
 
-        List<Score> list = repo.findTopDaily(start, end);
+        List<Score> list = repo.findTopDaily(language, start, end);
 
-        return list.stream().limit(10).map(this::toResp).collect(Collectors.toList());
+        return list.stream().limit(limit).map(this::toResp).collect(Collectors.toList());
     }
 
 
