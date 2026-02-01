@@ -33,7 +33,6 @@ class ScorServiceTest {
     @Test
     void save_shouldBuildEntity_callRepo_andReturnMappedResponse(){
         ScoreRequest req = new ScoreRequest();
-        req.setUsername("test");
         req.setAttempts(3);
         req.setDurationMs(1500L);
         req.setWord("TESTS");
@@ -47,7 +46,7 @@ class ScorServiceTest {
             return s;
         });
 
-        ScoreResponse resp = service.save(req);
+        ScoreResponse resp = service.saveFor("test", req);
 
         ArgumentCaptor<Score> captor = ArgumentCaptor.forClass(Score.class);
         verify(repo, times(1)).save(captor.capture());

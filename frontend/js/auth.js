@@ -1,5 +1,8 @@
 
-const API_BASE_URL = 'http://localhost:8091';
+// Use relative path for nginx proxy, fallback to direct backend URL for local development
+const API_BASE_URL = (window.location.hostname === 'localhost' && window.location.port === '5500') 
+    ? 'http://localhost:8091' 
+    : '';
 
 function showAlert(message, type = 'danger') {
     const alertContainer = document.getElementById('alertContainer');

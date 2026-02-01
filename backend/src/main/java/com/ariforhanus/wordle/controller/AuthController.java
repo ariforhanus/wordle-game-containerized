@@ -97,7 +97,9 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(req.getUsername(),req.getPassword());
             authManager.authenticate(authToken);
 
-            String token = jwt.generateToken(req.getUsername());
+            var user = users.findByUsername(req.getUsername())
+                    .orElseThrow(() -> new UsernameNotFoundException("Kullanıcı bulunamadı."));
+            String token = jwt.generateToken(user.getId());
             return ResponseEntity.ok(new JwtResponse(token, jwtExpMs));
 
         } catch (BadCredentialsException ex){
@@ -106,13 +108,17 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> me(@RequestHeader("Authorization") String authHeader){
+    public ResponseEntity<?> me(@RequestHeader(value = "Authorization", required = false) String authHeader){
         try {
-            String token = authHeader.replace("bearer ", "");
-
-            String username = jwt.extractUsername(token);
-
-            var user = users.findByUsername(username)
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(401).body(Map.of("error", "Geçersiz token"));
+            }
+            String token = authHeader.substring(7);
+            Long userId = jwt.extractUserId(token);
+            if (userId == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Geçersiz token"));
+            }
+            var user = users.findById(userId)
                     .orElseThrow(()-> new UsernameNotFoundException("Kullanıcı bulunamadı."));
 
             Map<String, Object> body = Map.of(

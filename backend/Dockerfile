@@ -1,6 +1,13 @@
-FROM public.ecr.aws/amazoncorretto/amazoncorretto:21
-        COPY target/application/ ./
-        COPY target/snapshot-dependencies/ ./
-        COPY target/spring-boot-loader/ ./
-        COPY target/dependencies/ ./
-        ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+# Multi-stage build: Build stage
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Runtime stage (Debian-based for better TLS compatibility)
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=build /app/target/wordle-0.0.1-SNAPSHOT.jar app.jar
+EXPOSE 8091
+ENTRYPOINT ["java", "-jar", "app.jar"]

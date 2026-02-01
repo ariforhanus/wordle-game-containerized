@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
     <title>Wordle</title>
+    <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/svgs/solid/gamepad.svg">
     <link rel="stylesheet" href="css/style.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link
@@ -24,7 +25,8 @@
   <!-- Masaüstü Menü -->
   <div class="desktop-menu">
     <ul>
-      <li><a href="#"><i class="fa-solid fa-home"></i> Ana Sayfa</a></li>
+      <li><a href="game.html"><i class="fa-solid fa-home"></i> Ana Sayfa</a></li>
+      <li><a href="leaderboard.html"><i class="fa-solid fa-trophy"></i> Skor Tablosu</a></li>
       <li><a href="#"><i class="fa-solid fa-lightbulb"></i> İpucu</a></li>
       <li><a href="#"><i class="fa-solid fa-info-circle"></i> Hakkında</a></li>
     </ul>
@@ -37,8 +39,8 @@
     </button>
     <div class="account-dropdown" id="accountDropdown">
       <ul>
-        <li><a href="auth/login.html"><i class="fa-solid fa-sign-in-alt"></i> Giriş Yap</a></li>
-        <li><a href="auth/register.html"><i class="fa-solid fa-user-plus"></i> Kayıt Ol</a></li>
+        <li class="guest-only"><a href="auth/login.html"><i class="fa-solid fa-sign-in-alt"></i> Giriş Yap</a></li>
+        <li class="guest-only"><a href="auth/register.html"><i class="fa-solid fa-user-plus"></i> Kayıt Ol</a></li>
         <li class="user-info hidden" id="userInfo">
           <button class="logout-btn"><i class="fa-solid fa-sign-out-alt"></i> Çıkış Yap</button>
         </li>
@@ -58,7 +60,8 @@
         <button class="logout-btn"><i class="fa-solid fa-sign-out-alt"></i> Çıkış Yap</button>
       </div>
     </li>
-    <li><a href="#"><i class="fa-solid fa-home"></i> Ana Sayfa</a></li>
+    <li><a href="game.html"><i class="fa-solid fa-home"></i> Ana Sayfa</a></li>
+    <li><a href="leaderboard.html"><i class="fa-solid fa-trophy"></i> Skor Tablosu</a></li>
     <li><a href="#"><i class="fa-solid fa-lightbulb"></i> İpucu</a></li>
     <li><a href="#"><i class="fa-solid fa-info-circle"></i> Hakkında</a></li>
   </ul>

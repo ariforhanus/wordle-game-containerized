@@ -22,13 +22,13 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String username){
+    public String generateToken(Long userId){
         Date now= new Date();
         long expirationMs = Long.parseLong(expirationTime);
         Date exp= new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
-                .subject(username)
+                .subject(String.valueOf(userId))
                 .issuedAt(now)
                 .expiration(exp)
                 .signWith(signingKey())
@@ -36,23 +36,18 @@ public class JwtUtil {
 
     }
 
-    public String extractUsername(String token){
-        return claims(token).getSubject();
+    public Long extractUserId(String token){
+        String sub = claims(token).getSubject();
+        try{
+            return Long.parseLong(sub);
+        } catch (NumberFormatException e){
+            return null;
+        }
     }
 
     public boolean isValid(String token){
         try{
             return claims(token).getExpiration().after(new Date());
-        } catch (Exception e){
-            return false;
-        }
-    }
-
-    public boolean validate(String token, String expectedUsername){
-        try{
-            Claims c = claims(token);
-            return expectedUsername.equals(c.getSubject())
-                    && c.getExpiration().after(new Date());
         } catch (Exception e){
             return false;
         }

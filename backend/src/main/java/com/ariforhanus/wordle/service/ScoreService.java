@@ -26,10 +26,6 @@ public class ScoreService {
         this.repo = repo;
     }
 
-    public ScoreResponse save(ScoreRequest req) {
-        return saveFor(req.getUsername(), req);
-    }
-
     public ScoreResponse saveFor(String username, ScoreRequest req) {
         int score = calcScore(req.getAttempts(), req.getDurationMs());
         Score s = new Score(

@@ -40,12 +40,8 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(reg -> reg
-                        .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/api/word").permitAll()
-                        .requestMatchers("/api/scores").permitAll()
-                        .requestMatchers("/api/leaderboard/**").permitAll()
-                        .requestMatchers("/api/submit").permitAll()
-                        .anyRequest().authenticated()
+                        .requestMatchers("/auth/**", "/api/**").permitAll()
+                        .anyRequest().permitAll()
                 )
                 .userDetailsService(uds);
         System.out.println("SecurityConfig: Security configured successfully");
@@ -55,7 +51,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5500", "http://127.0.0.1:5500"));
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:5500",
+            "http://127.0.0.1:5500",
+            "http://localhost:80",
+            "http://127.0.0.1:80",
+            "http://localhost",
+            "http://wordle-frontend"
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

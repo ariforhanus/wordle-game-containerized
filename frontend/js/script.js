@@ -68,46 +68,87 @@ if (mobileLogoutBtn) {
 }
 
 // Update account menu based on authentication status
-function updateAccountMenu() {
+async function updateAccountMenu() {
     const token = localStorage.getItem("jwtToken");
-    
-    if (token) {
-        // User is logged in - show logout, hide login/register
-        try {
-            const payload = token.split('.')[1];
-            const decodedPayload = JSON.parse(atob(payload));
-            const username = decodedPayload.sub;
-            
-            // Desktop: show logout
-            if (userInfo) userInfo.classList.remove("hidden");
-            
-            // Mobile: show logout
-            if (mobileUserInfo) mobileUserInfo.classList.remove("hidden");
-            
-            // Hide login/register links everywhere
-            const authLinks = document.querySelector('.auth-links');
-            if (authLinks) authLinks.style.display = 'none';
-            
-        } catch (error) {
-            console.error("Token decode error:", error);
-            // Token geçersizse temizle
-            localStorage.removeItem("jwtToken");
-            localStorage.removeItem("tokenExpiry");
-            updateAccountMenu(); // Tekrar çağır
-        }
-    } else {
-        // User is not logged in - show login/register, hide logout
+    const authLinks = document.querySelector('.auth-links');
+    const guestOnlyItems = document.querySelectorAll('.guest-only');
+
+    if (!token) {
         if (userInfo) userInfo.classList.add("hidden");
         if (mobileUserInfo) mobileUserInfo.classList.add("hidden");
-        
-        // Show login/register links everywhere
-        const authLinks = document.querySelector('.auth-links');
         if (authLinks) authLinks.style.display = 'flex';
+        guestOnlyItems.forEach((el) => {
+            el.style.display = "";
+        });
+        return;
+    }
+
+    try {
+        const apiBase = (window.location.hostname === 'localhost' && window.location.port === '5500')
+            ? 'http://localhost:8091'
+            : '';
+        const res = await fetch(`${apiBase}/auth/me`, {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        });
+
+        if (!res.ok) {
+            throw new Error("Auth check failed");
+        }
+
+        if (userInfo) userInfo.classList.remove("hidden");
+        if (mobileUserInfo) mobileUserInfo.classList.remove("hidden");
+        if (authLinks) authLinks.style.display = 'none';
+        guestOnlyItems.forEach((el) => {
+            el.style.display = "none";
+        });
+    } catch (error) {
+        console.error("Auth check error:", error);
+        localStorage.removeItem("jwtToken");
+        localStorage.removeItem("tokenExpiry");
+        if (userInfo) userInfo.classList.add("hidden");
+        if (mobileUserInfo) mobileUserInfo.classList.add("hidden");
+        if (authLinks) authLinks.style.display = 'flex';
+        guestOnlyItems.forEach((el) => {
+            el.style.display = "";
+        });
     }
 }
 
 
+function setupMobileMenu() {
+    const burger = document.querySelector(".burger");
+    const fullscreenMenu = document.querySelector(".fullscreen-menu");
+    const closeBtn = document.querySelector(".close-menu");
+
+    if (burger && fullscreenMenu) {
+        burger.addEventListener("click", () => {
+            fullscreenMenu.classList.remove("hidden");
+            fullscreenMenu.classList.add("show");
+        });
+    }
+
+    if (closeBtn && fullscreenMenu) {
+        closeBtn.addEventListener("click", () => {
+            fullscreenMenu.classList.remove("show");
+            setTimeout(() => {
+                fullscreenMenu.classList.add("hidden");
+            }, 300); // transition süresi kadar
+        });
+    }
+}
+
+setupMobileMenu();
+
 async function init() {
+
+    // If this is not the game page, only update the account menu.
+    const keyboard = document.querySelector(".keyboard");
+    if (!keyboard) {
+        updateAccountMenu();
+        return;
+    }
 
     const today = await getTodaysWord();
     let CORRECT_WORD = today.word.toUpperCase();
@@ -115,7 +156,7 @@ async function init() {
     console.log(CORRECT_WORD);
     console.log(today.definition);
 
-    document.querySelector(".keyboard").addEventListener("click", function (event) {
+    keyboard.addEventListener("click", function (event) {
     if (done || isLoading) {
         return;
     }
@@ -167,32 +208,24 @@ async function init() {
 
     });
 
-        document.querySelector(".hint-button").addEventListener("click", () => {
-        const popup = document.querySelector(".hint-popup");
-        const hintText = document.querySelector(".hint-text");
-        hintText.textContent = DEFINITION;
-        popup.classList.remove("hidden");
-    });
+    const hintButton = document.querySelector(".hint-button");
+    if (hintButton) {
+        hintButton.addEventListener("click", () => {
+            const popup = document.querySelector(".hint-popup");
+            const hintText = document.querySelector(".hint-text");
+            if (hintText) hintText.textContent = DEFINITION;
+            if (popup) popup.classList.remove("hidden");
+        });
+    }
 
-    document.querySelector(".hint-ok-button").addEventListener("click", () => {
-        document.querySelector(".hint-popup").classList.add("hidden");
-    });
+    const hintOkButton = document.querySelector(".hint-ok-button");
+    if (hintOkButton) {
+        hintOkButton.addEventListener("click", () => {
+            const popup = document.querySelector(".hint-popup");
+            if (popup) popup.classList.add("hidden");
+        });
+    }
 
-        const burger = document.querySelector(".burger");
-    const fullscreenMenu = document.querySelector(".fullscreen-menu");
-    const closeBtn = document.querySelector(".close-menu");
-
-    burger.addEventListener("click", () => {
-        fullscreenMenu.classList.remove("hidden");
-        fullscreenMenu.classList.add("show");
-    });
-
-    closeBtn.addEventListener("click", () => {
-        fullscreenMenu.classList.remove("show");
-        setTimeout(() => {
-            fullscreenMenu.classList.add("hidden");
-        }, 300); // transition süresi kadar
-    });
 
     if (playAgainBtn) {
         playAgainBtn.addEventListener("click", () => {
@@ -242,7 +275,11 @@ init();
 
 
 async function getTodaysWord() {
-    const res = await fetch("http://localhost:8091/api/word");
+    // Use relative path for nginx proxy, fallback to direct backend URL for local development
+    const apiUrl = window.location.hostname === 'localhost' && window.location.port === '5500' 
+        ? "http://localhost:8091/api/word" 
+        : "/api/word";
+    const res = await fetch(apiUrl);
     const data = await res.json();
     return {
         word: data.word.toUpperCase(),
@@ -423,20 +460,17 @@ async function sendScore({attempts, durationMs, word}){
     }
 
     try{
-        // JWT token'dan username'i al
-        const username = extractUsernameFromToken(token);
-        if(!username) {
-            console.error("Username token'dan alınamadı");
-            return;
-        }
-
-        const res = await fetch("http://localhost:8091/api/scores", {
+        // Use relative path for nginx proxy, fallback to direct backend URL for local development
+        const apiUrl = window.location.hostname === 'localhost' && window.location.port === '5500' 
+            ? "http://localhost:8091/api/scores" 
+            : "/api/scores";
+        const res = await fetch(apiUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": "Bearer " + token
             },
-            body: JSON.stringify({username, attempts, durationMs, word })
+            body: JSON.stringify({attempts, durationMs, word })
         });
 
         if(!res.ok){
@@ -446,19 +480,6 @@ async function sendScore({attempts, durationMs, word}){
         return await res.json().catch(()=>({}));
     }catch (err){
         console.error("Score post error: ", err);
-        return null;
-    }
-}
-
-// JWT token'dan username'i çıkar
-function extractUsernameFromToken(token) {
-    try {
-        // JWT token'ı decode et (payload kısmını al)
-        const payload = token.split('.')[1];
-        const decodedPayload = JSON.parse(atob(payload));
-        return decodedPayload.sub; // JWT'de username 'sub' field'ında
-    } catch (error) {
-        console.error("Token decode error:", error);
         return null;
     }
 }

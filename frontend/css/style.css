@@ -98,6 +98,118 @@ h1 {
     font-size: 18px;
 }
 
+/* Leaderboard CTA */
+.leaderboard-cta {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 12px;
+}
+
+.leaderboard-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--dkblue);
+  color: var(--white);
+  text-decoration: none;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.leaderboard-btn:hover {
+  background: #0b273c;
+}
+
+/* Leaderboard page */
+.leaderboard-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 8px 16px 32px;
+}
+
+.leaderboard-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+  padding: 16px;
+}
+
+.leaderboard-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--black);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.leaderboard-subtitle {
+  color: var(--dkgray);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+  padding: 10px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--ltgray);
+}
+
+.leaderboard-table th {
+  color: var(--dkgray);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.leaderboard-rank {
+  width: 60px;
+}
+
+.leaderboard-empty {
+  text-align: center;
+  color: var(--dkgray);
+  padding: 24px 0;
+}
+
+/* Auth pages theme overrides */
+.auth-page .btn-primary {
+  background: var(--black);
+  border-color: var(--black);
+}
+
+.auth-page .btn-primary:hover,
+.auth-page .btn-primary:focus {
+  background: #111;
+  border-color: #111;
+}
+
+.auth-page .auth-link {
+  color: var(--black);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-page .auth-link:hover {
+  color: #111;
+  text-decoration: underline;
+}
+
+.auth-page .form-control:focus {
+  border-color: var(--black);
+  box-shadow: 0 0 0 0.2rem rgba(38, 38, 38, 0.25);
+}
+
 /* Account Menü */
 .account-menu {
     position: relative;

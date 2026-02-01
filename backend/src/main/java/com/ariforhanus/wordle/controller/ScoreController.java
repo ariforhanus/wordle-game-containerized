@@ -4,6 +4,7 @@ package com.ariforhanus.wordle.controller;
 import com.ariforhanus.wordle.dto.ScoreRequest;
 import com.ariforhanus.wordle.dto.ScoreResponse;
 import com.ariforhanus.wordle.jwt.JwtUtil;
+import com.ariforhanus.wordle.repository.UserRepository;
 import com.ariforhanus.wordle.service.ScoreService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +18,12 @@ import java.util.List;
 public class ScoreController {
     private final ScoreService service;
     private final JwtUtil jwt;
+    private final UserRepository users;
 
-    public ScoreController(ScoreService service, JwtUtil jwt) {
+    public ScoreController(ScoreService service, JwtUtil jwt, UserRepository users) {
         this.service = service;
         this.jwt = jwt;
+        this.users = users;
     }
 
 
@@ -39,7 +42,15 @@ public class ScoreController {
             return ResponseEntity.status(401).build();
         }
 
-        String username = jwt.extractUsername(token);
+        Long userId = jwt.extractUserId(token);
+        if (userId == null){
+            return ResponseEntity.status(401).build();
+        }
+        var user = users.findById(userId).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(401).build();
+        }
+        String username = user.getUsername();
 
         ScoreResponse saved = service.saveFor(username, req);
         return ResponseEntity.ok(saved);

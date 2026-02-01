@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 
 @Component
 public class RandomWordApiProvider{
-    private static final String RANDOM_WORD_API = "https://random-word-api.vercel.app/api?words=1&length=5";
+    private static final String RANDOM_WORD_API = "https://random-word-api.herokuapp.com/word?number=1&length=5";
 
     private static final Pattern FIVE_UPPER_ALPHA = Pattern.compile("^[A-Z]{5}$");
 
@@ -21,18 +21,20 @@ public class RandomWordApiProvider{
     }
 
     public String getRandomFiveLetterWord(){
-
+        try {
             String[] payload = restTemplate.getForObject(RANDOM_WORD_API, String[].class);
             String raw = (payload != null && payload.length > 0) ? payload[0] : null;
-
-
-            //TODO: null hata fırlatma
-            //TODO: format doğrulama (5 harf mi sadece A-Z mi?
-            //TODO: retry ve timeout hata yönetimi
-        return raw.trim().toUpperCase(Locale.ROOT);// ingilizce harf dönüşümü i -> I ielrde türkçe için new Locale("tr")
-
-
-
+            if (raw == null) {
+                return null;
+            }
+            String normalized = raw.trim().toUpperCase(Locale.ROOT);
+            if (!FIVE_UPPER_ALPHA.matcher(normalized).matches()) {
+                return null;
+            }
+            return normalized; // ingilizce harf dönüşümü i -> I ileride türkçe için new Locale("tr")
+        } catch (Exception e) {
+            return null;
+        }
     }
 
 }
