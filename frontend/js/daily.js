@@ -34,11 +34,15 @@ let gameStarted = false;
 let validWords = new Set();
 
 // URL'den dil algıla: /en/daily.html → "en", /tr/daily.html → "tr"
+// Genel kural: ilk segment 2 harf ise dil kodu kabul edilir (en, tr, de, fr ...)
 function detectLanguage() {
-    const path = window.location.pathname;
-    if (path.includes('/tr/')) return 'tr';
-    if (path.includes('/en/')) return 'en';
-    return 'en'; // default
+    const path = window.location.pathname; // örn: "/en/daily.html"
+    const match = path.match(/^\/([a-zA-Z]{2})\//);
+    if (match && match[1]) {
+        return match[1].toLowerCase();
+    }
+    // Dil segmenti yoksa veya okunamıyorsa varsayılan "en"
+    return 'en';
 }
 
 const LANG = detectLanguage();
@@ -55,8 +59,17 @@ function toUpper(str) {
 // Kelime listesini yükle
 async function loadValidWords() {
     try {
-        const file = LANG === 'tr' ? '/words_tr_possible.txt' : '/words_en_possible.txt';
-        const res = await fetch(file);
+        // Dil koduna göre dosya adı: words_<lang>_possible.txt
+        let file = `/words_${LANG}_possible.txt`;
+        let res = await fetch(file);
+
+        // Dosya bulunamazsa (örneğin yeni bir dil için henüz eklenmediyse) İngilizceye düş
+        if (!res.ok) {
+            console.warn(`Valid words file not found for lang=${LANG}, falling back to English.`);
+            file = '/words_en_possible.txt';
+            res = await fetch(file);
+        }
+
         const text = await res.text();
         const words = text.split('\n').map(w => toUpper(w.trim())).filter(w => w.length === 5);
         validWords = new Set(words);
