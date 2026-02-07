@@ -3,6 +3,9 @@ import { useParams, Link, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getTheme, type ThemeConfig } from "@wordle/engine";
 import { useGame } from "../hooks/useGame";
+import { useToast } from "./Toast";
+import { buildShareText, copyToClipboard } from "../utils/shareResult";
+import Confetti from "./Confetti";
 import Board from "./Board";
 import Keyboard from "./Keyboard";
 import "./ThemedGamePage.css";
@@ -24,6 +27,7 @@ export default function ThemedGamePage() {
 
 function ThemedGame({ theme }: { theme: ThemeConfig }) {
   const { t } = useTranslation();
+  const toastCtx = useToast();
 
   const [words, setWords] = useState<string[]>([]);
   const [answer, setAnswer] = useState("");
@@ -81,6 +85,9 @@ function ThemedGame({ theme }: { theme: ThemeConfig }) {
       setWon(false);
       setResultMsg(`${t("game.gameOver")} ${t("game.word")}: ${s.answer}`);
     },
+    onInvalidWord: () => {
+      toastCtx.warning(t("game.invalidWord"));
+    },
   });
 
   if (loading) {
@@ -89,6 +96,8 @@ function ThemedGame({ theme }: { theme: ThemeConfig }) {
 
   return (
     <div className="game-page themed-game-page">
+      <Confetti active={won} />
+
       {/* Theme header badge */}
       <div
         className="theme-badge"
@@ -115,6 +124,13 @@ function ThemedGame({ theme }: { theme: ThemeConfig }) {
           <div className="result-card">
             <p className="result-text">{resultMsg}</p>
             <div className="themed-result-actions">
+              <button className="btn-share" onClick={async () => {
+                const text = buildShareText(state, "themed", { themeName: theme.name });
+                const ok = await copyToClipboard(text);
+                if (ok) toastCtx.success(t("game.copied"));
+              }}>
+                <i className="fas fa-share-alt" /> {t("game.share")}
+              </button>
               <button className="btn-primary" onClick={pickNewWord}>
                 <i className="fas fa-redo" /> {t("themes.playAgain")}
               </button>

@@ -2,15 +2,85 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 10px 16px;
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - 64px);
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .game-page {
+    justify-content: center;
+    justify-content: safe center;
+  }
+}
+
+/* ── Game toolbar (help button etc.) ── */
+
+.game-toolbar {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #888);
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.2s;
+}
+
+.toolbar-btn:hover {
+  color: var(--accent, #3b82f6);
+}
+
+.toolbar-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  border-radius: 10px;
+  padding: 6px 14px;
+  border: 2px solid var(--cell-border, #d3d6da);
+  background: transparent;
+  color: var(--text-secondary, #888);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-toggle:hover {
+  border-color: var(--accent, #3b82f6);
+  color: var(--accent, #3b82f6);
+}
+
+.mode-toggle.active {
+  background: var(--accent-gradient, linear-gradient(135deg, #e84393, #a855f7));
+  border-color: transparent;
+  color: white;
+}
+
+.mode-toggle.active .toolbar-label {
+  color: white;
 }
 
 .page-center {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - 64px);
 }
 
 .spinner {
@@ -51,6 +121,9 @@
   max-width: 400px;
   width: 90%;
   box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .result-text {
@@ -63,6 +136,43 @@
   font-size: 1rem;
   color: var(--text-secondary, #555);
   margin-bottom: 20px;
+}
+
+/* ── Result actions row ── */
+
+.result-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.btn-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border: 2px solid var(--accent, #3b82f6);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--accent, #3b82f6);
+  font-size: 1rem;
+  font-weight: 800;
+  font-family: "Nunito", sans-serif;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+}
+
+.btn-share:hover {
+  background: var(--accent, #3b82f6);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.btn-share:active {
+  transform: translateY(0);
 }
 
 /* ── Hint button ── */

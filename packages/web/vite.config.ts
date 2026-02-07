@@ -10,6 +10,7 @@ export default defineConfig({
       includeAssets: [
         "words_en_possible.txt",
         "words_tr_possible.txt",
+        "themes/*.json",
       ],
       manifest: {
         name: "Wordle Game",
@@ -39,6 +40,25 @@ export default defineConfig({
         sourcemap: false,
         // Avoid terser by disabling SW minification
         mode: "development",
+        // Include word lists and theme data in precache
+        globPatterns: [
+          "**/*.{js,css,html,svg,png,ico,json,txt}",
+        ],
+        // Runtime caching for API calls: try network first, fall back to cache
+        runtimeCaching: [
+          {
+            urlPattern: /^https?:\/\/.*\/api\//,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "api-cache",
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60, // 1 hour
+              },
+              networkTimeoutSeconds: 5,
+            },
+          },
+        ],
       },
     }),
   ],

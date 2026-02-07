@@ -46,6 +46,19 @@ export function isAuthenticated(): boolean {
   return false;
 }
 
+/** Extract the username (sub) from the JWT without a library */
+export function getTokenUsername(): string | null {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(atob(payload));
+    return decoded.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── HTTP helpers ────────────────────────────────────────────
 
 export class ApiError extends Error {

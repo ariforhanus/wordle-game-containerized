@@ -9,6 +9,10 @@ interface KeyboardProps {
   onEnter: () => void;
   onBackspace: () => void;
   disabled?: boolean;
+  /** Hide key status colors (for blind mode) */
+  blindMode?: boolean;
+  /** Override language for keyboard layout (instead of i18n) */
+  lang?: string;
 }
 
 export default function Keyboard({
@@ -17,9 +21,11 @@ export default function Keyboard({
   onEnter,
   onBackspace,
   disabled,
+  blindMode,
+  lang: langOverride,
 }: KeyboardProps) {
   const { i18n } = useTranslation();
-  const langConfig = getLanguage(i18n.language);
+  const langConfig = getLanguage(langOverride ?? i18n.language);
   const rows = langConfig.keyboard;
 
   function handleClick(key: string) {
@@ -34,7 +40,7 @@ export default function Keyboard({
       {rows.map((row, i) => (
         <div key={i} className="keyboard-row">
           {row.map((key) => {
-            const status = keyboard[key];
+            const status = blindMode ? undefined : keyboard[key];
             const isSpecial = key === "ENTER" || key === "⌫";
             return (
               <button

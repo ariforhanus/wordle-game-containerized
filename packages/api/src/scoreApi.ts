@@ -18,6 +18,18 @@ export function getDailyLeaderboard(
   return get<ScoreResponse[]>(`/api/v1/leaderboard/daily?lang=${lang}`);
 }
 
+export function getWeeklyLeaderboard(
+  lang: string
+): Promise<ScoreResponse[]> {
+  return get<ScoreResponse[]>(`/api/v1/leaderboard/weekly?lang=${lang}`);
+}
+
+export function getMonthlyLeaderboard(
+  lang: string
+): Promise<ScoreResponse[]> {
+  return get<ScoreResponse[]>(`/api/v1/leaderboard/monthly?lang=${lang}`);
+}
+
 export function getMyStats(): Promise<UserStats> {
   return get<UserStats>(`/api/v1/stats/me`);
 }

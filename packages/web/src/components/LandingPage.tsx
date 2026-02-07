@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import HowToPlayModal from "./HowToPlayModal";
 import "./LandingPage.css";
 
 export default function LandingPage() {
@@ -7,6 +8,9 @@ export default function LandingPage() {
 
   return (
     <div className="landing">
+      {/* Auto-shows on first ever visit */}
+      <HowToPlayModal />
+
       <div className="landing-hero">
         <h1 className="landing-title">
           <i className="fas fa-gamepad" /> Wordle

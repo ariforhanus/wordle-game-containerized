@@ -4,6 +4,7 @@
   align-items: center;
   gap: 6px;
   margin: 20px auto;
+  perspective: 600px;
 }
 
 .board-row {
@@ -11,6 +12,7 @@
   gap: 6px;
 }
 
+/* ── Base cell ── */
 .cell {
   width: 58px;
   height: 58px;
@@ -23,17 +25,29 @@
   font-family: "Nunito", sans-serif;
   text-transform: uppercase;
   border-radius: 8px;
-  transition: transform 0.1s ease, border-color 0.15s ease;
   user-select: none;
   color: var(--cell-text, #1a1a2e);
   background: var(--cell-bg, transparent);
+  transition: border-color 0.15s ease;
 }
 
+/* ── Filled (typing) ── */
 .cell-filled {
   border-color: var(--cell-filled-border, #878a8c);
-  transform: scale(1.05);
 }
 
+/* Letter pop when typed */
+.cell-pop {
+  animation: cellPop 0.1s ease;
+}
+
+@keyframes cellPop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* ── Status colors (final state) ── */
 .cell-correct {
   background: var(--correct, #6aaa64);
   border-color: var(--correct, #6aaa64);
@@ -52,28 +66,63 @@
   color: white;
 }
 
-.flip {
-  animation: flipIn 0.4s ease;
+/* ── Blind mode cell (submitted but hidden) ── */
+.cell-blind {
+  background: var(--cell-blind-bg, #e2e3e5);
+  border-color: var(--cell-blind-border, #adb5bd);
+  color: var(--cell-text, #1a1a2e);
 }
 
-@keyframes flipIn {
-  0% { transform: rotateX(0deg); }
-  50% { transform: rotateX(90deg); }
-  100% { transform: rotateX(0deg); }
+[data-theme="dark"] .cell-blind,
+.dark .cell-blind {
+  background: #3a3a4e;
+  border-color: #555;
 }
 
+/* ── Reveal flip animation (staggered per cell) ── */
+.cell-reveal {
+  animation: tileFlipReveal 0.5s ease both;
+  /* animationDelay set inline per cell */
+}
+
+@keyframes tileFlipReveal {
+  0% {
+    transform: rotateX(0deg);
+  }
+  50% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
+}
+
+/* ── Shake (invalid word) ── */
 .shake {
   animation: shake 0.5s ease;
 }
 
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-6px); }
-  40% { transform: translateX(6px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(4px); }
+  20%  { transform: translateX(-6px); }
+  40%  { transform: translateX(6px); }
+  60%  { transform: translateX(-4px); }
+  80%  { transform: translateX(4px); }
 }
 
+/* ── Win bounce (after reveal) ── */
+.cell-win-bounce {
+  animation: winBounce 0.5s ease;
+}
+
+@keyframes winBounce {
+  0%   { transform: translateY(0); }
+  30%  { transform: translateY(-16px); }
+  60%  { transform: translateY(4px); }
+  100% { transform: translateY(0); }
+}
+
+/* ── Responsive ── */
 @media (max-width: 400px) {
   .cell {
     width: 50px;

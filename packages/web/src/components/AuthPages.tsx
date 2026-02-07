@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { authApi } from "@wordle/api";
+import { useToast } from "./Toast";
 import { COUNTRIES } from "../data/countries";
 import "./AuthPages.css";
 
@@ -10,6 +11,7 @@ export function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { login, loading } = useAuth();
+  const toastCtx = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,7 +31,8 @@ export function LoginPage() {
 
     const res = await login(username.trim(), password);
     if (res.success) {
-      navigate("/game");
+      toastCtx.success(t("auth.loginSuccess"));
+      navigate("/");
     } else {
       setError(t("auth.loginFail"));
     }
@@ -57,7 +60,7 @@ export function LoginPage() {
         />
 
         <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? "..." : t("auth.loginBtn")}
+          {loading ? <span className="btn-spinner" /> : t("auth.loginBtn")}
         </button>
 
         <p className="auth-switch">
@@ -72,6 +75,7 @@ export function RegisterPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { register, loading } = useAuth();
+  const toastCtx = useToast();
   const [form, setForm] = useState({
     username: "",
     email: "",
@@ -141,7 +145,8 @@ export function RegisterPage() {
           console.warn("Avatar upload failed:", err);
         }
       }
-      navigate("/game");
+      toastCtx.success(t("auth.registerSuccess"));
+      navigate("/");
     } else {
       setError(t("auth.registerFail"));
     }
@@ -223,7 +228,7 @@ export function RegisterPage() {
         />
 
         <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? "..." : t("auth.registerBtn")}
+          {loading ? <span className="btn-spinner" /> : t("auth.registerBtn")}
         </button>
 
         <p className="auth-switch">

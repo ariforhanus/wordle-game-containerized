@@ -9,6 +9,8 @@ import {
   type UserStats,
   type UserProfile,
 } from "@wordle/api";
+import { useToast } from "./Toast";
+import GuessDistribution from "./GuessDistribution";
 import { COUNTRIES } from "../data/countries";
 import "./UserPage.css";
 
@@ -156,6 +158,11 @@ export default function UserPage() {
         ))}
       </div>
 
+      {/* Guess distribution chart */}
+      {stats && (
+        <GuessDistribution distribution={stats.guessDistribution ?? {}} />
+      )}
+
       {/* Achievements popup */}
       {showAchievements && (
         <div className="modal-overlay" onClick={() => setShowAchievements(false)}>
@@ -213,6 +220,7 @@ function EditProfileModal({
   onSaved: () => void;
 }) {
   const { t, i18n } = useTranslation();
+  const toastCtx = useToast();
   const countries = COUNTRIES[i18n.language as "en" | "tr"] ?? COUNTRIES.en;
 
   const [form, setForm] = useState({
@@ -279,6 +287,7 @@ function EditProfileModal({
         }
       }
 
+      toastCtx.success(t("profile.saveSuccess"));
       onSaved();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "";
@@ -375,7 +384,7 @@ function EditProfileModal({
               {t("profile.cancel")}
             </button>
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? "..." : t("profile.save")}
+              {saving ? <span className="btn-spinner" /> : t("profile.save")}
             </button>
           </div>
         </form>

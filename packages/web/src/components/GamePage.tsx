@@ -3,12 +3,17 @@ import { useTranslation } from "react-i18next";
 import { wordApi } from "@wordle/api";
 import { toUpperCase, getLanguage } from "@wordle/engine";
 import { useGame } from "../hooks/useGame";
+import { useToast } from "./Toast";
+import { buildShareText, copyToClipboard } from "../utils/shareResult";
+import Confetti from "./Confetti";
+import HowToPlayModal from "./HowToPlayModal";
 import Board from "./Board";
 import Keyboard from "./Keyboard";
 import "./GamePage.css";
 
 export default function GamePage() {
   const { t, i18n } = useTranslation();
+  const toastCtx = useToast();
   const lang = i18n.language;
 
   const [answer, setAnswer] = useState("");
@@ -16,15 +21,45 @@ export default function GamePage() {
   const [validWords, setValidWords] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [resultMsg, setResultMsg] = useState<string | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
+  const [hardMode, setHardMode] = useState(() =>
+    localStorage.getItem("wordle_hard_mode") === "1"
+  );
+  const [blindMode, setBlindMode] = useState(false);
 
   // Hint state
   const [hintsEnabled, setHintsEnabled] = useState(false);
   const [showHintConfirm, setShowHintConfirm] = useState(false);
   const [showHintText, setShowHintText] = useState(false);
 
+  // Offline fallback: pick random word from local word list
+  const pickOfflineWord = useCallback(async () => {
+    try {
+      let res = await fetch(`/words_${lang}_possible.txt`);
+      if (!res.ok) res = await fetch("/words_en_possible.txt");
+      const text = await res.text();
+      const words = text
+        .split("\n")
+        .map((w) => toUpperCase(w.trim(), lang))
+        .filter((w) => w.length === 5);
+      if (words.length > 0) {
+        const word = words[Math.floor(Math.random() * words.length)];
+        setAnswer(word);
+        setDefinition("");
+        return true;
+      }
+    } catch {
+      // No fallback available
+    }
+    return false;
+  }, [lang]);
+
   const loadWord = useCallback(async () => {
     setLoading(true);
     setResultMsg(null);
+    setShowConfetti(false);
     setHintsEnabled(false);
     setShowHintConfirm(false);
     setShowHintText(false);
@@ -33,11 +68,15 @@ export default function GamePage() {
       setAnswer(toUpperCase(data.word, lang));
       setDefinition(data.definition);
     } catch (err) {
-      console.error("Failed to load word:", err);
+      console.error("Failed to load word from API, trying offline fallback:", err);
+      const ok = await pickOfflineWord();
+      if (!ok) {
+        toastCtx.error("Could not load word. Check your connection.");
+      }
     } finally {
       setLoading(false);
     }
-  }, [lang]);
+  }, [lang, pickOfflineWord, toastCtx]);
 
   // Load valid words list
   useEffect(() => {
@@ -64,12 +103,49 @@ export default function GamePage() {
     loadWord();
   }, [loadWord]);
 
+  function toggleHardMode() {
+    if (state.guesses.length > 0) {
+      toastCtx.warning(t("game.hardModeLocked"));
+      return;
+    }
+    setHardMode((prev) => {
+      const next = !prev;
+      localStorage.setItem("wordle_hard_mode", next ? "1" : "0");
+      if (next && !localStorage.getItem("wordle_hard_intro_seen")) {
+        localStorage.setItem("wordle_hard_intro_seen", "1");
+        toastCtx.toast(t("game.hardModeFirstTime") as string, "info", 5000);
+      } else {
+        toastCtx.info(next ? t("game.hardModeOn") : t("game.hardModeOff"));
+      }
+      return next;
+    });
+  }
+
+  function toggleBlindMode() {
+    if (state.guesses.length > 0) {
+      toastCtx.warning(t("game.hardModeLocked"));
+      return;
+    }
+    setBlindMode((prev) => {
+      const next = !prev;
+      if (next && !localStorage.getItem("wordle_blind_intro_seen")) {
+        localStorage.setItem("wordle_blind_intro_seen", "1");
+        toastCtx.toast(t("game.blindModeFirstTime") as string, "info", 5000);
+      } else {
+        toastCtx.info(next ? t("game.blindModeOn") : t("game.blindModeOff"));
+      }
+      return next;
+    });
+  }
+
   const { state, addLetter, removeLetter, submit, shakeRow } = useGame({
     answer,
     definition,
     lang,
     validWords,
+    hardMode,
     onWin: (s) => {
+      setShowConfetti(true);
       setResultMsg(
         `${t("game.congrats")} ${t("game.word")}: ${s.answer}`
       );
@@ -79,7 +155,22 @@ export default function GamePage() {
         `${t("game.gameOver")} ${t("game.word")}: ${s.answer}`
       );
     },
+    onInvalidWord: () => {
+      toastCtx.warning(t("game.invalidWord"));
+    },
+    onHardModeError: (encoded) => {
+      const [key, paramsJson] = encoded.split("|");
+      const params = JSON.parse(paramsJson);
+      toastCtx.warning(t(key, params) as string);
+    },
   });
+
+  async function handleShare() {
+    let text = buildShareText(state, "practice");
+    if (hardMode) text = text.replace("\n\n", "*\n\n"); // asterisk for hard mode
+    const ok = await copyToClipboard(text);
+    if (ok) toastCtx.success(t("game.copied"));
+  }
 
   function handlePlayAgain() {
     loadWord();
@@ -109,6 +200,40 @@ export default function GamePage() {
 
   return (
     <div className="game-page">
+      <Confetti active={showConfetti} />
+      <HowToPlayModal
+        forceOpen={showHowToPlay}
+        manualOnly
+        onClose={() => setShowHowToPlay(false)}
+      />
+
+      {/* Toolbar */}
+      <div className="game-toolbar">
+        <button
+          className={`mode-toggle ${hardMode ? "active" : ""}`}
+          onClick={toggleHardMode}
+          title={t("game.hardMode")}
+        >
+          <i className="fas fa-fire" />
+          <span className="toolbar-label">{t("game.hardMode")}</span>
+        </button>
+        <button
+          className={`mode-toggle ${blindMode ? "active" : ""}`}
+          onClick={toggleBlindMode}
+          title={t("game.blindMode")}
+        >
+          <i className="fas fa-eye-slash" />
+          <span className="toolbar-label">{t("game.blindMode")}</span>
+        </button>
+        <button
+          className="toolbar-btn"
+          onClick={() => setShowHowToPlay(true)}
+          title={t("game.howToPlay")}
+        >
+          <i className="fas fa-question-circle" />
+        </button>
+      </div>
+
       {/* Hint button */}
       {hintAvailable && (
         <button
@@ -120,13 +245,14 @@ export default function GamePage() {
         </button>
       )}
 
-      <Board state={state} shakeRow={shakeRow} />
+      <Board state={state} shakeRow={shakeRow} blindMode={blindMode} />
       <Keyboard
         keyboard={state.keyboard}
         onKey={addLetter}
         onEnter={submit}
         onBackspace={removeLetter}
         disabled={state.status !== "playing"}
+        blindMode={blindMode && state.status === "playing"}
       />
 
       {/* Hint enable confirmation popup */}
@@ -176,9 +302,14 @@ export default function GamePage() {
                 {t("game.meaning")}: {definition}
               </p>
             )}
-            <button className="btn-primary" onClick={handlePlayAgain}>
-              {t("game.playAgain")}
-            </button>
+            <div className="result-actions">
+              <button className="btn-share" onClick={handleShare}>
+                <i className="fas fa-share-alt" /> {t("game.share")}
+              </button>
+              <button className="btn-primary" onClick={handlePlayAgain}>
+                {t("game.playAgain")}
+              </button>
+            </div>
           </div>
         </div>
       )}

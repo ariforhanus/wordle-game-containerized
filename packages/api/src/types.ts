@@ -54,6 +54,7 @@ export interface UserStats {
   gamesPerLanguage: Record<string, number>;
   currentStreak: number;
   bestStreak: number;
+  guessDistribution: Record<string, number>;
 }
 
 export interface LoginRequest {

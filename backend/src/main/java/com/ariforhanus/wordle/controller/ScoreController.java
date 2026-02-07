@@ -153,6 +153,30 @@ public class ScoreController {
         return ResponseEntity.ok(service.dailyTop(normalizedLang, 10, ZoneId.of("Europe/Istanbul")));
     }
 
+    @GetMapping("/leaderboard/weekly")
+    public ResponseEntity<List<ScoreResponse>> weekly(
+            @RequestParam(value = "lang", defaultValue = "en") String lang){
+        String normalizedLang;
+        try {
+            normalizedLang = SupportedLanguage.fromParam(lang).getCode();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(List.of());
+        }
+        return ResponseEntity.ok(service.weeklyTop(normalizedLang, 10, ZoneId.of("Europe/Istanbul")));
+    }
+
+    @GetMapping("/leaderboard/monthly")
+    public ResponseEntity<List<ScoreResponse>> monthly(
+            @RequestParam(value = "lang", defaultValue = "en") String lang){
+        String normalizedLang;
+        try {
+            normalizedLang = SupportedLanguage.fromParam(lang).getCode();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(List.of());
+        }
+        return ResponseEntity.ok(service.monthlyTop(normalizedLang, 10, ZoneId.of("Europe/Istanbul")));
+    }
+
     /**
      * Giriş yapmış kullanıcının basic istatistikleri.
      */

@@ -1,0 +1,130 @@
+.htp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.htp-card {
+  background: var(--card-bg, #fff);
+  border-radius: 16px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.htp-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  margin: 0 0 8px;
+}
+
+.htp-desc {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #555);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+/* ── Example rows ── */
+
+.htp-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.htp-example {
+  text-align: left;
+}
+
+.htp-tiles {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.htp-tile {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--cell-border, #d3d6da);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-family: "Nunito", sans-serif;
+  text-transform: uppercase;
+  border-radius: 6px;
+  color: var(--cell-text, #1a1a2e);
+  background: var(--cell-bg, transparent);
+}
+
+.htp-correct {
+  background: var(--correct, #6aaa64);
+  border-color: var(--correct, #6aaa64);
+  color: white;
+}
+
+.htp-present {
+  background: var(--present, #c9b458);
+  border-color: var(--present, #c9b458);
+  color: white;
+}
+
+.htp-absent {
+  background: var(--absent, #787c7e);
+  border-color: var(--absent, #787c7e);
+  color: white;
+}
+
+.htp-explain {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+  margin: 0;
+}
+
+.htp-explain strong {
+  color: var(--cell-text, #1a1a2e);
+}
+
+/* ── Button ── */
+
+.htp-btn {
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
+  display: block;
+}
+
+@media (max-width: 400px) {
+  .htp-card {
+    padding: 24px 18px;
+  }
+
+  .htp-tile {
+    width: 34px;
+    height: 34px;
+    font-size: 0.95rem;
+  }
+}

@@ -53,9 +53,9 @@ const TURKISH: LanguageConfig = {
   locale: "tr-TR",
   letterPattern: /^[a-zA-ZçÇğĞıİöÖşŞüÜ]$/,
   keyboard: [
-    ["E", "R", "T", "Y", "U", "I", "O", "P", "Ğ", "Ü"],
+    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "Ğ", "Ü"],
     ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Ş", "İ"],
-    ["ENTER", "Z", "C", "V", "B", "N", "M", "Ö", "Ç", "⌫"],
+    ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "Ö", "Ç", "⌫"],
   ],
   hasHints: false,
 };

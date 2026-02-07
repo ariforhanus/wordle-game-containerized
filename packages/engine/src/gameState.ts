@@ -101,6 +101,29 @@ export function submitGuess(
 }
 
 /**
+ * Replay a list of previously submitted guesses onto a fresh game state.
+ * Used to restore a game session from saved data.
+ * The validWords set is bypassed during replay (we trust saved guesses).
+ */
+export function replayGuesses(
+  state: GameState,
+  guesses: string[]
+): GameState {
+  let current = state;
+  // Create a permissive validWords set from the guesses themselves
+  const replaySet = new Set(guesses.map((g) => toUpperCase(g, state.lang)));
+  for (const guess of guesses) {
+    const upper = toUpperCase(guess, state.lang);
+    // Set current guess
+    current = { ...current, currentGuess: upper };
+    // Submit
+    const result = submitGuess(current, replaySet);
+    current = result.state;
+  }
+  return current;
+}
+
+/**
  * Get elapsed time in milliseconds since game started.
  */
 export function getElapsedMs(state: GameState): number {

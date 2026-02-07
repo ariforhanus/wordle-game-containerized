@@ -16,8 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.time.LocalDate;
-import java.util.stream.Collectors;
 
 @Service
 public class ScoreService {
@@ -78,6 +76,27 @@ public class ScoreService {
         return list.stream().limit(limit).map(this::toResp).collect(Collectors.toList());
     }
 
+    public List<ScoreResponse> weeklyTop(String language, int limit, ZoneId zone){
+        LocalDate today = ZonedDateTime.now(zone).toLocalDate();
+        // Go back to Monday of this week
+        LocalDate monday = today.with(java.time.DayOfWeek.MONDAY);
+        Instant start = monday.atStartOfDay(zone).toInstant();
+        Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
+
+        List<Score> list = repo.findTopDaily(language, start, end);
+        return list.stream().limit(limit).map(this::toResp).collect(Collectors.toList());
+    }
+
+    public List<ScoreResponse> monthlyTop(String language, int limit, ZoneId zone){
+        LocalDate today = ZonedDateTime.now(zone).toLocalDate();
+        LocalDate firstOfMonth = today.withDayOfMonth(1);
+        Instant start = firstOfMonth.atStartOfDay(zone).toInstant();
+        Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
+
+        List<Score> list = repo.findTopDaily(language, start, end);
+        return list.stream().limit(limit).map(this::toResp).collect(Collectors.toList());
+    }
+
     /**
      * Kullanıcının temel istatistiklerini döner.
      * Şu an için yalnızca kazandığı oyunlar kaydedildiğinden totalGames = totalWins kabul edilir.
@@ -85,7 +104,7 @@ public class ScoreService {
     public UserStatsResponse statsForUser(Long userId) {
         List<Score> all = repo.findByUserId(userId);
         if (all.isEmpty()) {
-            return new UserStatsResponse(0, 0, 0.0, 0.0, Map.of(), 0, 0);
+            return new UserStatsResponse(0, 0, 0.0, 0.0, Map.of(), 0, 0, Map.of());
         }
 
         long totalGames = all.size();
@@ -102,6 +121,10 @@ public class ScoreService {
         // Streak hesapla (kullanıcının tüm günleri üzerinden)
         StreakResult streak = calculateStreak(all);
 
+        // Guess distribution: kaçıncı denemede kazandı
+        Map<Integer, Long> guessDistribution = all.stream()
+                .collect(Collectors.groupingBy(Score::getAttempts, Collectors.counting()));
+
         return new UserStatsResponse(
                 totalGames,
                 bestScore,
@@ -109,7 +132,8 @@ public class ScoreService {
                 avgDurationSec,
                 perLang,
                 streak.currentStreak(),
-                streak.bestStreak()
+                streak.bestStreak(),
+                guessDistribution
         );
     }
 

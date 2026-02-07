@@ -14,8 +14,47 @@ interface UseGameOptions {
   definition: string;
   lang: string;
   validWords: Set<string>;
+  hardMode?: boolean;
   onWin?: (state: GameState) => void;
   onLose?: (state: GameState) => void;
+  onInvalidWord?: () => void;
+  onHardModeError?: (msg: string) => void;
+}
+
+/**
+ * Check hard-mode constraints: letters revealed as correct must stay in the
+ * same position, letters revealed as present must appear somewhere.
+ * Returns null if OK, or a translated error key + params if violated.
+ */
+function checkHardMode(
+  state: GameState,
+  guess: string
+): { key: string; params: Record<string, string> } | null {
+  for (const prev of state.guesses) {
+    for (let i = 0; i < prev.statuses.length; i++) {
+      const status = prev.statuses[i];
+      const letter = prev.guess[i];
+
+      if (status === "correct") {
+        // Must be in the same position
+        if (guess[i] !== letter) {
+          return {
+            key: "game.hardModeCorrect",
+            params: { pos: String(i + 1), letter },
+          };
+        }
+      } else if (status === "present") {
+        // Must appear somewhere in the guess
+        if (!guess.includes(letter)) {
+          return {
+            key: "game.hardModePresent",
+            params: { letter },
+          };
+        }
+      }
+    }
+  }
+  return null;
 }
 
 export function useGame({
@@ -23,8 +62,11 @@ export function useGame({
   definition,
   lang,
   validWords,
+  hardMode = false,
   onWin,
   onLose,
+  onInvalidWord,
+  onHardModeError,
 }: UseGameOptions) {
   const [state, setState] = useState<GameState>(() =>
     createGame(answer, definition, lang)
@@ -32,8 +74,14 @@ export function useGame({
   const [shakeRow, setShakeRow] = useState(false);
   const onWinRef = useRef(onWin);
   const onLoseRef = useRef(onLose);
+  const onInvalidWordRef = useRef(onInvalidWord);
+  const onHardModeErrorRef = useRef(onHardModeError);
+  const hardModeRef = useRef(hardMode);
   onWinRef.current = onWin;
   onLoseRef.current = onLose;
+  onInvalidWordRef.current = onInvalidWord;
+  onHardModeErrorRef.current = onHardModeError;
+  hardModeRef.current = hardMode;
 
   // Reset game when answer changes
   useEffect(() => {
@@ -60,11 +108,26 @@ export function useGame({
     setState((prev) => {
       if (prev.currentGuess.length !== prev.wordLength) return prev;
 
+      // Hard mode check
+      if (hardModeRef.current && prev.guesses.length > 0) {
+        const guess = toUpperCase(prev.currentGuess, prev.lang);
+        const violation = checkHardMode(prev, guess);
+        if (violation) {
+          setShakeRow(true);
+          setTimeout(() => setShakeRow(false), 600);
+          onHardModeErrorRef.current?.(
+            `${violation.key}|${JSON.stringify(violation.params)}`
+          );
+          return prev;
+        }
+      }
+
       const { state: next, error } = engineSubmitGuess(prev, validWords);
 
       if (error) {
         setShakeRow(true);
         setTimeout(() => setShakeRow(false), 600);
+        onInvalidWordRef.current?.();
         return prev;
       }
 
@@ -106,6 +169,7 @@ export function useGame({
 
   return {
     state,
+    setState,
     addLetter,
     removeLetter,
     submit,

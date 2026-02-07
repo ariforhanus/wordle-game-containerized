@@ -9,6 +9,7 @@ public record UserStatsResponse(
         double averageDurationSeconds,
         Map<String, Long> gamesPerLanguage,
         int currentStreak,
-        int bestStreak
+        int bestStreak,
+        Map<Integer, Long> guessDistribution
 ) {}
 

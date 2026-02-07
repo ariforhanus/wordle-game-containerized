@@ -277,6 +277,11 @@
   gap: 10px;
 }
 
+.edit-form .btn-primary {
+  align-self: center;
+  margin-top: 6px;
+}
+
 .edit-form label {
   font-weight: 700;
   font-size: 0.85rem;

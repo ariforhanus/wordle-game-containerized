@@ -19,6 +19,11 @@
   gap: 10px;
 }
 
+.auth-card .btn-primary {
+  align-self: center;
+  margin-top: 6px;
+}
+
 .auth-card h1 {
   font-size: 1.6rem;
   font-weight: 900;
@@ -74,4 +79,16 @@
 
 .auth-switch a:hover {
   text-decoration: underline;
+}
+
+/* Inline button spinner */
+.btn-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
 }

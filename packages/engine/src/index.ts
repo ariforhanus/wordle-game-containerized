@@ -27,6 +27,7 @@ export {
   addLetter,
   removeLetter,
   submitGuess,
+  replayGuesses,
   getElapsedMs,
   getAttempts,
 } from "./gameState.js";

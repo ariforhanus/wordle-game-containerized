@@ -6,6 +6,7 @@ export {
   saveToken,
   clearToken,
   isAuthenticated,
+  getTokenUsername,
   ApiError,
   get,
   post,
