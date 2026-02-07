@@ -10,6 +10,7 @@
     "login": "Giriş Yap",
     "register": "Kayıt Ol",
     "logout": "Çıkış Yap",
+    "themes": "Temalar",
     "backToGame": "Ana sayfaya dön",
     "switchLang": "EN"
   },
@@ -20,6 +21,9 @@
     "gameOver": "Kaybettin!",
     "invalidWord": "Geçerli bir kelime değil",
     "hint": "İpucu",
+    "hintConfirmTitle": "İpuçlarını etkinleştirmek istiyor musun?",
+    "hintConfirmDesc": "Kelimenin tanımını görebileceksin.",
+    "hintEnable": "Etkinleştir",
     "playAgain": "Tekrar Oyna",
     "enterGuess": "Tahmininizi girin"
   },
@@ -91,7 +95,11 @@
     "gamesInLang": "Oyun ({{lang}})",
     "seconds": "sn",
     "days": "gün",
-    "noStats": "İstatistiklerinizi görmek için birkaç oyun oynayın!"
+    "noStats": "İstatistiklerinizi görmek için birkaç oyun oynayın!",
+    "choosePhoto": "Fotoğraf Seç",
+    "avatarHint": "(en fazla 512KB, JPEG/PNG/WEBP)",
+    "usernameTaken": "Bu kullanıcı adı zaten alınmış.",
+    "saveError": "Kayıt sırasında bir hata oluştu."
   },
   "achievements": {
     "first_game": { "title": "İlk Adım", "desc": "İlk oyununuzu oynayın." },
@@ -105,8 +113,40 @@
     "multi_language": { "title": "Çok Dilli", "desc": "Birden fazla dilde oyun oynayın." },
     "lang_games_10": { "title": "Yerel Kahraman", "desc": "Bu dilde 10 oyun oynayın." }
   },
+  "themes": {
+    "title": "Temalar",
+    "pickTheme": "Bir tema seç ve kelimeyi tahmin et!",
+    "back": "Tüm Temalar",
+    "playAgain": "Tekrar Oyna",
+    "notFound": "Tema bulunamadı."
+  },
   "theme": {
     "dark": "Koyu Mod",
     "light": "Açık Mod"
+  },
+  "admin": {
+    "title": "Yönetim Paneli",
+    "dashboard": "Gösterge Paneli",
+    "users": "Kullanıcılar",
+    "words": "Kelimeler",
+    "totalUsers": "Toplam Kullanıcı",
+    "totalGames": "Toplam Oyun",
+    "todayPlayers": "Bugünkü Oyuncular",
+    "activeUsers": "Aktif (7g)",
+    "searchUsers": "Kullanıcı ara...",
+    "username": "Kullanıcı Adı",
+    "email": "E-posta",
+    "role": "Rol",
+    "joined": "Katılım",
+    "games": "Oyunlar",
+    "actions": "İşlemler",
+    "makeAdmin": "Admin Yap",
+    "makeUser": "User Yap",
+    "deleteUser": "Sil",
+    "confirmDelete": "Bu kullanıcıyı silmek istediğinize emin misiniz?",
+    "dailyWords": "Bugünkü Günlük Kelimeler",
+    "noAccess": "Admin erişiminiz yok.",
+    "back": "Uygulamaya Dön",
+    "nav": "Yönetim"
   }
 }

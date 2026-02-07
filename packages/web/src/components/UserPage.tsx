@@ -283,9 +283,9 @@ function EditProfileModal({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "";
       if (message.includes("USERNAME_TAKEN") || message.includes("409")) {
-        setMsg(i18n.language === "tr" ? "Bu kullanıcı adı zaten alınmış." : "This username is already taken.");
+        setMsg(t("profile.usernameTaken"));
       } else {
-        setMsg(i18n.language === "tr" ? "Kayıt sırasında bir hata oluştu." : "An error occurred.");
+        setMsg(t("profile.saveError"));
       }
       setMsgType("error");
     } finally {
@@ -314,7 +314,7 @@ function EditProfileModal({
               </div>
             )}
             <label className="edit-avatar-btn">
-              <i className="fas fa-camera" /> {i18n.language === "tr" ? "Fotoğraf Seç" : "Choose Photo"}
+              <i className="fas fa-camera" /> {t("profile.choosePhoto")}
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -324,7 +324,7 @@ function EditProfileModal({
               />
             </label>
             <small className="edit-avatar-hint">
-              {i18n.language === "tr" ? "(en fazla 512KB, JPEG/PNG/WEBP)" : "(max 512KB, JPEG/PNG/WEBP)"}
+              {t("profile.avatarHint")}
             </small>
           </div>
 

@@ -79,6 +79,74 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+/* ── Language dropdown (3+ languages, desktop) ── */
+
+.lang-dropdown {
+  position: relative;
+}
+
+.lang-trigger {
+  gap: 4px;
+}
+
+.lang-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--card-bg, white);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  min-width: 150px;
+  z-index: 200;
+  animation: dropIn 0.15s ease;
+}
+
+.lang-dropdown:hover .lang-dropdown-menu,
+.lang-dropdown:focus-within .lang-dropdown-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lang-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary, #1a1a2e);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: "Nunito", sans-serif;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+  width: 100%;
+}
+
+.lang-option:hover {
+  background: var(--accent-soft, rgba(59, 130, 246, 0.1));
+}
+
+.lang-option.active {
+  color: var(--accent, #3b82f6);
+  background: var(--accent-soft, rgba(59, 130, 246, 0.08));
+}
+
+.mobile-link-flag {
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+}
+
 /* ── Burger button ── */
 
 .burger {

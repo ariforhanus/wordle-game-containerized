@@ -45,7 +45,7 @@ export function useGame({
       setState((s) => {
         if (s.status !== "playing") return s;
         const upper = toUpperCase(letter, s.lang);
-        if (!isValidLetter(upper)) return s;
+        if (!isValidLetter(upper, s.lang)) return s;
         return engineAddLetter(s, upper);
       });
     },
@@ -88,7 +88,7 @@ export function useGame({
         submit();
       } else if (key === "Backspace") {
         removeLetter();
-      } else if (isValidLetter(key)) {
+      } else if (isValidLetter(key, state.lang)) {
         addLetter(key);
       }
     }

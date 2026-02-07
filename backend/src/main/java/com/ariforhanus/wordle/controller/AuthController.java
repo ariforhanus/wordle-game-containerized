@@ -98,7 +98,7 @@ public class AuthController {
 
         try {
             users.save(u);
-            String token = jwt.generateToken(u.getId(), u.getUsername());
+            String token = jwt.generateToken(u.getId(), u.getUsername(), u.getRole());
             response.put("success", true);
             response.put("message", "Kayıt başarılı!");
             response.put("token", token);
@@ -123,7 +123,7 @@ public class AuthController {
 
             var user = users.findByUsername(req.getUsername())
                     .orElseThrow(() -> new UsernameNotFoundException("Kullanıcı bulunamadı."));
-            String token = jwt.generateToken(user.getId(), user.getUsername());
+            String token = jwt.generateToken(user.getId(), user.getUsername(), user.getRole());
             return ResponseEntity.ok(new JwtResponse(token, jwtExpMs));
 
         } catch (BadCredentialsException ex){

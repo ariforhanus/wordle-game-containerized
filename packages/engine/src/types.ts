@@ -59,4 +59,10 @@ export const GAME_MODES: Record<string, GameMode> = {
     allowReplay: false,
     showTimer: true,
   },
+  themed: {
+    id: "themed",
+    trackScore: false,
+    allowReplay: true,
+    showTimer: false,
+  },
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { wordApi } from "@wordle/api";
-import { toUpperCase } from "@wordle/engine";
+import { toUpperCase, getLanguage } from "@wordle/engine";
 import { useGame } from "../hooks/useGame";
 import Board from "./Board";
 import Keyboard from "./Keyboard";
@@ -99,8 +99,9 @@ export default function GamePage() {
     setShowHintText(true);
   }
 
-  // Only show hint button for English (no Turkish definition API)
-  const hintAvailable = lang === "en" && state.status === "playing";
+  // Show hint button only for languages that have definition/hint support
+  const langConfig = getLanguage(lang);
+  const hintAvailable = langConfig.hasHints && state.status === "playing";
 
   if (loading && !answer) {
     return <div className="page-center"><div className="spinner" /></div>;
@@ -133,21 +134,17 @@ export default function GamePage() {
         <div className="result-overlay" onClick={() => setShowHintConfirm(false)}>
           <div className="result-card hint-card" onClick={(e) => e.stopPropagation()}>
             <p className="hint-confirm-text">
-              {lang === "tr"
-                ? "İpuçlarını etkinleştirmek istiyor musun?"
-                : "Do you want to enable hints?"}
+              {t("game.hintConfirmTitle")}
             </p>
             <p className="hint-confirm-sub">
-              {lang === "tr"
-                ? "Kelimenin tanımını görebileceksin."
-                : "You'll be able to see the word's definition."}
+              {t("game.hintConfirmDesc")}
             </p>
             <div className="hint-confirm-actions">
               <button className="btn-cancel" onClick={() => setShowHintConfirm(false)}>
-                {lang === "tr" ? "İptal" : "Cancel"}
+                {t("profile.cancel")}
               </button>
               <button className="btn-primary" onClick={handleEnableHints}>
-                {lang === "tr" ? "Etkinleştir" : "Enable"}
+                {t("game.hintEnable")}
               </button>
             </div>
           </div>

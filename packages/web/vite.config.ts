@@ -36,9 +36,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Disable minification to avoid terser issues in sandbox
-        mode: "production",
         sourcemap: false,
+        // Avoid terser by disabling SW minification
+        mode: "development",
       },
     }),
   ],

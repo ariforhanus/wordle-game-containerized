@@ -9,6 +9,8 @@ export {
   ApiError,
   get,
   post,
+  put,
+  del,
   postForm,
 } from "./client.js";
 
@@ -16,6 +18,7 @@ export {
 export * as wordApi from "./wordApi.js";
 export * as scoreApi from "./scoreApi.js";
 export * as authApi from "./authApi.js";
+export * as adminApi from "./adminApi.js";
 
 // Types
 export type {
@@ -31,3 +34,9 @@ export type {
 } from "./types.js";
 
 export { getAvatarDataUrl } from "./types.js";
+
+export type {
+  AdminStats,
+  AdminUser,
+  DailyWordInfo,
+} from "./adminApi.js";

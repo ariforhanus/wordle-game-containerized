@@ -1,4 +1,5 @@
 import type { LetterStatus, GuessResult } from "./types.js";
+import { getLanguage } from "./languages.js";
 
 /**
  * Build a frequency map of characters in a string.
@@ -46,20 +47,23 @@ export function evaluateGuess(guess: string, answer: string): GuessResult {
 }
 
 /**
- * Check if a character is a valid letter (including Turkish special chars).
+ * Check if a character is a valid letter for the given language.
+ * Uses the language config's letterPattern.
  */
-export function isValidLetter(ch: string): boolean {
+export function isValidLetter(ch: string, lang?: string): boolean {
+  if (lang) {
+    return getLanguage(lang).letterPattern.test(ch);
+  }
+  // Fallback: accept any letter from any configured language
   return /^[a-zA-ZçÇğĞıİöÖşŞüÜ]$/.test(ch);
 }
 
 /**
- * Uppercase a string, respecting Turkish locale rules.
+ * Uppercase a string, respecting the language's locale rules.
  */
 export function toUpperCase(str: string, lang: string): string {
-  if (lang === "tr") {
-    return str.toLocaleUpperCase("tr-TR");
-  }
-  return str.toUpperCase();
+  const config = getLanguage(lang);
+  return str.toLocaleUpperCase(config.locale);
 }
 
 /**

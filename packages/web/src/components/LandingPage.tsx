@@ -22,6 +22,9 @@ export default function LandingPage() {
           <Link to="/daily" className="btn-secondary btn-lg">
             <i className="fas fa-calendar-day" /> {t("nav.daily")}
           </Link>
+          <Link to="/themes" className="btn-secondary btn-lg">
+            <i className="fas fa-palette" /> {t("nav.themes")}
+          </Link>
         </div>
       </div>
     </div>

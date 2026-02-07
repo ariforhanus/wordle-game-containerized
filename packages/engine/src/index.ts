@@ -8,6 +8,19 @@ export type {
 } from "./types.js";
 export { GAME_MODES } from "./types.js";
 
+// Language configuration
+export type { LanguageConfig } from "./languages.js";
+export {
+  LANGUAGES,
+  LANGUAGE_CODES,
+  getLanguage,
+  DEFAULT_LANG,
+} from "./languages.js";
+
+// Theme configuration
+export type { ThemeConfig } from "./themes.js";
+export { THEMES, getTheme } from "./themes.js";
+
 // Game state management
 export {
   createGame,

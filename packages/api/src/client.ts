@@ -97,6 +97,20 @@ export function post<T>(path: string, body?: unknown): Promise<T> {
   });
 }
 
+export function put<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+export function del<T>(path: string): Promise<T> {
+  return request<T>(path, {
+    method: "DELETE",
+  });
+}
+
 export function postForm<T>(path: string, formData: FormData): Promise<T> {
   // Don't set Content-Type; browser will set multipart boundary
   return request<T>(path, {

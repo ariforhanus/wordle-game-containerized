@@ -10,6 +10,7 @@
     "login": "Login",
     "register": "Register",
     "logout": "Logout",
+    "themes": "Themes",
     "backToGame": "Back to game",
     "switchLang": "TR"
   },
@@ -20,6 +21,9 @@
     "gameOver": "Game Over!",
     "invalidWord": "Not a valid word",
     "hint": "Hint",
+    "hintConfirmTitle": "Do you want to enable hints?",
+    "hintConfirmDesc": "You'll be able to see the word's definition.",
+    "hintEnable": "Enable",
     "playAgain": "Play Again",
     "enterGuess": "Enter your guess"
   },
@@ -91,7 +95,11 @@
     "gamesInLang": "Games ({{lang}})",
     "seconds": "s",
     "days": "days",
-    "noStats": "Play some games to see your stats!"
+    "noStats": "Play some games to see your stats!",
+    "choosePhoto": "Choose Photo",
+    "avatarHint": "(max 512KB, JPEG/PNG/WEBP)",
+    "usernameTaken": "This username is already taken.",
+    "saveError": "An error occurred while saving."
   },
   "achievements": {
     "first_game": { "title": "First Step", "desc": "Play your first game." },
@@ -105,8 +113,40 @@
     "multi_language": { "title": "Bilingual", "desc": "Play in more than one language." },
     "lang_games_10": { "title": "Local Hero", "desc": "Play 10 games in this language." }
   },
+  "themes": {
+    "title": "Themes",
+    "pickTheme": "Pick a theme and guess the word!",
+    "back": "All Themes",
+    "playAgain": "Play Again",
+    "notFound": "Theme not found."
+  },
   "theme": {
     "dark": "Dark Mode",
     "light": "Light Mode"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "dashboard": "Dashboard",
+    "users": "Users",
+    "words": "Words",
+    "totalUsers": "Total Users",
+    "totalGames": "Total Games",
+    "todayPlayers": "Today's Players",
+    "activeUsers": "Active (7d)",
+    "searchUsers": "Search users...",
+    "username": "Username",
+    "email": "Email",
+    "role": "Role",
+    "joined": "Joined",
+    "games": "Games",
+    "actions": "Actions",
+    "makeAdmin": "Make Admin",
+    "makeUser": "Make User",
+    "deleteUser": "Delete",
+    "confirmDelete": "Are you sure you want to delete this user?",
+    "dailyWords": "Today's Daily Words",
+    "noAccess": "You don't have admin access.",
+    "back": "Back to App",
+    "nav": "Admin"
   }
 }

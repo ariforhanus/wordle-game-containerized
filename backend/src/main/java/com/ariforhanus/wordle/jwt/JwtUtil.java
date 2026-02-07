@@ -22,19 +22,24 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(Long userId, String username){
-        Date now= new Date();
+    public String generateToken(Long userId, String username, String role){
+        Date now = new Date();
         long expirationMs = Long.parseLong(expirationTime);
-        Date exp= new Date(now.getTime() + expirationMs);
+        Date exp = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("username", username)
+                .claim("role", role)
                 .issuedAt(now)
                 .expiration(exp)
                 .signWith(signingKey())
                 .compact();
+    }
 
+    /** Backward-compatible overload (defaults to USER role) */
+    public String generateToken(Long userId, String username){
+        return generateToken(userId, username, "USER");
     }
 
     public Long extractUserId(String token){
@@ -44,6 +49,15 @@ public class JwtUtil {
         } catch (NumberFormatException e){
             return null;
         }
+    }
+
+    public String extractUsername(String token){
+        return claims(token).get("username", String.class);
+    }
+
+    public String extractRole(String token){
+        String role = claims(token).get("role", String.class);
+        return role != null ? role : "USER";
     }
 
     public boolean isValid(String token){
@@ -60,6 +74,5 @@ public class JwtUtil {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-
     }
 }
