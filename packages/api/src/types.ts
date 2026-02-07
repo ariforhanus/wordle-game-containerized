@@ -7,6 +7,7 @@ export interface ScoreRequest {
   attempts: number;
   durationMs: number;
   word: string;
+  won: boolean;
 }
 
 export interface ScoreResponse {

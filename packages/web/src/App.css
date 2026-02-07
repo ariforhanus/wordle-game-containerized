@@ -78,6 +78,24 @@ body {
   min-height: 100%;
 }
 
+/* Skip navigation (a11y) — visually hidden until focused */
+.skip-nav {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 10000;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 0 0 8px 8px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+.skip-nav:focus {
+  top: 0;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;

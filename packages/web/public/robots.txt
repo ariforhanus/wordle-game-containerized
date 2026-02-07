@@ -1,0 +1,10 @@
+# Wordle — Word Guessing Game
+# https://wordle.example.com
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+# Sitemap
+Sitemap: /sitemap.xml

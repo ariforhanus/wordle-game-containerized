@@ -4,8 +4,18 @@ import {
   saveToken,
   clearToken,
   authApi,
+  ApiError,
   type UserProfile,
 } from "@wordle/api";
+
+/** Extract the error code from an ApiError body, if available */
+function extractErrorCode(err: unknown): string | undefined {
+  if (err instanceof ApiError && err.body && typeof err.body === "object") {
+    const body = err.body as Record<string, unknown>;
+    if (typeof body.error === "string") return body.error;
+  }
+  return undefined;
+}
 
 export function useAuth() {
   const [loggedIn, setLoggedIn] = useState(isAuthenticated);
@@ -40,9 +50,10 @@ export function useAuth() {
         saveToken(res.token, res.expiresIn);
         setLoggedIn(true);
         await fetchUser();
-        return { success: true };
+        return { success: true } as const;
       } catch (err: unknown) {
-        return { success: false, error: err };
+        const code = extractErrorCode(err);
+        return { success: false, errorCode: code } as const;
       } finally {
         setLoading(false);
       }
@@ -60,9 +71,10 @@ export function useAuth() {
           setLoggedIn(true);
           await fetchUser();
         }
-        return { success: true };
+        return { success: true } as const;
       } catch (err: unknown) {
-        return { success: false, error: err };
+        const code = extractErrorCode(err);
+        return { success: false, errorCode: code } as const;
       } finally {
         setLoading(false);
       }

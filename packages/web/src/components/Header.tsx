@@ -88,26 +88,26 @@ export default function Header() {
       <header className="app-header" ref={menuRef}>
         <div className="header-inner">
           <Link to="/" className="brand" onClick={() => setMenuOpen(false)}>
-            <i className="fas fa-gamepad" /> Wordle
+            <i className="fas fa-gamepad" /> {t("app.title")}
           </Link>
 
           {/* Desktop nav */}
-          <nav className="nav-desktop">
-            <Link to="/game" className={`nav-link ${isActive("/game") ? "active" : ""}`}>
+          <nav className="nav-desktop" aria-label="Main navigation">
+            <Link to="/game" className={`nav-link ${isActive("/game") ? "active" : ""}`} aria-current={isActive("/game") ? "page" : undefined}>
               {t("nav.practice")}
             </Link>
-            <Link to="/daily" className={`nav-link ${isActive("/daily") ? "active" : ""}`}>
+            <Link to="/daily" className={`nav-link ${isActive("/daily") ? "active" : ""}`} aria-current={isActive("/daily") ? "page" : undefined}>
               {t("nav.daily")}
             </Link>
-            <Link to="/leaderboard" className={`nav-link ${isActive("/leaderboard") ? "active" : ""}`}>
+            <Link to="/leaderboard" className={`nav-link ${isActive("/leaderboard") ? "active" : ""}`} aria-current={isActive("/leaderboard") ? "page" : undefined}>
               {t("nav.leaderboard")}
             </Link>
-            <Link to="/themes" className={`nav-link ${location.pathname.startsWith("/themes") ? "active" : ""}`}>
+            <Link to="/themes" className={`nav-link ${location.pathname.startsWith("/themes") ? "active" : ""}`} aria-current={location.pathname.startsWith("/themes") ? "page" : undefined}>
               {t("nav.themes")}
             </Link>
             {isAdmin && (
-              <Link to="/admin" className={`nav-link ${location.pathname.startsWith("/admin") ? "active" : ""}`}>
-                <i className="fas fa-shield-alt" style={{ marginRight: 4 }} />
+              <Link to="/admin" className={`nav-link ${location.pathname.startsWith("/admin") ? "active" : ""}`} aria-current={location.pathname.startsWith("/admin") ? "page" : undefined}>
+                <i className="fas fa-shield-alt" style={{ marginRight: 4 }} aria-hidden="true" />
                 {t("admin.nav")}
               </Link>
             )}
@@ -165,14 +165,16 @@ export default function Header() {
           <button
             className="burger"
             onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Menu"
+            aria-label={t("nav.menu", "Menu")}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav-menu"
           >
             <i className={`fas ${menuOpen ? "fa-times" : "fa-bars"}`} />
           </button>
         </div>
 
         {/* Mobile slide-down menu */}
-        <div className={`mobile-menu ${menuOpen ? "open" : ""}`}>
+        <div id="mobile-nav-menu" className={`mobile-menu ${menuOpen ? "open" : ""}`} role="navigation" aria-label="Mobile navigation">
           <nav className="mobile-nav-links">
             <Link to="/game" className={`mobile-link ${isActive("/game") ? "active" : ""}`}>
               <i className="fas fa-keyboard" />

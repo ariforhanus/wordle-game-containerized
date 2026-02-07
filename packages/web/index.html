@@ -3,12 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Wordle</title>
-  <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/svgs/solid/gamepad.svg" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Primary Meta Tags -->
+  <title>Wordle — Word Guessing Game</title>
+  <meta name="title" content="Wordle — Word Guessing Game" />
+  <meta name="description" content="Challenge yourself with the classic word guessing game. Play daily challenges, compete on leaderboards, try themed modes, and track your stats. Available in multiple languages." />
+  <meta name="keywords" content="wordle, word game, word puzzle, daily challenge, leaderboard, kelime oyunu, günlük bulmaca" />
+  <meta name="author" content="Wordle Game" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="/" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="/" />
+  <meta property="og:title" content="Wordle — Word Guessing Game" />
+  <meta property="og:description" content="Challenge yourself with the classic word guessing game. Play daily challenges, compete on leaderboards, and track your stats." />
+  <meta property="og:image" content="/og-image.jpg" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:locale:alternate" content="tr_TR" />
+  <meta property="og:site_name" content="Wordle" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="/" />
+  <meta name="twitter:title" content="Wordle — Word Guessing Game" />
+  <meta name="twitter:description" content="Challenge yourself with the classic word guessing game. Play daily challenges, compete on leaderboards, and track your stats." />
+  <meta name="twitter:image" content="/og-image.jpg" />
+
+  <!-- PWA & Theme -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#22c1c3" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Wordle" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/svgs/solid/gamepad.svg" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Wordle",
+    "description": "A word guessing game with daily challenges, leaderboards, and multiple languages.",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Any",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "inLanguage": ["en", "tr"],
+    "genre": "Word Game"
+  }
+  </script>
 </head>
 <body>
   <div id="root"></div>

@@ -8,6 +8,8 @@ import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 @Entity
 @Table(name = "scores", indexes = {
@@ -53,9 +55,13 @@ public class Score {
     @Size(max = 5)
     private String word;
 
+    /** Whether the player won (true) or lost (false). Defaults to true for backward compatibility. */
+    @Column(nullable = false)
+    private boolean won = true;
+
     public Score(){}
 
-    public Score(Long userId, String username, String language, int attempts, long durationMs, int score, String word) {
+    public Score(Long userId, String username, String language, int attempts, long durationMs, int score, String word, boolean won, ZoneId zone) {
         this.userId = userId;
         this.username = username;
         this.language = language;
@@ -63,7 +69,9 @@ public class Score {
         this.durationMs = durationMs;
         this.score = score;
         this.word = word;
-        this.playedAt = LocalDate.now();
+        this.won = won;
+        this.wonAt = Instant.now();
+        this.playedAt = ZonedDateTime.now(zone).toLocalDate();
     }
 
     public String getLanguage() {
@@ -140,5 +148,13 @@ public class Score {
 
     public void setWord(String word) {
         this.word = word;
+    }
+
+    public boolean isWon() {
+        return won;
+    }
+
+    public void setWon(boolean won) {
+        this.won = won;
     }
 }

@@ -118,11 +118,11 @@ public class WordService {
             synchronized (definitionCache) {
                 definitionText = definitionCache.computeIfAbsent(defCacheKey, key -> {
                     String def = definition.getDefinition(word);
-                    return (def == null || def.isBlank()) ? "Definition unavailable." : def;
+                    return (def == null || def.isBlank()) ? "no_definition" : def;
                 });
             }
         } else {
-            definitionText = "Tanım mevcut değil.";
+            definitionText = "no_definition";
         }
         return new WordDto(word, definitionText);
     }

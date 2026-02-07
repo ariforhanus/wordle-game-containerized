@@ -9,6 +9,7 @@ import com.ariforhanus.wordle.jwt.JwtUtil;
 import com.ariforhanus.wordle.repository.UserRepository;
 import com.ariforhanus.wordle.service.ScoreService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,11 +24,14 @@ public class ScoreController {
     private final ScoreService service;
     private final JwtUtil jwt;
     private final UserRepository users;
+    private final ZoneId appZone;
 
-    public ScoreController(ScoreService service, JwtUtil jwt, UserRepository users) {
+    public ScoreController(ScoreService service, JwtUtil jwt, UserRepository users,
+                           @Value("${app.timezone:Europe/Istanbul}") String timezone) {
         this.service = service;
         this.jwt = jwt;
         this.users = users;
+        this.appZone = ZoneId.of(timezone);
     }
 
     /**
@@ -76,7 +80,7 @@ public class ScoreController {
         } catch (IllegalStateException e) {
             return ResponseEntity.status(409).body(Map.of(
                 "error", "already_played",
-                "message", "Bugün bu dilde zaten oynadın!"
+                "message", "already_played"
             ));
         }
     }
@@ -129,52 +133,64 @@ public class ScoreController {
     }
 
     @GetMapping("/leaderboard")
-    public ResponseEntity<List<ScoreResponse>> global(
+    public ResponseEntity<?> global(
             @RequestParam(value = "lang", defaultValue = "en") String lang){
         String normalizedLang;
         try {
             normalizedLang = SupportedLanguage.fromParam(lang).getCode();
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(List.of());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "invalid_lang",
+                    "supported", SupportedLanguage.supportedCodes()
+            ));
         }
         return ResponseEntity.ok(service.topGlobal(normalizedLang));
     }
 
 
     @GetMapping("/leaderboard/daily")
-    public ResponseEntity<List<ScoreResponse>> daily(
+    public ResponseEntity<?> daily(
             @RequestParam(value = "lang", defaultValue = "en") String lang){
         String normalizedLang;
         try {
             normalizedLang = SupportedLanguage.fromParam(lang).getCode();
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(List.of());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "invalid_lang",
+                    "supported", SupportedLanguage.supportedCodes()
+            ));
         }
-        return ResponseEntity.ok(service.dailyTop(normalizedLang, 10, ZoneId.of("Europe/Istanbul")));
+        return ResponseEntity.ok(service.dailyTop(normalizedLang, 10, appZone));
     }
 
     @GetMapping("/leaderboard/weekly")
-    public ResponseEntity<List<ScoreResponse>> weekly(
+    public ResponseEntity<?> weekly(
             @RequestParam(value = "lang", defaultValue = "en") String lang){
         String normalizedLang;
         try {
             normalizedLang = SupportedLanguage.fromParam(lang).getCode();
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(List.of());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "invalid_lang",
+                    "supported", SupportedLanguage.supportedCodes()
+            ));
         }
-        return ResponseEntity.ok(service.weeklyTop(normalizedLang, 10, ZoneId.of("Europe/Istanbul")));
+        return ResponseEntity.ok(service.weeklyTop(normalizedLang, 10, appZone));
     }
 
     @GetMapping("/leaderboard/monthly")
-    public ResponseEntity<List<ScoreResponse>> monthly(
+    public ResponseEntity<?> monthly(
             @RequestParam(value = "lang", defaultValue = "en") String lang){
         String normalizedLang;
         try {
             normalizedLang = SupportedLanguage.fromParam(lang).getCode();
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(List.of());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "invalid_lang",
+                    "supported", SupportedLanguage.supportedCodes()
+            ));
         }
-        return ResponseEntity.ok(service.monthlyTop(normalizedLang, 10, ZoneId.of("Europe/Istanbul")));
+        return ResponseEntity.ok(service.monthlyTop(normalizedLang, 10, appZone));
     }
 
     /**

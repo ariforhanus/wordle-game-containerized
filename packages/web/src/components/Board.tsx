@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { GameState } from "@wordle/engine";
 import "./Board.css";
 
@@ -10,6 +11,7 @@ interface BoardProps {
 }
 
 export default function Board({ state, shakeRow, blindMode }: BoardProps) {
+  const { t } = useTranslation();
   const { guesses, currentGuess, maxAttempts, wordLength, status } = state;
 
   // Are colors hidden? Only in blind mode while still playing
@@ -116,5 +118,5 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
     );
   }
 
-  return <div className="board">{rows}</div>;
+  return <div className="board" role="grid" aria-label={t("game.enterGuess") as string}>{rows}</div>;
 }

@@ -4,7 +4,9 @@ import { wordApi } from "@wordle/api";
 import { toUpperCase, getLanguage } from "@wordle/engine";
 import { useGame } from "../hooks/useGame";
 import { useToast } from "./Toast";
+import { usePageTitleKey } from "../hooks/usePageTitle";
 import { buildShareText, copyToClipboard } from "../utils/shareResult";
+import { TOAST_DURATION_LONG } from "../constants";
 import Confetti from "./Confetti";
 import HowToPlayModal from "./HowToPlayModal";
 import Board from "./Board";
@@ -13,6 +15,7 @@ import "./GamePage.css";
 
 export default function GamePage() {
   const { t, i18n } = useTranslation();
+  usePageTitleKey("seo.practice");
   const toastCtx = useToast();
   const lang = i18n.language;
 
@@ -71,7 +74,7 @@ export default function GamePage() {
       console.error("Failed to load word from API, trying offline fallback:", err);
       const ok = await pickOfflineWord();
       if (!ok) {
-        toastCtx.error("Could not load word. Check your connection.");
+        toastCtx.error(t("game.loadError"));
       }
     } finally {
       setLoading(false);
@@ -113,7 +116,7 @@ export default function GamePage() {
       localStorage.setItem("wordle_hard_mode", next ? "1" : "0");
       if (next && !localStorage.getItem("wordle_hard_intro_seen")) {
         localStorage.setItem("wordle_hard_intro_seen", "1");
-        toastCtx.toast(t("game.hardModeFirstTime") as string, "info", 5000);
+        toastCtx.toast(t("game.hardModeFirstTime") as string, "info", TOAST_DURATION_LONG);
       } else {
         toastCtx.info(next ? t("game.hardModeOn") : t("game.hardModeOff"));
       }
@@ -130,7 +133,7 @@ export default function GamePage() {
       const next = !prev;
       if (next && !localStorage.getItem("wordle_blind_intro_seen")) {
         localStorage.setItem("wordle_blind_intro_seen", "1");
-        toastCtx.toast(t("game.blindModeFirstTime") as string, "info", 5000);
+        toastCtx.toast(t("game.blindModeFirstTime") as string, "info", TOAST_DURATION_LONG);
       } else {
         toastCtx.info(next ? t("game.blindModeOn") : t("game.blindModeOff"));
       }
@@ -257,8 +260,8 @@ export default function GamePage() {
 
       {/* Hint enable confirmation popup */}
       {showHintConfirm && (
-        <div className="result-overlay" onClick={() => setShowHintConfirm(false)}>
-          <div className="result-card hint-card" onClick={(e) => e.stopPropagation()}>
+        <div className="result-overlay" onClick={() => setShowHintConfirm(false)} role="presentation">
+          <div className="result-card hint-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("game.hintConfirmTitle") as string}>
             <p className="hint-confirm-text">
               {t("game.hintConfirmTitle")}
             </p>
@@ -279,10 +282,10 @@ export default function GamePage() {
 
       {/* Hint display popup */}
       {showHintText && (
-        <div className="result-overlay" onClick={() => setShowHintText(false)}>
-          <div className="result-card hint-card" onClick={(e) => e.stopPropagation()}>
+        <div className="result-overlay" onClick={() => setShowHintText(false)} role="presentation">
+          <div className="result-card hint-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("game.hint") as string}>
             <div className="hint-display-icon">
-              <i className="fas fa-lightbulb" />
+              <i className="fas fa-lightbulb" aria-hidden="true" />
             </div>
             <p className="hint-display-text">{definition}</p>
             <button className="btn-primary" onClick={() => setShowHintText(false)}>
@@ -294,8 +297,8 @@ export default function GamePage() {
 
       {/* Result popup */}
       {resultMsg && (
-        <div className="result-overlay">
-          <div className="result-card">
+        <div className="result-overlay" role="presentation">
+          <div className="result-card" role="dialog" aria-modal="true" aria-label={t("game.word") as string}>
             <p className="result-text">{resultMsg}</p>
             {definition && (
               <p className="result-def">

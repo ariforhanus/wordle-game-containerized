@@ -31,8 +31,11 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a href="#main-content" className="skip-nav">
+        Skip to content
+      </a>
       <Header />
-      <main className="app-main">
+      <main id="main-content" className="app-main" role="main">
         <Outlet />
       </main>
     </div>

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { scoreApi, isAuthenticated, authApi, type ScoreResponse } from "@wordle/api";
+import { usePageTitleKey } from "../hooks/usePageTitle";
+import { formatScore } from "../utils/formatScore";
 import "./LeaderboardPage.css";
 import "./DailyPage.css";
 
@@ -15,6 +17,7 @@ type Period = "daily" | "weekly" | "monthly";
 
 export default function LeaderboardPage() {
   const { t, i18n } = useTranslation();
+  usePageTitleKey("seo.leaderboard");
   const lang = i18n.language;
 
   const [period, setPeriod] = useState<Period>("daily");
@@ -127,7 +130,7 @@ export default function LeaderboardPage() {
         <p className="lb-empty">{t("leaderboard.empty")}</p>
       ) : (
         <div className="lb-table-wrap">
-          <table className="lb-table">
+          <table className="lb-table" aria-label={t("leaderboard.title") as string}>
             <thead>
               <tr>
                 <th>{t("leaderboard.rank")}</th>
@@ -160,7 +163,7 @@ export default function LeaderboardPage() {
                         </span>
                       )}
                     </td>
-                    <td className="lb-score">{s.score}</td>
+                    <td className="lb-score">{formatScore(s.score)}</td>
                   </tr>
                 );
               })}

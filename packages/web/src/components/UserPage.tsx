@@ -10,6 +10,9 @@ import {
   type UserProfile,
 } from "@wordle/api";
 import { useToast } from "./Toast";
+import { usePageTitleKey } from "../hooks/usePageTitle";
+import { MAX_AVATAR_BYTES } from "../constants";
+import { formatScore } from "../utils/formatScore";
 import GuessDistribution from "./GuessDistribution";
 import { COUNTRIES } from "../data/countries";
 import "./UserPage.css";
@@ -48,6 +51,7 @@ const STAT_GRADIENTS = [
 
 export default function UserPage() {
   const { t, i18n } = useTranslation();
+  usePageTitleKey("seo.profile");
   const navigate = useNavigate();
   const lang = i18n.language;
 
@@ -113,8 +117,8 @@ export default function UserPage() {
   // 6 stat cards (achievements is first, clickable)
   const statCards = [
     { icon: "fa-medal", label: t("profile.achievements"), value: `${unlockedCount}/${achievementItems.length}`, clickable: true },
-    { icon: "fa-trophy", label: t("profile.bestScore"), value: String(stats.bestScore) },
-    { icon: "fa-chart-line", label: t("profile.avgScore"), value: String(Math.round(stats.averageScore)) },
+    { icon: "fa-trophy", label: t("profile.bestScore"), value: formatScore(stats.bestScore) },
+    { icon: "fa-chart-line", label: t("profile.avgScore"), value: formatScore(Math.round(stats.averageScore)) },
     { icon: "fa-clock", label: t("profile.avgTime"), value: `${Math.round(stats.averageDurationSeconds)}${t("profile.seconds")}` },
     { icon: "fa-fire", label: t("profile.currentStreak"), value: String(stats.currentStreak ?? 0) },
     { icon: "fa-globe", label: t("profile.gamesInLang", { lang: lang.toUpperCase() }), value: String(langGames) },
@@ -237,7 +241,7 @@ function EditProfileModal({
     getAvatarDataUrl(user)
   );
 
-  const MAX_AVATAR_BYTES = 512 * 1024;
+
 
   function update(field: string, value: string) {
     setForm((p) => ({ ...p, [field]: value }));
@@ -290,9 +294,14 @@ function EditProfileModal({
       toastCtx.success(t("profile.saveSuccess"));
       onSaved();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "";
-      if (message.includes("USERNAME_TAKEN") || message.includes("409")) {
-        setMsg(t("profile.usernameTaken"));
+      let errorCode: string | undefined;
+      if (err && typeof err === "object" && "body" in err) {
+        const body = (err as { body: Record<string, unknown> }).body;
+        if (body && typeof body.error === "string") errorCode = body.error;
+      }
+      if (errorCode) {
+        const translated = t(`api.${errorCode}`, { defaultValue: "" });
+        setMsg(translated || t("profile.saveError"));
       } else {
         setMsg(t("profile.saveError"));
       }

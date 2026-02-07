@@ -4,11 +4,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { authApi } from "@wordle/api";
 import { useToast } from "./Toast";
+import { usePageTitleKey } from "../hooks/usePageTitle";
 import { COUNTRIES } from "../data/countries";
+import { MAX_AVATAR_BYTES } from "../constants";
 import "./AuthPages.css";
 
 export function LoginPage() {
   const { t } = useTranslation();
+  usePageTitleKey("seo.login");
   const navigate = useNavigate();
   const { login, loading } = useAuth();
   const toastCtx = useToast();
@@ -34,29 +37,35 @@ export function LoginPage() {
       toastCtx.success(t("auth.loginSuccess"));
       navigate("/");
     } else {
-      setError(t("auth.loginFail"));
+      const key = res.errorCode ? `api.${res.errorCode}` : "";
+      const translated = key ? t(key, { defaultValue: "" }) : "";
+      setError(translated || t("auth.loginFail"));
     }
   }
 
   return (
     <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit} noValidate>
+      <form className="auth-card" onSubmit={handleSubmit} noValidate aria-label={t("auth.loginTitle") as string}>
         <h1>{t("auth.loginTitle")}</h1>
-        {error && <div className="auth-error">{error}</div>}
+        {error && <div className="auth-error" role="alert">{error}</div>}
 
-        <label>{t("auth.username")}</label>
+        <label htmlFor="login-username">{t("auth.username")}</label>
         <input
+          id="login-username"
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
           autoFocus
         />
 
-        <label>{t("auth.password")}</label>
+        <label htmlFor="login-password">{t("auth.password")}</label>
         <input
+          id="login-password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
         />
 
         <button type="submit" className="btn-primary" disabled={loading}>
@@ -73,6 +82,7 @@ export function LoginPage() {
 
 export function RegisterPage() {
   const { t, i18n } = useTranslation();
+  usePageTitleKey("seo.register");
   const navigate = useNavigate();
   const { register, loading } = useAuth();
   const toastCtx = useToast();
@@ -89,7 +99,6 @@ export function RegisterPage() {
   const avatarRef = useRef<HTMLInputElement>(null);
 
   const countries = COUNTRIES[i18n.language as "en" | "tr"] ?? COUNTRIES.en;
-  const MAX_AVATAR_BYTES = 512 * 1024; // 512 KB
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -148,69 +157,85 @@ export function RegisterPage() {
       toastCtx.success(t("auth.registerSuccess"));
       navigate("/");
     } else {
-      setError(t("auth.registerFail"));
+      const key = res.errorCode ? `api.${res.errorCode}` : "";
+      const translated = key ? t(key, { defaultValue: "" }) : "";
+      setError(translated || t("auth.registerFail"));
     }
   }
 
   return (
     <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit} noValidate>
+      <form className="auth-card" onSubmit={handleSubmit} noValidate aria-label={t("auth.registerTitle") as string}>
         <h1>{t("auth.registerTitle")}</h1>
-        {error && <div className="auth-error">{error}</div>}
+        {error && <div className="auth-error" role="alert">{error}</div>}
 
-        <label>{t("auth.username")} *</label>
+        <label htmlFor="reg-username">{t("auth.username")} *</label>
         <input
+          id="reg-username"
           type="text"
           value={form.username}
           onChange={(e) => update("username", e.target.value)}
           required
+          autoComplete="username"
           autoFocus
         />
 
-        <label>{t("auth.email")} *</label>
+        <label htmlFor="reg-email">{t("auth.email")} *</label>
         <input
+          id="reg-email"
           type="email"
           value={form.email}
           onChange={(e) => update("email", e.target.value)}
           required
+          autoComplete="email"
         />
 
-        <label>{t("auth.password")} *</label>
+        <label htmlFor="reg-password">{t("auth.password")} *</label>
         <input
+          id="reg-password"
           type="password"
           value={form.password}
           onChange={(e) => update("password", e.target.value)}
           required
           minLength={6}
+          autoComplete="new-password"
         />
 
-        <label>{t("auth.confirmPassword")} *</label>
+        <label htmlFor="reg-confirm">{t("auth.confirmPassword")} *</label>
         <input
+          id="reg-confirm"
           type="password"
           value={form.confirmPassword}
           onChange={(e) => update("confirmPassword", e.target.value)}
           required
+          autoComplete="new-password"
         />
 
-        <label>{t("auth.firstName")}</label>
+        <label htmlFor="reg-firstname">{t("auth.firstName")}</label>
         <input
+          id="reg-firstname"
           type="text"
           value={form.firstName}
           onChange={(e) => update("firstName", e.target.value)}
+          autoComplete="given-name"
         />
 
-        <label>{t("auth.lastName")}</label>
+        <label htmlFor="reg-lastname">{t("auth.lastName")}</label>
         <input
+          id="reg-lastname"
           type="text"
           value={form.lastName}
           onChange={(e) => update("lastName", e.target.value)}
+          autoComplete="family-name"
         />
 
-        <label>{t("auth.country")} *</label>
+        <label htmlFor="reg-country">{t("auth.country")} *</label>
         <select
+          id="reg-country"
           value={form.nationality}
           onChange={(e) => update("nationality", e.target.value)}
           required
+          autoComplete="country-name"
         >
           <option value="">{t("auth.selectCountry")}</option>
           {countries.map((c) => (
@@ -220,8 +245,9 @@ export function RegisterPage() {
           ))}
         </select>
 
-        <label>{t("auth.profilePhoto")}</label>
+        <label htmlFor="reg-avatar">{t("auth.profilePhoto")}</label>
         <input
+          id="reg-avatar"
           type="file"
           accept="image/*"
           ref={avatarRef}

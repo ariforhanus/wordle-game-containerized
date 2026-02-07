@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { authApi, isAuthenticated } from "@wordle/api";
+import { usePageTitleKey } from "../../hooks/usePageTitle";
 import type { UserProfile } from "@wordle/api";
 import "./Admin.css";
 
 export default function AdminLayout() {
   const { t } = useTranslation();
+  usePageTitleKey("seo.admin");
   const location = useLocation();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);

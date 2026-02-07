@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { getTheme, type ThemeConfig } from "@wordle/engine";
 import { useGame } from "../hooks/useGame";
 import { useToast } from "./Toast";
+import { usePageTitle } from "../hooks/usePageTitle";
 import { buildShareText, copyToClipboard } from "../utils/shareResult";
 import Confetti from "./Confetti";
 import Board from "./Board";
@@ -27,6 +28,7 @@ export default function ThemedGamePage() {
 
 function ThemedGame({ theme }: { theme: ThemeConfig }) {
   const { t } = useTranslation();
+  usePageTitle(theme.name);
   const toastCtx = useToast();
 
   const [words, setWords] = useState<string[]>([]);

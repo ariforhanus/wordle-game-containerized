@@ -6,6 +6,7 @@ import com.ariforhanus.wordle.dto.ScoreResponse;
 import com.ariforhanus.wordle.dto.UserStatsResponse;
 import com.ariforhanus.wordle.entity.Score;
 import com.ariforhanus.wordle.repository.ScoreRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -15,92 +16,118 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class ScoreService {
 
     private final ScoreRepository repo;
-
-    private static final int BASE = 10_000;
-    private static final int ATTEMPT_PENALTY = 1_000;
-    private static final int SECOND_PENALTY = 7;
-
-    public ScoreService(ScoreRepository repo){
-        this.repo = repo;
-    }
+    private final ZoneId appZone;
 
     /**
-     * Daily challenge için skor kaydet
+     * Scoring system: 0–9999 range (stored and displayed as-is).
+     *
+     * Attempt base (gap = 1500):
+     *   1 → 8500    4 → 4000
+     *   2 → 7000    5 → 2500
+     *   3 → 5500    6 → 1000
+     *
+     * Time bonus: 0–1499 (max < gap → no tier overlap)
+     *   Decays 1 point per 200ms → at 300s (5 min) bonus = 0.
+     *
+     * Gap (1500) > max time bonus (1499) →
+     *   fewer attempts ALWAYS beats more attempts.
+     *
+     * 200ms resolution → ~1500 unique values per tier; ties are extremely rare.
+     *
+     * Examples:
+     *   1 attempt,  3s   → 8500 + 1484 = 9984
+     *   2 attempts, 20s  → 7000 + 1399 = 8399
+     *   3 attempts, 60s  → 5500 + 1199 = 6699
+     *   4 attempts, 90s  → 4000 + 1049 = 5049
+     *   5 attempts, 3min → 2500 +  599 = 3099
+     *   6 attempts, 5min → 1000 +    0 = 1000
+     *   Lost              →               0
      */
+    private static final int[] ATTEMPT_BASE = {0, 8500, 7000, 5500, 4000, 2500, 1000};
+    private static final int TIME_BONUS_MAX = 1499;
+    private static final int MS_PER_POINT = 200; // 1 point per 200ms
+
+    public ScoreService(ScoreRepository repo,
+                        @Value("${app.timezone:Europe/Istanbul}") String timezone) {
+        this.repo = repo;
+        this.appZone = ZoneId.of(timezone);
+    }
+
+    // ── Daily score submission ──
+
     public ScoreResponse saveForDaily(Long userId, String username, String language, ScoreRequest req) {
-        // Bugün bu dilde zaten oynadı mı kontrol et
-        Optional<Score> existing = repo.findByUserIdAndPlayedAtAndLanguage(userId, LocalDate.now(), language);
+        LocalDate today = ZonedDateTime.now(appZone).toLocalDate();
+        Optional<Score> existing = repo.findByUserIdAndPlayedAtAndLanguage(userId, today, language);
         if (existing.isPresent()) {
             throw new IllegalStateException("User already played today in " + language);
         }
-        
-        int score = calcScore(req.getAttempts(), req.getDurationMs());
+
+        // Won → calculate score normally; Lost → score = 0
+        int score = req.isWon() ? calcScore(req.getAttempts(), req.getDurationMs()) : 0;
         Score s = new Score(
-                userId,
-                username,
-                language,
-                req.getAttempts(),
-                req.getDurationMs(),
-                score,
-                req.getWord()
+                userId, username, language,
+                req.getAttempts(), req.getDurationMs(),
+                score, req.getWord(), req.isWon(), appZone
         );
         Score saved = repo.save(s);
-        return toResp(saved);
+        return toRespSimple(saved);
     }
 
-    /**
-     * Kullanıcı bugün bu dilde daily challenge oynadı mı?
-     */
+    // ── Daily status check ──
+
     public Optional<ScoreResponse> getDailyStatus(Long userId, String language) {
-        return repo.findByUserIdAndPlayedAtAndLanguage(userId, LocalDate.now(), language)
-                .map(this::toResp);
+        LocalDate today = ZonedDateTime.now(appZone).toLocalDate();
+        return repo.findByUserIdAndPlayedAtAndLanguage(userId, today, language)
+                .map(this::toRespSimple);
     }
 
-    public List<ScoreResponse> topGlobal(String language){
+    // ── Leaderboards ──
+
+    public List<ScoreResponse> topGlobal(String language) {
         List<Score> list = repo.findTop10ByLanguageOrderByScoreDesc(language);
-        return list.stream().map(this::toResp).collect(Collectors.toList());
+        return list.stream().map(this::toRespWithStreak).collect(Collectors.toList());
     }
 
-    public List<ScoreResponse> dailyTop(String language, int limit, ZoneId zone){
-        Instant start = ZonedDateTime.now(zone).toLocalDate().atStartOfDay(zone).toInstant();
-        Instant end =  ZonedDateTime.now(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toInstant();
-
-        List<Score> list = repo.findTopDaily(language, start, end);
-
-        return list.stream().limit(limit).map(this::toResp).collect(Collectors.toList());
-    }
-
-    public List<ScoreResponse> weeklyTop(String language, int limit, ZoneId zone){
+    public List<ScoreResponse> dailyTop(String language, int limit, ZoneId zone) {
         LocalDate today = ZonedDateTime.now(zone).toLocalDate();
-        // Go back to Monday of this week
+        Instant start = today.atStartOfDay(zone).toInstant();
+        Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
+
+        List<Score> list = repo.findTopByLanguageAndPeriod(language, start, end, limit);
+        return enrichWithStreaks(list);
+    }
+
+    public List<ScoreResponse> weeklyTop(String language, int limit, ZoneId zone) {
+        LocalDate today = ZonedDateTime.now(zone).toLocalDate();
         LocalDate monday = today.with(java.time.DayOfWeek.MONDAY);
+        // End of week = next Monday (or end of today if we only want up-to-now)
+        // We include the full current day
         Instant start = monday.atStartOfDay(zone).toInstant();
         Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
 
-        List<Score> list = repo.findTopDaily(language, start, end);
-        return list.stream().limit(limit).map(this::toResp).collect(Collectors.toList());
+        List<Score> list = repo.findTopByLanguageAndPeriod(language, start, end, limit);
+        return enrichWithStreaks(list);
     }
 
-    public List<ScoreResponse> monthlyTop(String language, int limit, ZoneId zone){
+    public List<ScoreResponse> monthlyTop(String language, int limit, ZoneId zone) {
         LocalDate today = ZonedDateTime.now(zone).toLocalDate();
         LocalDate firstOfMonth = today.withDayOfMonth(1);
         Instant start = firstOfMonth.atStartOfDay(zone).toInstant();
         Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
 
-        List<Score> list = repo.findTopDaily(language, start, end);
-        return list.stream().limit(limit).map(this::toResp).collect(Collectors.toList());
+        List<Score> list = repo.findTopByLanguageAndPeriod(language, start, end, limit);
+        return enrichWithStreaks(list);
     }
 
-    /**
-     * Kullanıcının temel istatistiklerini döner.
-     * Şu an için yalnızca kazandığı oyunlar kaydedildiğinden totalGames = totalWins kabul edilir.
-     */
+    // ── User stats ──
+
     public UserStatsResponse statsForUser(Long userId) {
         List<Score> all = repo.findByUserId(userId);
         if (all.isEmpty()) {
@@ -118,10 +145,8 @@ public class ScoreService {
         Map<String, Long> perLang = all.stream()
                 .collect(Collectors.groupingBy(Score::getLanguage, Collectors.counting()));
 
-        // Streak hesapla (kullanıcının tüm günleri üzerinden)
         StreakResult streak = calculateStreak(all);
 
-        // Guess distribution: kaçıncı denemede kazandı
         Map<Integer, Long> guessDistribution = all.stream()
                 .collect(Collectors.groupingBy(Score::getAttempts, Collectors.counting()));
 
@@ -137,25 +162,24 @@ public class ScoreService {
         );
     }
 
+    // ── Score calculation ──
 
-    private int calcScore(int attempts, long durationMs){
-        long seconds = durationMs /1000L;
-        long penalty = (long) attempts * ATTEMPT_PENALTY + seconds * SECOND_PENALTY;
-        long result = BASE - penalty;
-        if(result < 0) result = 0;
-        if (result > Integer.MAX_VALUE) result = Integer.MAX_VALUE;
-        return (int) result;
+    private int calcScore(int attempts, long durationMs) {
+        if (attempts < 1 || attempts > 6) return 0;
+
+        int base = ATTEMPT_BASE[attempts];
+        int timeBonus = (int) Math.max(0, TIME_BONUS_MAX - (durationMs / MS_PER_POINT));
+
+        return base + timeBonus;
     }
 
-    /**
-     * Bir kullanıcının mevcut (son oynadığı güne kadar) ve en iyi streak değerlerini hesaplar.
-     */
+    // ── Streak calculation ──
+
     private StreakResult calculateStreak(List<Score> scores) {
         if (scores == null || scores.isEmpty()) {
             return new StreakResult(0, 0);
         }
 
-        // Aynı gün içinde birden fazla skor olursa (farklı diller), tek güne indir.
         List<LocalDate> days = scores.stream()
                 .map(Score::getPlayedAt)
                 .distinct()
@@ -182,7 +206,7 @@ public class ScoreService {
             }
         }
 
-        // Current streak: en son oynadığı günden geriye doğru kesintisiz gün sayısı
+        // Current streak: count backwards from the last played day
         int current = 1;
         LocalDate cursor = days.get(days.size() - 1);
         for (int i = days.size() - 2; i >= 0; i--) {
@@ -198,26 +222,52 @@ public class ScoreService {
         return new StreakResult(current, best);
     }
 
-    /**
-     * Leaderboard satırları için kullanıcının current streak'ini hesaplar.
-     */
-    private int currentStreakForUser(Long userId) {
-        List<Score> all = repo.findByUserId(userId);
-        StreakResult sr = calculateStreak(all);
-        return sr.currentStreak();
+    // ── Batch streak enrichment (avoids N+1 queries) ──
+
+    private List<ScoreResponse> enrichWithStreaks(List<Score> scores) {
+        if (scores.isEmpty()) return List.of();
+
+        // Collect unique user IDs from leaderboard results
+        Set<Long> userIds = scores.stream()
+                .map(Score::getUserId)
+                .collect(Collectors.toSet());
+
+        // Batch load all scores for these users (single query)
+        Map<Long, Integer> streakMap = userIds.stream()
+                .collect(Collectors.toMap(
+                        uid -> uid,
+                        uid -> {
+                            List<Score> userScores = repo.findByUserId(uid);
+                            return calculateStreak(userScores).currentStreak();
+                        }
+                ));
+
+        return scores.stream()
+                .map(s -> new ScoreResponse(
+                        s.getScore(), s.getAttempts(), s.getUsername(),
+                        s.getId(), s.getDurationMs(), s.getWord(), s.getWonAt(),
+                        streakMap.getOrDefault(s.getUserId(), 0)
+                ))
+                .collect(Collectors.toList());
     }
 
-    private ScoreResponse toResp(Score s){
-        int currentStreak = currentStreakForUser(s.getUserId());
+    /** Simple response without streak (for status checks, score submission) */
+    private ScoreResponse toRespSimple(Score s) {
         return new ScoreResponse(
-                s.getScore(),
-                s.getAttempts(),
-                s.getUsername(),
-                s.getId(),
-                s.getDurationMs(),
-                s.getWord(),
-                s.getWonAt(),
-                currentStreak
+                s.getScore(), s.getAttempts(), s.getUsername(),
+                s.getId(), s.getDurationMs(), s.getWord(), s.getWonAt(),
+                0
+        );
+    }
+
+    /** Full response with streak (for individual lookups) */
+    private ScoreResponse toRespWithStreak(Score s) {
+        List<Score> userScores = repo.findByUserId(s.getUserId());
+        int streak = calculateStreak(userScores).currentStreak();
+        return new ScoreResponse(
+                s.getScore(), s.getAttempts(), s.getUsername(),
+                s.getId(), s.getDurationMs(), s.getWord(), s.getWonAt(),
+                streak
         );
     }
 

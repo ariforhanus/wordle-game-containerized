@@ -17,20 +17,22 @@ export function buildEmojiGrid(guesses: GuessResult[]): string {
 
 /**
  * Build a full shareable text for the game result.
+ * @param appTitle - The app's translated title (e.g. from t("app.title"))
  */
 export function buildShareText(
   state: GameState,
   mode: "practice" | "daily" | "themed",
-  extra?: { themeName?: string }
+  extra?: { themeName?: string; appTitle?: string }
 ): string {
   const won = state.status === "won";
   const attempts = won ? `${state.guesses.length}/${state.maxAttempts}` : `X/${state.maxAttempts}`;
+  const brand = extra?.appTitle ?? "Wordle";
 
-  let title = "Wordle";
+  let title = brand;
   if (mode === "daily") {
-    title = "Wordle Daily";
+    title = `${brand} Daily`;
   } else if (mode === "themed" && extra?.themeName) {
-    title = `Wordle ${extra.themeName}`;
+    title = `${brand} ${extra.themeName}`;
   }
 
   const grid = buildEmojiGrid(state.guesses);

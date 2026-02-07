@@ -2,13 +2,16 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { wordApi, scoreApi, isAuthenticated, getTokenUsername } from "@wordle/api";
+import { formatScore } from "../utils/formatScore";
 import { toUpperCase, getAttempts, createGame, replayGuesses } from "@wordle/engine";
 import { useGame } from "../hooks/useGame";
 import { useToast } from "./Toast";
+import { usePageTitleKey } from "../hooks/usePageTitle";
 import { buildShareText, copyToClipboard } from "../utils/shareResult";
 import Confetti from "./Confetti";
 import Board from "./Board";
 import Keyboard from "./Keyboard";
+import { IST_OFFSET_MINUTES } from "../constants";
 import "./GamePage.css";
 import "./DailyPage.css";
 
@@ -23,8 +26,7 @@ interface DailySession {
 
 function getTodayIST(): string {
   const now = new Date();
-  const istOffset = 3 * 60;
-  const istTime = new Date(now.getTime() + istOffset * 60_000 - now.getTimezoneOffset() * 60_000);
+  const istTime = new Date(now.getTime() + IST_OFFSET_MINUTES * 60_000 - now.getTimezoneOffset() * 60_000);
   return istTime.toISOString().split("T")[0];
 }
 
@@ -154,7 +156,7 @@ function PreGameScreen({
           {status.score != null && (
             <p className="result-text">
               {t("daily.todayScore", {
-                score: status.score,
+                score: formatScore(status.score),
                 attempts: status.attempts,
               })}
             </p>
@@ -433,15 +435,16 @@ function DailyGame({
     saveSession(sessionRef.current);
   }, [state.guesses, state.status, answer, lang, snapshotElapsed]);
 
-  // Send score
+  // Send score (both win and lose)
   useEffect(() => {
-    if (state.status === "won" && !scoreSentRef.current) {
+    if ((state.status === "won" || state.status === "lost") && !scoreSentRef.current) {
       scoreSentRef.current = true;
       scoreApi
         .submitScore(lang, {
           attempts: getAttempts(state),
           durationMs: getTotalElapsed(),
           word: state.answer,
+          won: state.status === "won",
         })
         .catch(console.error);
     }
@@ -482,8 +485,8 @@ function DailyGame({
       />
 
       {resultMsg && (
-        <div className="result-overlay">
-          <div className="result-card">
+        <div className="result-overlay" role="presentation">
+          <div className="result-card" role="dialog" aria-modal="true">
             <p className="result-text">{resultMsg}</p>
             {definition && (
               <p className="result-def">
@@ -513,6 +516,7 @@ function DailyGame({
 
 export default function DailyPage() {
   const { i18n } = useTranslation();
+  usePageTitleKey("seo.daily");
 
   const [gameState, setGameState] = useState<{
     lang: string;

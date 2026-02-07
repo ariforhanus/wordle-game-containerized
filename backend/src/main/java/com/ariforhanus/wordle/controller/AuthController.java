@@ -64,7 +64,7 @@ public class AuthController {
                 email == null || email.isBlank() ||
                 password == null || password.isBlank()) {
             response.put("success", false);
-            response.put("message", "Kullanıcı adı, e-posta ve şifre zorunlu.");
+            response.put("error", "required_fields");
             return ResponseEntity.badRequest().body(response);
         }
 
@@ -72,12 +72,12 @@ public class AuthController {
 
         if (users.existsByUsername(username)) {
             response.put("success", false);
-            response.put("message", "Bu kullanıcı adı zaten alınmış.");
+            response.put("error", "username_taken");
             return ResponseEntity.badRequest().body(response);
         }
         if (users.existsByEmail(email)) {
             response.put("success", false);
-            response.put("message", "Bu e‑posta zaten kayıtlı.");
+            response.put("error", "email_taken");
             return ResponseEntity.badRequest().body(response);
         }
 
@@ -100,13 +100,12 @@ public class AuthController {
             users.save(u);
             String token = jwt.generateToken(u.getId(), u.getUsername(), u.getRole());
             response.put("success", true);
-            response.put("message", "Kayıt başarılı!");
             response.put("token", token);
             response.put("expiresIn", jwtExpMs);
             return ResponseEntity.ok(response);
         } catch (DataIntegrityViolationException e) {
             response.put("success", false);
-            response.put("message", "Kullanıcı adı veya e-posta zaten kayıtlı.");
+            response.put("error", "duplicate_entry");
             return ResponseEntity.badRequest().body(response);
         }
     }
@@ -122,7 +121,7 @@ public class AuthController {
             authManager.authenticate(authToken);
 
             var user = users.findByUsername(req.getUsername())
-                    .orElseThrow(() -> new UsernameNotFoundException("Kullanıcı bulunamadı."));
+                    .orElseThrow(() -> new UsernameNotFoundException("user_not_found"));
             String token = jwt.generateToken(user.getId(), user.getUsername(), user.getRole());
             return ResponseEntity.ok(new JwtResponse(token, jwtExpMs));
 
@@ -135,15 +134,15 @@ public class AuthController {
     public ResponseEntity<?> me(@RequestHeader(value = "Authorization", required = false) String authHeader){
         try {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(401).body(Map.of("error", "Geçersiz token"));
+                return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
             }
             String token = authHeader.substring(7);
             Long userId = jwt.extractUserId(token);
             if (userId == null) {
-                return ResponseEntity.status(401).body(Map.of("error", "Geçersiz token"));
+                return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
             }
             var user = users.findById(userId)
-                    .orElseThrow(()-> new UsernameNotFoundException("Kullanıcı bulunamadı."));
+                    .orElseThrow(()-> new UsernameNotFoundException("user_not_found"));
 
             Map<String, Object> body = new HashMap<>();
             body.put("username", user.getUsername());
@@ -162,7 +161,7 @@ public class AuthController {
             }
             return ResponseEntity.ok(body);
         }catch(Exception e){
-            return ResponseEntity.status(401).body(Map.of("error", "Geçersiz token"));
+            return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
         }
     }
 
@@ -173,16 +172,16 @@ public class AuthController {
     ) {
         try {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(401).body(Map.of("error", "Geçersiz token"));
+                return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
             }
             String token = authHeader.substring(7);
             Long userId = jwt.extractUserId(token);
             if (userId == null) {
-                return ResponseEntity.status(401).body(Map.of("error", "Geçersiz token"));
+                return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
             }
 
             User user = users.findById(userId)
-                    .orElseThrow(() -> new UsernameNotFoundException("Kullanıcı bulunamadı."));
+                    .orElseThrow(() -> new UsernameNotFoundException("user_not_found"));
 
             String username = req.get("username");
             String firstName = req.get("firstName");
@@ -195,10 +194,7 @@ public class AuthController {
                 if (!username.equals(user.getUsername())) {
                     // Check if new username is already taken
                     if (users.existsByUsername(username)) {
-                        return ResponseEntity.badRequest().body(Map.of(
-                                "error", "username_taken",
-                                "message", "Bu kullanıcı adı zaten alınmış."
-                        ));
+                        return ResponseEntity.badRequest().body(Map.of("error", "username_taken"));
                     }
                     user.setUsername(username);
                 }
@@ -220,10 +216,7 @@ public class AuthController {
             try {
                 users.save(user);
             } catch (DataIntegrityViolationException e) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "error", "validation_error",
-                        "message", "Kullanıcı adı veya e-posta zaten kullanılıyor."
-                ));
+                return ResponseEntity.badRequest().body(Map.of("error", "duplicate_entry"));
             }
 
             Map<String, Object> body = new HashMap<>();
@@ -237,7 +230,7 @@ public class AuthController {
             return ResponseEntity.ok(body);
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of("error", "Profil güncellenemedi", "message", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", "profile_update_failed"));
         }
     }
 
@@ -248,24 +241,21 @@ public class AuthController {
     ) {
         try {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(401).body(Map.of("error", "Geçersiz token"));
+                return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
             }
             String token = authHeader.substring(7);
             Long userId = jwt.extractUserId(token);
             if (userId == null) {
-                return ResponseEntity.status(401).body(Map.of("error", "Geçersiz token"));
+                return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
             }
 
             if (file == null || file.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Boş dosya", "message", "Dosya yüklenemedi."));
+                return ResponseEntity.badRequest().body(Map.of("error", "empty_file"));
             }
 
             long maxBytes = 512 * 1024; // 512KB
             if (file.getSize() > maxBytes) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "error", "file_too_large",
-                        "message", "Profil fotoğrafı en fazla 512KB olabilir."
-                ));
+                return ResponseEntity.badRequest().body(Map.of("error", "file_too_large"));
             }
 
             String contentType = file.getContentType();
@@ -273,14 +263,11 @@ public class AuthController {
                     !(contentType.equalsIgnoreCase("image/jpeg")
                             || contentType.equalsIgnoreCase("image/png")
                             || contentType.equalsIgnoreCase("image/webp"))) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "error", "invalid_type",
-                        "message", "Sadece JPEG, PNG veya WEBP formatındaki resimler kabul edilir."
-                ));
+                return ResponseEntity.badRequest().body(Map.of("error", "invalid_file_type"));
             }
 
             User user = users.findById(userId)
-                    .orElseThrow(() -> new UsernameNotFoundException("Kullanıcı bulunamadı."));
+                    .orElseThrow(() -> new UsernameNotFoundException("user_not_found"));
 
             user.setAvatar(file.getBytes());
             user.setAvatarContentType(contentType);
@@ -290,25 +277,16 @@ public class AuthController {
                 users.save(user);
             } catch (Exception e) {
                 e.printStackTrace();
-                return ResponseEntity.status(500).body(Map.of(
-                        "error", "save_failed",
-                        "message", "Profil fotoğrafı kaydedilemedi: " + e.getMessage()
-                ));
+                return ResponseEntity.status(500).body(Map.of("error", "save_failed"));
             }
 
             return ResponseEntity.ok(Map.of("success", true));
         } catch (IOException e) {
             e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of(
-                    "error", "upload_failed",
-                    "message", "Profil fotoğrafı yüklenirken bir hata oluştu: " + e.getMessage()
-            ));
+            return ResponseEntity.status(500).body(Map.of("error", "upload_failed"));
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of(
-                    "error", "upload_failed",
-                    "message", "Beklenmeyen bir hata oluştu: " + e.getMessage()
-            ));
+            return ResponseEntity.status(500).body(Map.of("error", "unexpected_error"));
         }
     }
 }

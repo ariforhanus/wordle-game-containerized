@@ -1,5 +1,6 @@
 package com.ariforhanus.wordle.controller;
 
+import com.ariforhanus.wordle.config.SupportedLanguage;
 import com.ariforhanus.wordle.dto.WordDto;
 import com.ariforhanus.wordle.entity.User;
 import com.ariforhanus.wordle.repository.ScoreRepository;
@@ -9,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,13 +25,16 @@ public class AdminController {
     private final UserRepository userRepo;
     private final ScoreRepository scoreRepo;
     private final WordService wordService;
+    private final ZoneId appZone;
 
     public AdminController(UserRepository userRepo,
                            ScoreRepository scoreRepo,
-                           WordService wordService) {
+                           WordService wordService,
+                           @org.springframework.beans.factory.annotation.Value("${app.timezone:Europe/Istanbul}") String timezone) {
         this.userRepo = userRepo;
         this.scoreRepo = scoreRepo;
         this.wordService = wordService;
+        this.appZone = ZoneId.of(timezone);
     }
 
     // ── Dashboard stats ─────────────────────────────────────
@@ -38,15 +44,17 @@ public class AdminController {
         long totalUsers = userRepo.count();
         long totalGames = scoreRepo.count();
 
+        LocalDate today = ZonedDateTime.now(appZone).toLocalDate();
+
         // Today's players
         long todayPlayers = scoreRepo.findAll().stream()
-                .filter(s -> s.getPlayedAt().equals(LocalDate.now()))
+                .filter(s -> s.getPlayedAt().equals(today))
                 .map(s -> s.getUserId())
                 .distinct()
                 .count();
 
         // Active users (played in last 7 days)
-        LocalDate weekAgo = LocalDate.now().minusDays(7);
+        LocalDate weekAgo = today.minusDays(7);
         long activeUsers = scoreRepo.findAll().stream()
                 .filter(s -> !s.getPlayedAt().isBefore(weekAgo))
                 .map(s -> s.getUserId())
@@ -130,7 +138,7 @@ public class AdminController {
     ) {
         String newRole = body.get("role");
         if (newRole == null || (!newRole.equals("USER") && !newRole.equals("ADMIN"))) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Role must be USER or ADMIN"));
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid_role"));
         }
 
         var opt = userRepo.findById(id);
@@ -163,7 +171,7 @@ public class AdminController {
 
     @GetMapping("/daily-word")
     public ResponseEntity<?> dailyWord() {
-        List<String> langs = List.of("en", "tr");
+        List<String> langs = SupportedLanguage.supportedCodes();
         Map<String, Object> result = new LinkedHashMap<>();
         for (String lang : langs) {
             try {

@@ -1,6 +1,20 @@
 {
   "app": {
-    "title": "Wordle"
+    "title": "Wordle",
+    "tagline": "Kelime Tahmin Oyunu",
+    "fullTitle": "Wordle — Kelime Tahmin Oyunu",
+    "description": "Klasik kelime tahmin oyunuyla kendini test et. Günlük meydan okumalar, sıralamalar, temalı modlar ve istatistikler."
+  },
+  "seo": {
+    "home": "Ana Sayfa",
+    "practice": "Alıştırma Modu",
+    "daily": "Günlük Meydan Okuma",
+    "leaderboard": "Sıralama Tablosu",
+    "login": "Giriş Yap",
+    "register": "Kayıt Ol",
+    "profile": "Profilim",
+    "themes": "Temalı Modlar",
+    "admin": "Yönetim Paneli"
   },
   "nav": {
     "practice": "Alıştırma",
@@ -12,7 +26,8 @@
     "logout": "Çıkış Yap",
     "themes": "Temalar",
     "backToGame": "Ana sayfaya dön",
-    "switchLang": "EN"
+    "switchLang": "EN",
+    "menu": "Menü"
   },
   "game": {
     "congrats": "Tebrikler!",
@@ -47,7 +62,8 @@
     "blindModeFirstTime": "Kör Mod: Tüm kutucuk renkleri oyun bitene kadar gizli kalır. Kazanana veya kaybedene kadar hiçbir geri bildirim göremezsin!",
     "lbDaily": "Günlük",
     "lbWeekly": "Haftalık",
-    "lbMonthly": "Aylık"
+    "lbMonthly": "Aylık",
+    "loadError": "Kelime yüklenemedi. Bağlantınızı kontrol edin."
   },
   "daily": {
     "title": "Günlük Meydan Okuma",
@@ -149,6 +165,25 @@
   "theme": {
     "dark": "Koyu Mod",
     "light": "Açık Mod"
+  },
+  "api": {
+    "required_fields": "Kullanıcı adı, e-posta ve şifre zorunlu.",
+    "username_taken": "Bu kullanıcı adı zaten alınmış.",
+    "email_taken": "Bu e-posta zaten kayıtlı.",
+    "duplicate_entry": "Kullanıcı adı veya e-posta zaten kullanılıyor.",
+    "invalid_token": "Geçersiz veya süresi dolmuş oturum. Lütfen tekrar giriş yapın.",
+    "user_not_found": "Kullanıcı bulunamadı.",
+    "profile_update_failed": "Profil güncellenemedi.",
+    "empty_file": "Dosya seçilmedi.",
+    "file_too_large": "Dosya en fazla 512KB olabilir.",
+    "invalid_file_type": "Sadece JPEG, PNG veya WEBP formatları kabul edilir.",
+    "save_failed": "Kayıt başarısız. Lütfen tekrar deneyin.",
+    "upload_failed": "Yükleme başarısız. Lütfen tekrar deneyin.",
+    "unexpected_error": "Beklenmeyen bir hata oluştu.",
+    "already_played": "Bugün bu dilde zaten oynadın!",
+    "invalid_role": "Rol USER veya ADMIN olmalı.",
+    "invalid_lang": "Desteklenmeyen dil.",
+    "no_definition": "Tanım mevcut değil."
   },
   "admin": {
     "title": "Yönetim Paneli",

@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { THEMES } from "@wordle/engine";
+import { usePageTitleKey } from "../hooks/usePageTitle";
 import "./ThemeSelectPage.css";
 
 export default function ThemeSelectPage() {
   const { t } = useTranslation();
+  usePageTitleKey("seo.themes");
 
   return (
     <div className="themes-page">

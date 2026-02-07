@@ -1,6 +1,20 @@
 {
   "app": {
-    "title": "Wordle"
+    "title": "Wordle",
+    "tagline": "Word Guessing Game",
+    "fullTitle": "Wordle — Word Guessing Game",
+    "description": "Challenge yourself with the classic word guessing game. Play daily challenges, compete on leaderboards, try themed modes, and track your stats."
+  },
+  "seo": {
+    "home": "Home",
+    "practice": "Practice Mode",
+    "daily": "Daily Challenge",
+    "leaderboard": "Leaderboard",
+    "login": "Login",
+    "register": "Register",
+    "profile": "My Profile",
+    "themes": "Themed Modes",
+    "admin": "Admin Panel"
   },
   "nav": {
     "practice": "Practice",
@@ -12,7 +26,8 @@
     "logout": "Logout",
     "themes": "Themes",
     "backToGame": "Back to game",
-    "switchLang": "TR"
+    "switchLang": "TR",
+    "menu": "Menu"
   },
   "game": {
     "congrats": "Congratulations!",
@@ -47,7 +62,8 @@
     "blindModeFirstTime": "Blind Mode: All tile colors are hidden until the game ends. You won't see any feedback until you win or lose!",
     "lbDaily": "Daily",
     "lbWeekly": "Weekly",
-    "lbMonthly": "Monthly"
+    "lbMonthly": "Monthly",
+    "loadError": "Could not load word. Check your connection."
   },
   "daily": {
     "title": "Daily Challenge",
@@ -149,6 +165,25 @@
   "theme": {
     "dark": "Dark Mode",
     "light": "Light Mode"
+  },
+  "api": {
+    "required_fields": "Username, email and password are required.",
+    "username_taken": "This username is already taken.",
+    "email_taken": "This email is already registered.",
+    "duplicate_entry": "Username or email is already in use.",
+    "invalid_token": "Invalid or expired session. Please log in again.",
+    "user_not_found": "User not found.",
+    "profile_update_failed": "Failed to update profile.",
+    "empty_file": "No file selected.",
+    "file_too_large": "File must be 512KB or less.",
+    "invalid_file_type": "Only JPEG, PNG or WEBP images are accepted.",
+    "save_failed": "Failed to save. Please try again.",
+    "upload_failed": "Upload failed. Please try again.",
+    "unexpected_error": "An unexpected error occurred.",
+    "already_played": "You already played today in this language!",
+    "invalid_role": "Role must be USER or ADMIN.",
+    "invalid_lang": "Unsupported language.",
+    "no_definition": "Definition unavailable."
   },
   "admin": {
     "title": "Admin Panel",

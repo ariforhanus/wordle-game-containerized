@@ -47,9 +47,9 @@ export default function HowToPlayModal({
   if (!open) return null;
 
   return (
-    <div className="htp-overlay" onClick={close}>
-      <div className="htp-card" onClick={(e) => e.stopPropagation()}>
-        <h2 className="htp-title">{t("game.howToPlay")}</h2>
+    <div className="htp-overlay" onClick={close} role="presentation">
+      <div className="htp-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="htp-dialog-title">
+        <h2 className="htp-title" id="htp-dialog-title">{t("game.howToPlay")}</h2>
         <p className="htp-desc">{t("game.howToPlayDesc")}</p>
 
         <div className="htp-examples">

@@ -20,4 +20,12 @@ i18n.use(initReactI18next).init({
   },
 });
 
+// Keep <html lang=""> in sync with current language (SEO + accessibility)
+function updateHtmlLang(lng: string) {
+  document.documentElement.lang = lng;
+  document.documentElement.dir = "ltr"; // RTL can be added here for Arabic etc.
+}
+updateHtmlLang(savedLang);
+i18n.on("languageChanged", updateHtmlLang);
+
 export default i18n;
