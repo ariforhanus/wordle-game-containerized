@@ -42,8 +42,8 @@ services:
 
   frontend:
       build:
-          context: ./frontend
-          dockerfile: Dockerfile
+          context: .
+          dockerfile: packages/web/Dockerfile
       image: wordle-game-frontend:latest
       container_name: wordle-frontend
       depends_on:
@@ -51,7 +51,7 @@ services:
       ports:
           - "80:80"
       volumes:
-          - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf
+          - ./packages/web/nginx.conf:/etc/nginx/conf.d/default.conf
       restart: unless-stopped
 
   pgadmin:

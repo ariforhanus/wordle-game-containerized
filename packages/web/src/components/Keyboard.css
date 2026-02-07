@@ -1,0 +1,69 @@
+.keyboard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.keyboard-row {
+  display: flex;
+  gap: 5px;
+}
+
+.key {
+  min-width: 36px;
+  height: 52px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: "Nunito", sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  background: var(--key-bg, #d3d6da);
+  color: var(--key-text, #1a1a2e);
+  transition: background 0.2s ease, transform 0.1s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.key:active {
+  transform: scale(0.95);
+}
+
+.key-wide {
+  min-width: 56px;
+  font-size: 0.7rem;
+}
+
+.key-correct {
+  background: var(--correct, #6aaa64);
+  color: white;
+}
+
+.key-present {
+  background: var(--present, #c9b458);
+  color: white;
+}
+
+.key-absent {
+  background: var(--absent, #787c7e);
+  color: white;
+}
+
+@media (max-width: 400px) {
+  .key {
+    min-width: 30px;
+    height: 46px;
+    font-size: 0.75rem;
+  }
+  .key-wide {
+    min-width: 46px;
+  }
+}

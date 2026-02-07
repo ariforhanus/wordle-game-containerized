@@ -15,6 +15,16 @@ backend/target/
 
 # Node
 frontend/node_modules/
+node_modules/
+packages/*/dist/
+packages/web/dist/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Vite generated config output
+packages/web/vite.config.js
+packages/web/vite.config.d.ts
 
 # Environment
 .env

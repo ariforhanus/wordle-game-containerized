@@ -1,0 +1,112 @@
+{
+  "app": {
+    "title": "Wordle"
+  },
+  "nav": {
+    "practice": "Practice",
+    "daily": "Daily",
+    "leaderboard": "Leaderboard",
+    "profile": "Profile",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "backToGame": "Back to game",
+    "switchLang": "TR"
+  },
+  "game": {
+    "congrats": "Congratulations!",
+    "word": "Word",
+    "meaning": "Meaning",
+    "gameOver": "Game Over!",
+    "invalidWord": "Not a valid word",
+    "hint": "Hint",
+    "playAgain": "Play Again",
+    "enterGuess": "Enter your guess"
+  },
+  "daily": {
+    "title": "Daily Challenge",
+    "desc": "A new word every day. Everyone gets the same word — guess it in 6 tries and compete on the leaderboard!",
+    "startGame": "Start Game",
+    "alreadyPlayed": "Already Played",
+    "todayScore": "Today's score: {{score}} ({{attempts}} attempts)",
+    "timer": "Time",
+    "goToLeaderboard": "Go to Leaderboard",
+    "loginRequired": "You need to login to play the daily challenge.",
+    "playTodayFirst": "Play today's challenge to unlock the leaderboard."
+  },
+  "leaderboard": {
+    "title": "Daily Leaderboard",
+    "rank": "#",
+    "player": "Player",
+    "score": "Score",
+    "you": "You",
+    "empty": "No scores yet. Be the first!",
+    "loading": "Loading scores...",
+    "playFirst": "Play today's daily challenge first to see the leaderboard.",
+    "error": "Failed to load scores."
+  },
+  "auth": {
+    "loginTitle": "Login",
+    "registerTitle": "Register",
+    "username": "Username",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "email": "Email",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "country": "Country",
+    "selectCountry": "Select country",
+    "profilePhoto": "Profile Photo (max 512KB)",
+    "loginBtn": "Login",
+    "registerBtn": "Register",
+    "noAccount": "Don't have an account? Register",
+    "hasAccount": "Already have an account? Login",
+    "loginSuccess": "Login successful! Redirecting...",
+    "loginFail": "Invalid username or password.",
+    "loginError": "An error occurred during login. Please try again.",
+    "registerSuccess": "Registration successful! Redirecting to game...",
+    "registerFail": "An error occurred during registration.",
+    "registerError": "An error occurred during registration. Please try again.",
+    "passwordMismatch": "Passwords do not match!",
+    "avatarTooLarge": "Profile photo must be 512KB or less.",
+    "usernameRequired": "Username is required.",
+    "passwordRequired": "Password is required.",
+    "emailRequired": "Enter a valid email.",
+    "passwordMinLength": "Password must be at least 6 characters.",
+    "countryRequired": "Please select a country."
+  },
+  "profile": {
+    "title": "Profile",
+    "stats": "Statistics",
+    "achievements": "Achievements",
+    "totalGames": "Total Games",
+    "bestScore": "Best Score",
+    "avgScore": "Average Score",
+    "avgTime": "Avg. Time",
+    "currentStreak": "Current Streak",
+    "bestStreak": "Best Streak",
+    "editProfile": "Edit Profile",
+    "save": "Save",
+    "cancel": "Cancel",
+    "gamesInLang": "Games ({{lang}})",
+    "seconds": "s",
+    "days": "days",
+    "noStats": "Play some games to see your stats!"
+  },
+  "achievements": {
+    "first_game": { "title": "First Step", "desc": "Play your first game." },
+    "ten_games": { "title": "Getting Warm", "desc": "Play 10 games." },
+    "thirty_games": { "title": "Regular Player", "desc": "Play 30 games." },
+    "hundred_games": { "title": "Addicted", "desc": "Play 100 games." },
+    "streak_2": { "title": "On Fire", "desc": "Reach a streak of 2 or more days." },
+    "streak_5": { "title": "Hot Streak", "desc": "Reach a streak of 5 or more days." },
+    "best_score_high": { "title": "High Scorer", "desc": "Achieve a high score (>= 5000)." },
+    "fast_player": { "title": "Speed Runner", "desc": "Average time under 90 seconds." },
+    "multi_language": { "title": "Bilingual", "desc": "Play in more than one language." },
+    "lang_games_10": { "title": "Local Hero", "desc": "Play 10 games in this language." }
+  },
+  "theme": {
+    "dark": "Dark Mode",
+    "light": "Light Mode"
+  }
+}

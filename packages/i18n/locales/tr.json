@@ -1,0 +1,112 @@
+{
+  "app": {
+    "title": "Wordle"
+  },
+  "nav": {
+    "practice": "Alıştırma",
+    "daily": "Günlük",
+    "leaderboard": "Sıralama",
+    "profile": "Profil",
+    "login": "Giriş Yap",
+    "register": "Kayıt Ol",
+    "logout": "Çıkış Yap",
+    "backToGame": "Ana sayfaya dön",
+    "switchLang": "EN"
+  },
+  "game": {
+    "congrats": "Tebrikler!",
+    "word": "Kelime",
+    "meaning": "Anlam",
+    "gameOver": "Kaybettin!",
+    "invalidWord": "Geçerli bir kelime değil",
+    "hint": "İpucu",
+    "playAgain": "Tekrar Oyna",
+    "enterGuess": "Tahmininizi girin"
+  },
+  "daily": {
+    "title": "Günlük Meydan Okuma",
+    "desc": "Her gün yeni bir kelime. Herkes aynı kelimeyi tahmin eder — 6 denemede bul ve sıralamada yarış!",
+    "startGame": "Oyunu Başlat",
+    "alreadyPlayed": "Bugün Zaten Oynadın",
+    "todayScore": "Bugünkü skorun: {{score}} ({{attempts}} deneme)",
+    "timer": "Süre",
+    "goToLeaderboard": "Sıralamaya Git",
+    "loginRequired": "Günlük meydan okumayı oynamak için giriş yapmalısın.",
+    "playTodayFirst": "Sıralamayı görmek için bugünkü meydan okumayı oyna."
+  },
+  "leaderboard": {
+    "title": "Günlük Sıralama",
+    "rank": "#",
+    "player": "Oyuncu",
+    "score": "Skor",
+    "you": "Sen",
+    "empty": "Henüz skor yok. İlk sen ol!",
+    "loading": "Skorlar yükleniyor...",
+    "playFirst": "Sıralamayı görmek için önce günlük meydan okumayı oyna.",
+    "error": "Skorlar yüklenemedi."
+  },
+  "auth": {
+    "loginTitle": "Giriş Yap",
+    "registerTitle": "Kayıt Ol",
+    "username": "Kullanıcı Adı",
+    "password": "Şifre",
+    "confirmPassword": "Şifre (tekrar)",
+    "email": "E-posta",
+    "firstName": "İsim",
+    "lastName": "Soyisim",
+    "country": "Ülke",
+    "selectCountry": "Ülke seç",
+    "profilePhoto": "Profil Fotoğrafı (en fazla 512KB)",
+    "loginBtn": "Giriş",
+    "registerBtn": "Kayıt Ol",
+    "noAccount": "Hesabın yok mu? Kayıt ol",
+    "hasAccount": "Zaten hesabın var mı? Giriş yap",
+    "loginSuccess": "Giriş başarılı! Yönlendiriliyorsunuz...",
+    "loginFail": "Kullanıcı adı veya şifre hatalı.",
+    "loginError": "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin.",
+    "registerSuccess": "Kayıt başarılı! Oyuna yönlendiriliyorsunuz...",
+    "registerFail": "Kayıt sırasında bir hata oluştu.",
+    "registerError": "Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.",
+    "passwordMismatch": "Şifreler eşleşmiyor!",
+    "avatarTooLarge": "Profil fotoğrafı en fazla 512KB olabilir.",
+    "usernameRequired": "Kullanıcı adı zorunlu.",
+    "passwordRequired": "Şifre zorunlu.",
+    "emailRequired": "Geçerli bir e-posta gir.",
+    "passwordMinLength": "En az 6 karakter bir şifre gir.",
+    "countryRequired": "Lütfen bir ülke seçin."
+  },
+  "profile": {
+    "title": "Profil",
+    "stats": "İstatistikler",
+    "achievements": "Başarılar",
+    "totalGames": "Toplam Oyun",
+    "bestScore": "En Yüksek Skor",
+    "avgScore": "Ortalama Skor",
+    "avgTime": "Ort. Süre",
+    "currentStreak": "Mevcut Seri",
+    "bestStreak": "En İyi Seri",
+    "editProfile": "Profili Düzenle",
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "gamesInLang": "Oyun ({{lang}})",
+    "seconds": "sn",
+    "days": "gün",
+    "noStats": "İstatistiklerinizi görmek için birkaç oyun oynayın!"
+  },
+  "achievements": {
+    "first_game": { "title": "İlk Adım", "desc": "İlk oyununuzu oynayın." },
+    "ten_games": { "title": "Isınma Turu", "desc": "10 oyun oynayın." },
+    "thirty_games": { "title": "Düzenli Oyuncu", "desc": "30 oyun oynayın." },
+    "hundred_games": { "title": "Bağımlı", "desc": "100 oyun oynayın." },
+    "streak_2": { "title": "Alev Aldı", "desc": "En az 2 günlük seri yapın." },
+    "streak_5": { "title": "Sıcak Seri", "desc": "En az 5 günlük seri yapın." },
+    "best_score_high": { "title": "Yüksek Skor", "desc": "5000 veya üzeri skor yapın." },
+    "fast_player": { "title": "Hızlı Oyuncu", "desc": "Ortalama sürenizi 90 saniyenin altına düşürün." },
+    "multi_language": { "title": "Çok Dilli", "desc": "Birden fazla dilde oyun oynayın." },
+    "lang_games_10": { "title": "Yerel Kahraman", "desc": "Bu dilde 10 oyun oynayın." }
+  },
+  "theme": {
+    "dark": "Koyu Mod",
+    "light": "Açık Mod"
+  }
+}

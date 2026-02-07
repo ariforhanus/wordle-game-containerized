@@ -1,0 +1,408 @@
+.user-page {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* ── Profile header ── */
+
+.profile-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 12px;
+}
+
+.avatar-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--key-bg, #d3d6da);
+  font-size: 2rem;
+  color: var(--text-secondary, #888);
+}
+
+.profile-header h1 {
+  font-size: 1.6rem;
+  font-weight: 900;
+  margin: 0;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.nationality {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #888);
+  margin-bottom: 10px;
+}
+
+.edit-profile-btn {
+  background: transparent;
+  border: 2px solid var(--border, #d3d6da);
+  color: var(--text-primary, #1a1a2e);
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: "Nunito", sans-serif;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.edit-profile-btn:hover {
+  border-color: var(--accent, #3b82f6);
+  background: var(--accent-soft, rgba(59, 130, 246, 0.1));
+}
+
+/* ── Stats grid: 6 gradient cards ── */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 500px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.stat-card-gradient {
+  border-radius: 14px;
+  padding: 18px 14px;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.stat-card-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.stat-card-clickable {
+  cursor: pointer;
+}
+
+.stat-icon {
+  font-size: 1.5rem;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.stat-content {
+  min-width: 0;
+}
+
+.stat-label-g {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.9;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-value-g {
+  font-size: 1.4rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+/* ── Modal overlay (shared) ── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  animation: fadeIn 0.2s ease;
+  padding: 16px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-card {
+  background: var(--card-bg, white);
+  color: var(--card-text, #1a1a2e);
+  border-radius: 16px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid var(--border, #eee);
+}
+
+.modal-header h2 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--text-secondary, #888);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.modal-close:hover {
+  background: var(--border, #eee);
+}
+
+/* ── Achievements modal ── */
+
+.achievements-modal {
+  max-width: 480px;
+}
+
+.achievements-progress {
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 900;
+  padding: 12px 0 8px;
+  color: var(--accent, #3b82f6);
+}
+
+.achievements-list {
+  list-style: none;
+  padding: 0 16px 20px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.achievement-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #eee);
+  transition: opacity 0.2s;
+}
+
+.achievement-unlocked {
+  border-color: var(--accent, #3b82f6);
+  background: var(--accent-soft, rgba(59, 130, 246, 0.1));
+}
+
+.achievement-locked {
+  opacity: 0.4;
+}
+
+.achievement-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  background: var(--border, #eee);
+  color: var(--text-secondary, #888);
+}
+
+.achievement-unlocked .achievement-icon-wrap {
+  background: var(--accent, #3b82f6);
+  color: white;
+}
+
+.achievement-text {
+  min-width: 0;
+}
+
+.achievement-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.achievement-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #888);
+}
+
+/* ── Edit profile modal ── */
+
+.edit-modal {
+  max-width: 460px;
+}
+
+.edit-form {
+  padding: 16px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-form label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+
+.edit-form input,
+.edit-form select {
+  padding: 10px 14px;
+  border: 2px solid var(--border, #d3d6da);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: "Nunito", sans-serif;
+  background: var(--input-bg, white);
+  color: var(--input-text, #1a1a2e);
+  transition: border-color 0.2s;
+}
+
+.edit-form input:focus,
+.edit-form select:focus {
+  outline: none;
+  border-color: var(--accent, #3b82f6);
+}
+
+.input-readonly {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.edit-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.edit-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edit-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.edit-avatar-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.edit-avatar-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--key-bg, #d3d6da);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--text-secondary, #888);
+}
+
+.edit-avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border: 2px solid var(--border, #d3d6da);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: "Nunito", sans-serif;
+  cursor: pointer;
+  color: var(--text-primary, #1a1a2e);
+  transition: border-color 0.2s;
+}
+.edit-avatar-btn:hover {
+  border-color: var(--accent, #3b82f6);
+}
+
+.edit-avatar-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #888);
+}
+
+.edit-msg {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+}
+.edit-msg.error {
+  background: #ffe0e0;
+  color: #c33;
+}
+.edit-msg.success {
+  background: #e0ffe0;
+  color: #2a7a2a;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 2px solid var(--border, #d3d6da);
+  color: var(--text-primary, #1a1a2e);
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: "Nunito", sans-serif;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.btn-cancel:hover {
+  border-color: var(--text-secondary, #888);
+}

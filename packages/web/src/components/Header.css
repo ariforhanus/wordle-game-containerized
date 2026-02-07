@@ -1,0 +1,209 @@
+/* ── Header bar ── */
+
+.app-header {
+  background: var(--header-bg, linear-gradient(135deg, #22c1c3 0%, #5b86e5 100%));
+  color: white;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 900px;
+  margin: 0 auto;
+  height: 56px;
+}
+
+.brand {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: white;
+  text-decoration: none;
+  font-family: "Nunito", sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Desktop navigation ── */
+
+.nav-desktop {
+  display: flex;
+  gap: 6px;
+}
+
+.nav-link {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+.nav-link:hover,
+.nav-link.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* ── Desktop header actions ── */
+
+.desktop-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-family: "Nunito", sans-serif;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  transition: background 0.2s;
+}
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Burger button ── */
+
+.burger {
+  display: none;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.burger:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Mobile slide-down menu ── */
+
+.mobile-menu {
+  display: none;
+  flex-direction: column;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+}
+
+.mobile-menu.open {
+  max-height: 500px;
+  padding: 8px 0 16px;
+}
+
+.mobile-nav-links,
+.mobile-settings,
+.mobile-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mobile-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.88);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: "Nunito", sans-serif;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  width: 100%;
+  text-align: left;
+}
+
+.mobile-link i {
+  width: 20px;
+  text-align: center;
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.mobile-link:hover,
+.mobile-link.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.mobile-link.active i {
+  opacity: 1;
+}
+
+.mobile-logout {
+  color: rgba(255, 150, 150, 0.9);
+}
+.mobile-logout:hover {
+  background: rgba(255, 100, 100, 0.15);
+  color: #ffaaaa;
+}
+
+.mobile-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 8px 12px;
+}
+
+/* ── Backdrop overlay ── */
+
+.menu-backdrop {
+  display: none;
+}
+
+/* ── Mobile breakpoint ── */
+
+@media (max-width: 640px) {
+  .nav-desktop {
+    display: none;
+  }
+  .desktop-actions {
+    display: none;
+  }
+  .burger {
+    display: flex;
+  }
+  .mobile-menu {
+    display: flex;
+  }
+  .menu-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    top: 56px;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 99;
+    animation: backdropIn 0.2s ease;
+  }
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

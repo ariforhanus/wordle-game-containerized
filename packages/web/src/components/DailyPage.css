@@ -1,0 +1,61 @@
+.daily-timer {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-family: "Nunito", monospace;
+  color: var(--text-primary, #1a1a2e);
+  text-align: center;
+  margin: 8px 0 0;
+  padding: 4px 16px;
+  background: var(--timer-bg, rgba(0,0,0,0.05));
+  border-radius: 8px;
+  display: inline-block;
+}
+
+/* Daily start popup */
+.daily-start-card {
+  max-width: 400px;
+  padding: 40px 36px;
+}
+
+.daily-start-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  background: var(--accent-gradient, linear-gradient(135deg, #22c1c3, #5b86e5));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.daily-start-card h2 {
+  font-size: 1.5rem;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.daily-start-desc {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+/* Leaderboard locked card */
+.lb-locked {
+  text-align: center;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.lb-locked-icon {
+  font-size: 3rem;
+  color: var(--text-secondary, #888);
+  margin-bottom: 16px;
+}
+
+.lb-locked-text {
+  font-size: 1.05rem;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}

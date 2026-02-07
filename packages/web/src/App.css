@@ -1,0 +1,154 @@
+/* ── CSS Custom Properties (Light / Dark theme) ── */
+
+:root,
+[data-theme="light"] {
+  --bg: #f7f8fa;
+  --text-primary: #1a1a2e;
+  --text-secondary: #666;
+  --card-bg: #fff;
+  --card-text: #1a1a2e;
+  --input-bg: #fff;
+  --input-text: #1a1a2e;
+  --border: #d3d6da;
+  --cell-border: #d3d6da;
+  --cell-filled-border: #878a8c;
+  --cell-text: #1a1a2e;
+  --cell-bg: transparent;
+  --key-bg: #d3d6da;
+  --key-text: #1a1a2e;
+  --correct: #6aaa64;
+  --present: #c9b458;
+  --absent: #787c7e;
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.1);
+  --accent-gradient: linear-gradient(135deg, #22c1c3, #5b86e5);
+  --header-bg: linear-gradient(135deg, #22c1c3 0%, #5b86e5 100%);
+  --timer-bg: rgba(0, 0, 0, 0.05);
+  --row-highlight: rgba(34, 193, 195, 0.1);
+}
+
+[data-theme="dark"] {
+  --bg: #121213;
+  --text-primary: #e8e8e8;
+  --text-secondary: #999;
+  --card-bg: #1e1e24;
+  --card-text: #e8e8e8;
+  --input-bg: #2a2a32;
+  --input-text: #e8e8e8;
+  --border: #3a3a3c;
+  --cell-border: #3a3a3c;
+  --cell-filled-border: #565758;
+  --cell-text: #e8e8e8;
+  --cell-bg: transparent;
+  --key-bg: #818384;
+  --key-text: #e8e8e8;
+  --correct: #538d4e;
+  --present: #b59f3b;
+  --absent: #3a3a3c;
+  --accent: #e84393;
+  --accent-soft: rgba(232, 67, 147, 0.12);
+  --accent-gradient: linear-gradient(135deg, #e84393, #a855f7);
+  --header-bg: linear-gradient(135deg, #e84393 0%, #a855f7 50%, #6366f1 100%);
+  --timer-bg: rgba(255, 255, 255, 0.06);
+  --row-highlight: rgba(232, 67, 147, 0.12);
+}
+
+/* ── Global reset ── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100%;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+}
+
+/* Helper for centered pages */
+.page-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 56px);
+  padding: 24px 16px;
+}
+
+/* Buttons (shared) */
+.btn-primary {
+  background: var(--accent-gradient, linear-gradient(135deg, #22c1c3, #5b86e5));
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: "Nunito", sans-serif;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.2s, transform 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Spinner */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--cell-border, #d3d6da);
+  border-top-color: var(--accent, #3b82f6);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+a {
+  color: inherit;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
