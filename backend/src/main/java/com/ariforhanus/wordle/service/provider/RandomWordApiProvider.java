@@ -1,6 +1,8 @@
 package com.ariforhanus.wordle.service.provider;
 
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -9,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Local dosyalardan random kelime seçer
@@ -18,16 +21,18 @@ import java.util.*;
 @Component
 public class RandomWordApiProvider {
 
+    private static final Logger log = LoggerFactory.getLogger(RandomWordApiProvider.class);
+
     private final Map<String, List<String>> wordsByLang = new HashMap<>();
     private final Random random = new Random();
 
     @PostConstruct
     public void loadWords() {
-        loadWordsForLang("en", "words/words_en.txt", "^[A-Z]{5}$");
-        loadWordsForLang("tr", "words/words_tr.txt", "^[A-ZÇĞİÖŞÜ]{5}$");
+        loadWordsForLang("en", "words/words_en.txt", Pattern.compile("^[A-Z]{5}$"));
+        loadWordsForLang("tr", "words/words_tr.txt", Pattern.compile("^[A-ZÇĞİÖŞÜ]{5}$"));
     }
 
-    private void loadWordsForLang(String lang, String filePath, String pattern) {
+    private void loadWordsForLang(String lang, String filePath, Pattern pattern) {
         List<String> words = new ArrayList<>();
         try {
             ClassPathResource resource = new ClassPathResource(filePath);
@@ -37,16 +42,17 @@ public class RandomWordApiProvider {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     String word = line.trim().toUpperCase(locale);
-                    if (word.length() == 5 && word.matches(pattern)) {
+                    if (word.length() == 5 && pattern.matcher(word).matches()) {
                         words.add(word);
                     }
                 }
             }
-            wordsByLang.put(lang, words);
-            System.out.println("Loaded " + words.size() + " words for lang=" + lang + " from " + filePath);
+            Collections.sort(words);
+            wordsByLang.put(lang, Collections.unmodifiableList(words));
+            log.info("Loaded {} words for lang={} from {}", words.size(), lang, filePath);
         } catch (IOException e) {
-            System.err.println("Failed to load words file for " + lang + ": " + e.getMessage());
-            wordsByLang.put(lang, Collections.emptyList());
+            log.error("Failed to load words file for {}: {}", lang, e.getMessage());
+            throw new IllegalStateException("Cannot start without word list for lang=" + lang, e);
         }
     }
 
@@ -58,5 +64,12 @@ public class RandomWordApiProvider {
         return words.get(random.nextInt(words.size()));
     }
 
+    /**
+     * Belirli bir dil için yüklenmiş tüm kelimeleri döner.
+     * Dönen liste immutable'dır (Collections.unmodifiableList).
+     */
+    public List<String> getAllWords(String lang) {
+        return wordsByLang.getOrDefault(lang, Collections.emptyList());
+    }
 }
 

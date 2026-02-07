@@ -3,6 +3,7 @@ package com.ariforhanus.wordle.service;
 
 import com.ariforhanus.wordle.dto.ScoreRequest;
 import com.ariforhanus.wordle.dto.ScoreResponse;
+import com.ariforhanus.wordle.dto.UserStatsResponse;
 import com.ariforhanus.wordle.entity.Score;
 import com.ariforhanus.wordle.repository.ScoreRepository;
 import org.springframework.stereotype.Service;
@@ -12,7 +13,10 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.time.LocalDate;
 import java.util.stream.Collectors;
 
 @Service
@@ -74,6 +78,40 @@ public class ScoreService {
         return list.stream().limit(limit).map(this::toResp).collect(Collectors.toList());
     }
 
+    /**
+     * Kullanıcının temel istatistiklerini döner.
+     * Şu an için yalnızca kazandığı oyunlar kaydedildiğinden totalGames = totalWins kabul edilir.
+     */
+    public UserStatsResponse statsForUser(Long userId) {
+        List<Score> all = repo.findByUserId(userId);
+        if (all.isEmpty()) {
+            return new UserStatsResponse(0, 0, 0.0, 0.0, Map.of(), 0, 0);
+        }
+
+        long totalGames = all.size();
+        int bestScore = all.stream().mapToInt(Score::getScore).max().orElse(0);
+        double avgScore = all.stream().mapToInt(Score::getScore).average().orElse(0.0);
+        double avgDurationSec = all.stream()
+                .mapToLong(Score::getDurationMs)
+                .average()
+                .orElse(0.0) / 1000.0;
+
+        Map<String, Long> perLang = all.stream()
+                .collect(Collectors.groupingBy(Score::getLanguage, Collectors.counting()));
+
+        // Streak hesapla (kullanıcının tüm günleri üzerinden)
+        StreakResult streak = calculateStreak(all);
+
+        return new UserStatsResponse(
+                totalGames,
+                bestScore,
+                avgScore,
+                avgDurationSec,
+                perLang,
+                streak.currentStreak(),
+                streak.bestStreak()
+        );
+    }
 
 
     private int calcScore(int attempts, long durationMs){
@@ -85,7 +123,68 @@ public class ScoreService {
         return (int) result;
     }
 
+    /**
+     * Bir kullanıcının mevcut (son oynadığı güne kadar) ve en iyi streak değerlerini hesaplar.
+     */
+    private StreakResult calculateStreak(List<Score> scores) {
+        if (scores == null || scores.isEmpty()) {
+            return new StreakResult(0, 0);
+        }
+
+        // Aynı gün içinde birden fazla skor olursa (farklı diller), tek güne indir.
+        List<LocalDate> days = scores.stream()
+                .map(Score::getPlayedAt)
+                .distinct()
+                .sorted()
+                .toList();
+
+        if (days.isEmpty()) {
+            return new StreakResult(0, 0);
+        }
+
+        int best = 1;
+        int currentSeq = 1;
+
+        for (int i = 1; i < days.size(); i++) {
+            LocalDate prev = days.get(i - 1);
+            LocalDate cur = days.get(i);
+            if (cur.minusDays(1).equals(prev)) {
+                currentSeq++;
+            } else {
+                currentSeq = 1;
+            }
+            if (currentSeq > best) {
+                best = currentSeq;
+            }
+        }
+
+        // Current streak: en son oynadığı günden geriye doğru kesintisiz gün sayısı
+        int current = 1;
+        LocalDate cursor = days.get(days.size() - 1);
+        for (int i = days.size() - 2; i >= 0; i--) {
+            LocalDate prev = days.get(i);
+            if (cursor.minusDays(1).equals(prev)) {
+                current++;
+                cursor = prev;
+            } else {
+                break;
+            }
+        }
+
+        return new StreakResult(current, best);
+    }
+
+    /**
+     * Leaderboard satırları için kullanıcının current streak'ini hesaplar.
+     */
+    private int currentStreakForUser(Long userId) {
+        List<Score> all = repo.findByUserId(userId);
+        StreakResult sr = calculateStreak(all);
+        return sr.currentStreak();
+    }
+
     private ScoreResponse toResp(Score s){
+        int currentStreak = currentStreakForUser(s.getUserId());
         return new ScoreResponse(
                 s.getScore(),
                 s.getAttempts(),
@@ -93,7 +192,10 @@ public class ScoreService {
                 s.getId(),
                 s.getDurationMs(),
                 s.getWord(),
-                s.getWonAt()
+                s.getWonAt(),
+                currentStreak
         );
     }
+
+    private record StreakResult(int currentStreak, int bestStreak) {}
 }

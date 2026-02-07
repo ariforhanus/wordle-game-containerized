@@ -1,8 +1,10 @@
 package com.ariforhanus.wordle.controller;
 
 
+import com.ariforhanus.wordle.config.SupportedLanguage;
 import com.ariforhanus.wordle.dto.ScoreRequest;
 import com.ariforhanus.wordle.dto.ScoreResponse;
+import com.ariforhanus.wordle.dto.UserStatsResponse;
 import com.ariforhanus.wordle.jwt.JwtUtil;
 import com.ariforhanus.wordle.repository.UserRepository;
 import com.ariforhanus.wordle.service.ScoreService;
@@ -16,7 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/v1")
 public class ScoreController {
     private final ScoreService service;
     private final JwtUtil jwt;
@@ -37,6 +39,16 @@ public class ScoreController {
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(value = "lang", defaultValue = "en") String lang,
             @Valid @RequestBody ScoreRequest req) {
+
+        String normalizedLang;
+        try {
+            normalizedLang = SupportedLanguage.fromParam(lang).getCode();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "invalid_lang",
+                    "supported", SupportedLanguage.supportedCodes()
+            ));
+        }
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(401).build();
@@ -59,7 +71,7 @@ public class ScoreController {
         String username = user.getUsername();
 
         try {
-            ScoreResponse saved = service.saveForDaily(userId, username, lang, req);
+            ScoreResponse saved = service.saveForDaily(userId, username, normalizedLang, req);
             return ResponseEntity.ok(saved);
         } catch (IllegalStateException e) {
             return ResponseEntity.status(409).body(Map.of(
@@ -76,7 +88,17 @@ public class ScoreController {
     public ResponseEntity<?> getDailyStatus(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(value = "lang", defaultValue = "en") String lang) {
-        
+
+        String normalizedLang;
+        try {
+            normalizedLang = SupportedLanguage.fromParam(lang).getCode();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "invalid_lang",
+                    "supported", SupportedLanguage.supportedCodes()
+            ));
+        }
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(401).build();
         }
@@ -92,7 +114,7 @@ public class ScoreController {
             return ResponseEntity.status(401).build();
         }
 
-        Optional<ScoreResponse> todayScore = service.getDailyStatus(userId, lang);
+        Optional<ScoreResponse> todayScore = service.getDailyStatus(userId, normalizedLang);
         
         if (todayScore.isPresent()) {
             return ResponseEntity.ok(Map.of(
@@ -109,14 +131,49 @@ public class ScoreController {
     @GetMapping("/leaderboard")
     public ResponseEntity<List<ScoreResponse>> global(
             @RequestParam(value = "lang", defaultValue = "en") String lang){
-        return ResponseEntity.ok(service.topGlobal(lang));
+        String normalizedLang;
+        try {
+            normalizedLang = SupportedLanguage.fromParam(lang).getCode();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(List.of());
+        }
+        return ResponseEntity.ok(service.topGlobal(normalizedLang));
     }
 
 
     @GetMapping("/leaderboard/daily")
     public ResponseEntity<List<ScoreResponse>> daily(
             @RequestParam(value = "lang", defaultValue = "en") String lang){
-        return ResponseEntity.ok(service.dailyTop(lang, 10, ZoneId.of("Europe/Istanbul")));
+        String normalizedLang;
+        try {
+            normalizedLang = SupportedLanguage.fromParam(lang).getCode();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(List.of());
+        }
+        return ResponseEntity.ok(service.dailyTop(normalizedLang, 10, ZoneId.of("Europe/Istanbul")));
+    }
+
+    /**
+     * Giriş yapmış kullanıcının basic istatistikleri.
+     */
+    @GetMapping("/stats/me")
+    public ResponseEntity<?> myStats(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).build();
+        }
+        String token = authHeader.substring(7);
+        if (!jwt.isValid(token)) {
+            return ResponseEntity.status(401).build();
+        }
+        Long userId = jwt.extractUserId(token);
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        UserStatsResponse stats = service.statsForUser(userId);
+        return ResponseEntity.ok(stats);
     }
 
 

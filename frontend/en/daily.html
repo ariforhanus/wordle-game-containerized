@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 
-<body>
+<body class="daily-page">
     <header class="brand">
         <span class="mobile-logo">Wordle</span>
         
@@ -31,15 +31,15 @@
             </ul>
         </div>
 
-        <div class="header-timer hidden" id="game-timer">
-            <i class="fa-solid fa-stopwatch"></i> <span id="timer-display">00:00</span>
-        </div>
+        <a href="user.html" class="account-link" id="accountLink">
+            <i class="fa-solid fa-user"></i>
+        </a>
         
-        <div class="account-menu">
-            <button class="account-btn" id="accountBtn">
-                <i class="fa-solid fa-user"></i>
+        <div class="settings-menu">
+            <button class="settings-btn" id="settingsBtn">
+                <i class="fa-solid fa-gear"></i>
             </button>
-            <div class="account-dropdown" id="accountDropdown">
+            <div class="settings-dropdown" id="settingsDropdown">
                 <ul>
                     <li class="guest-only"><a href="auth/login.html"><i class="fa-solid fa-sign-in-alt"></i> Login</a></li>
                     <li class="guest-only"><a href="auth/register.html"><i class="fa-solid fa-user-plus"></i> Register</a></li>
@@ -63,6 +63,7 @@
                     <button class="logout-btn"><i class="fa-solid fa-sign-out-alt"></i> Logout</button>
                 </div>
             </li>
+            <li><a href="user.html"><i class="fa-solid fa-user"></i> Profile</a></li>
             <li><a href="game.html"><i class="fa-solid fa-gamepad"></i> Practice</a></li>
             <li><a href="daily.html"><i class="fa-solid fa-calendar-day"></i> Daily Challenge</a></li>
             <li><a href="leaderboard.html"><i class="fa-solid fa-trophy"></i> Leaderboard</a></li>
@@ -138,6 +139,11 @@
     </div>
 
     <section class="keyboard-container">
+        <div class="hint-row">
+            <div class="game-timer hidden" id="game-timer">
+                <i class="fa-solid fa-stopwatch"></i> <span id="timer-display">00:00</span>
+            </div>
+        </div>
         <section class="keyboard">
             <div class="keyboard-row">
                 <div class="key">Q</div>
@@ -178,6 +184,7 @@
         </section>
     </section>
 
+    <script src="../js/script.js" defer></script>
     <script src="../js/daily.js" defer></script>
 </body>
 

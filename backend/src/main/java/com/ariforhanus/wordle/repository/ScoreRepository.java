@@ -28,4 +28,9 @@ public interface ScoreRepository extends JpaRepository<Score, Long> {
      */
     List<Score> findByPlayedAtAndLanguageOrderByScoreDesc(LocalDate playedAt, String language);
 
+    /**
+     * Bir kullanıcının tüm skorları (istatistikler için)
+     */
+    List<Score> findByUserId(Long userId);
+
 }

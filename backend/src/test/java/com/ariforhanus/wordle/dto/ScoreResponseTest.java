@@ -27,7 +27,8 @@ class ScoreResponseTest {
                 1L,
                 1500L,
                 "TESTS",
-                wonAt
+                wonAt,
+                3
         );
 
         String json = mapper.writeValueAsString(dto);
@@ -39,6 +40,7 @@ class ScoreResponseTest {
         assertTrue(json.contains("\"score\":1"));
         assertTrue(json.contains("\"word\":\"TESTS\""));
         assertTrue(json.contains("\"wonAt\":\"2025-08-22T08:00:00Z\""));
+        assertTrue(json.contains("\"currentStreak\":3"));
 
 
 

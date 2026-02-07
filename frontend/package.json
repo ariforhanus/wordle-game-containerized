@@ -1,0 +1,13 @@
+{
+  "name": "wordle-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc && node -e \"const fs=require('fs');['js/script.js','js/daily.js','js/auth.js','js/leaderboard.js'].forEach(f=>{try{const c=fs.readFileSync(f,'utf8');const l=c.split('\\n');if(l[0].includes('use strict')&&l[1].includes('exports')){fs.writeFileSync(f,l.slice(2).join('\\n'));}}catch(e){}})\"",
+    "build:watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
+

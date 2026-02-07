@@ -34,17 +34,15 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filter(HttpSecurity http) throws Exception {
-        System.out.println("SecurityConfig: Configuring security...");
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(reg -> reg
-                        .requestMatchers("/auth/**", "/api/**").permitAll()
+                        .requestMatchers("/api/**").permitAll()
                         .anyRequest().permitAll()
                 )
                 .userDetailsService(uds);
-        System.out.println("SecurityConfig: Security configured successfully");
         return http.build();
     }
 
@@ -59,9 +57,11 @@ public class SecurityConfig {
             "http://localhost",
             "http://wordle-frontend"
         ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setExposedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

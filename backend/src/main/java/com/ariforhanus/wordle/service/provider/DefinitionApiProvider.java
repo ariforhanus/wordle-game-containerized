@@ -1,6 +1,9 @@
 package com.ariforhanus.wordle.service.provider;
 
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriUtils;
@@ -13,10 +16,16 @@ import java.util.Map;
 @Component
 public class DefinitionApiProvider {
 
-    private final RestTemplate restTemplate;
+    private static final Logger log = LoggerFactory.getLogger(DefinitionApiProvider.class);
 
-    public DefinitionApiProvider(RestTemplate restTemplate) {
+    private final RestTemplate restTemplate;
+    private final String apiUrl;
+
+    public DefinitionApiProvider(
+            RestTemplate restTemplate,
+            @Value("${app.definition.api-url:https://api.dictionaryapi.dev/api/v2/entries/en/}") String apiUrl) {
         this.restTemplate = restTemplate;
+        this.apiUrl = apiUrl;
     }
 
     public String getDefinition(String word) {
@@ -25,7 +34,7 @@ public class DefinitionApiProvider {
                 return "";
             }
             String lower = word.toLowerCase(Locale.ROOT).trim();
-            String url = "https://api.dictionaryapi.dev/api/v2/entries/en/" + UriUtils.encodePath(lower, StandardCharsets.UTF_8);
+            String url = apiUrl + UriUtils.encodePath(lower, StandardCharsets.UTF_8);
 
             Object[] body = restTemplate.getForObject(url, Object[].class);
             if (body == null || body.length == 0) {
@@ -46,6 +55,7 @@ public class DefinitionApiProvider {
             Object defText = definition0.get("definition");
             return defText == null ? "" : defText.toString();
         } catch (Exception e) {
+            log.warn("Failed to fetch definition for '{}': {}", word, e.getMessage());
             return "";
         }
     }

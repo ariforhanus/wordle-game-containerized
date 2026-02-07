@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Kayıt Ol</title>
     <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/svgs/solid/gamepad.svg">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -14,25 +14,28 @@
 
 <header class="brand">
     <h1>Wordle</h1>
-    <div class="account-menu">
-        <button class="account-btn" id="accountBtn">
-            <i class="fa-solid fa-user"></i>
-        </button>
-        <div class="account-dropdown" id="accountDropdown">
-            <ul>
-                <li class="guest-only"><a href="login.html"><i class="fa-solid fa-sign-in-alt"></i> Giriş Yap</a></li>
-                <li class="guest-only"><a href="register.html"><i class="fa-solid fa-user-plus"></i> Kayıt Ol</a></li>
-                <li class="user-info hidden" id="userInfo">
-                    <button class="logout-btn"><i class="fa-solid fa-sign-out-alt"></i> Çıkış Yap</button>
-                </li>
-            </ul>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <a href="/en/auth/register.html" class="auth-lang-switch" title="English">EN</a>
+        <div class="account-menu">
+            <button class="settings-btn" id="accountBtn">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+            <div class="account-dropdown" id="accountDropdown">
+                <ul>
+                    <li class="guest-only"><a href="login.html"><i class="fa-solid fa-sign-in-alt"></i> Giriş Yap</a></li>
+                    <li class="guest-only"><a href="register.html"><i class="fa-solid fa-user-plus"></i> Kayıt Ol</a></li>
+                    <li class="user-info hidden" id="userInfo">
+                        <button class="logout-btn"><i class="fa-solid fa-sign-out-alt"></i> Çıkış Yap</button>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 </header>
 
-<div class="container py-5">
+<div class="container py-5 auth-container">
     <div class="row justify-content-center">
-        <div class="col-12 col-sm-10 col-md-8 col-lg-6">
+        <div class="col-12">
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <h1 class="h4 mb-3 text-center">Kayıt Ol</h1>
@@ -40,7 +43,22 @@
                     <div id="alertContainer"></div>
 
                     <form id="registerForm" class="needs-validation" novalidate>
-                        <div class="mb-3">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3 mb-md-0">
+                                    <label class="form-label">İsim</label>
+                                    <input type="text" name="firstName" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3 mb-md-0">
+                                    <label class="form-label">Soyisim</label>
+                                    <input type="text" name="lastName" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 mt-2">
                             <label class="form-label">Kullanıcı Adı</label>
                             <input type="text" name="username" class="form-control" required>
                             <div class="invalid-feedback">Kullanıcı adı zorunlu.</div>
@@ -53,15 +71,155 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Şifre</label>
-                            <input type="password" name="password" class="form-control" required minlength="6">
-                            <div class="invalid-feedback">En az 6 karakter bir şifre gir.</div>
+                            <label class="form-label">Ülke</label>
+                            <select name="nationality" class="form-select" required>
+                                <option value="">Ülke seç</option>
+                                <option value="AF">Afganistan</option>
+                                <option value="DE">Almanya</option>
+                                <option value="US">Amerika Birleşik Devletleri</option>
+                                <option value="AO">Angola</option>
+                                <option value="AR">Arjantin</option>
+                                <option value="AL">Arnavutluk</option>
+                                <option value="AU">Avustralya</option>
+                                <option value="AT">Avusturya</option>
+                                <option value="AZ">Azerbaycan</option>
+                                <option value="BD">Bangladeş</option>
+                                <option value="BY">Belarus</option>
+                                <option value="BE">Belçika</option>
+                                <option value="AE">Birleşik Arap Emirlikleri</option>
+                                <option value="GB">Birleşik Krallık</option>
+                                <option value="BO">Bolivya</option>
+                                <option value="BA">Bosna-Hersek</option>
+                                <option value="BW">Botsvana</option>
+                                <option value="BR">Brezilya</option>
+                                <option value="BG">Bulgaristan</option>
+                                <option value="DZ">Cezayir</option>
+                                <option value="CN">Çin</option>
+                                <option value="CZ">Çek Cumhuriyeti</option>
+                                <option value="DK">Danimarka</option>
+                                <option value="DO">Dominik Cumhuriyeti</option>
+                                <option value="EC">Ekvador</option>
+                                <option value="SV">El Salvador</option>
+                                <option value="ID">Endonezya</option>
+                                <option value="ER">Eritre</option>
+                                <option value="AM">Ermenistan</option>
+                                <option value="EE">Estonya</option>
+                                <option value="ET">Etiyopya</option>
+                                <option value="MA">Fas</option>
+                                <option value="PH">Filipinler</option>
+                                <option value="FI">Finlandiya</option>
+                                <option value="FR">Fransa</option>
+                                <option value="GH">Gana</option>
+                                <option value="GT">Guatemala</option>
+                                <option value="ZA">Güney Afrika</option>
+                                <option value="KR">Güney Kore</option>
+                                <option value="GE">Gürcistan</option>
+                                <option value="IN">Hindistan</option>
+                                <option value="HR">Hırvatistan</option>
+                                <option value="NL">Hollanda</option>
+                                <option value="HK">Hong Kong</option>
+                                <option value="IQ">Irak</option>
+                                <option value="IR">İran</option>
+                                <option value="IE">İrlanda</option>
+                                <option value="ES">İspanya</option>
+                                <option value="IL">İsrail</option>
+                                <option value="SE">İsveç</option>
+                                <option value="CH">İsviçre</option>
+                                <option value="IT">İtalya</option>
+                                <option value="IS">İzlanda</option>
+                                <option value="JM">Jamaika</option>
+                                <option value="JP">Japonya</option>
+                                <option value="KH">Kamboçya</option>
+                                <option value="CM">Kamerun</option>
+                                <option value="CA">Kanada</option>
+                                <option value="ME">Karadağ</option>
+                                <option value="QA">Katar</option>
+                                <option value="KZ">Kazakistan</option>
+                                <option value="KE">Kenya</option>
+                                <option value="CO">Kolombiya</option>
+                                <option value="CR">Kosta Rika</option>
+                                <option value="XK">Kosova</option>
+                                <option value="CY">Kıbrıs</option>
+                                <option value="KW">Kuveyt</option>
+                                <option value="CU">Küba</option>
+                                <option value="LA">Laos</option>
+                                <option value="LV">Letonya</option>
+                                <option value="LB">Lübnan</option>
+                                <option value="LY">Libya</option>
+                                <option value="LT">Litvanya</option>
+                                <option value="LU">Lüksemburg</option>
+                                <option value="HU">Macaristan</option>
+                                <option value="MG">Madagaskar</option>
+                                <option value="MY">Malezya</option>
+                                <option value="MT">Malta</option>
+                                <option value="MX">Meksika</option>
+                                <option value="EG">Mısır</option>
+                                <option value="MN">Moğolistan</option>
+                                <option value="MD">Moldova</option>
+                                <option value="MM">Myanmar</option>
+                                <option value="NP">Nepal</option>
+                                <option value="NI">Nikaragua</option>
+                                <option value="NG">Nijerya</option>
+                                <option value="NO">Norveç</option>
+                                <option value="OM">Umman</option>
+                                <option value="PK">Pakistan</option>
+                                <option value="PA">Panama</option>
+                                <option value="PY">Paraguay</option>
+                                <option value="PE">Peru</option>
+                                <option value="PL">Polonya</option>
+                                <option value="PT">Portekiz</option>
+                                <option value="RO">Romanya</option>
+                                <option value="RU">Rusya</option>
+                                <option value="SA">Suudi Arabistan</option>
+                                <option value="RS">Sırbistan</option>
+                                <option value="SG">Singapur</option>
+                                <option value="SK">Slovakya</option>
+                                <option value="SI">Slovenya</option>
+                                <option value="LK">Sri Lanka</option>
+                                <option value="SD">Sudan</option>
+                                <option value="SY">Suriye</option>
+                                <option value="CL">Şili</option>
+                                <option value="TZ">Tanzanya</option>
+                                <option value="TH">Tayland</option>
+                                <option value="TW">Tayvan</option>
+                                <option value="TN">Tunus</option>
+                                <option value="TR">Türkiye</option>
+                                <option value="UG">Uganda</option>
+                                <option value="UA">Ukrayna</option>
+                                <option value="UY">Uruguay</option>
+                                <option value="JO">Ürdün</option>
+                                <option value="VE">Venezuela</option>
+                                <option value="VN">Vietnam</option>
+                                <option value="YE">Yemen</option>
+                                <option value="NZ">Yeni Zelanda</option>
+                                <option value="GR">Yunanistan</option>
+                                <option value="ZM">Zambiya</option>
+                                <option value="ZW">Zimbabve</option>
+                                <option value="XX">Diğerleri</option>
+                            </select>
+                            <div class="invalid-feedback">Lütfen bir ülke seçin.</div>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Şifre (tekrar)</label>
-                            <input type="password" name="confirmPassword" class="form-control" required minlength="6">
-                            <div class="invalid-feedback">En az 6 karakter bir şifre gir.</div>
+                            <label class="form-label">Profil Fotoğrafı (en fazla 512KB)</label>
+                            <input type="file" name="avatar" class="form-control" accept="image/*">
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3 mb-md-0">
+                                    <label class="form-label">Şifre</label>
+                                    <input type="password" name="password" class="form-control" required minlength="6">
+                                    <div class="invalid-feedback">En az 6 karakter bir şifre gir.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3 mb-md-0">
+                                    <label class="form-label">Şifre (tekrar)</label>
+                                    <input type="password" name="confirmPassword" class="form-control" required minlength="6">
+                                    <div class="invalid-feedback">En az 6 karakter bir şifre gir.</div>
+                                </div>
+                            </div>
                         </div>
 
                         <button class="btn btn-primary w-100" type="submit">Kayıt Ol</button>
@@ -81,6 +239,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="../../js/auth.js"></script>
+<script src="../../js/script.js" defer></script>
+<script src="../../js/auth.js" defer></script>
 </body>
 </html>

@@ -11,8 +11,20 @@ public class ScoreResponse {
     private int score;
     private String word;
     private Instant wonAt;
+    /**
+     * Kullanıcının mevcut (son oynadığı güne kadar) streak değeri.
+     * Leaderboard ve client gösterimleri için kullanılır.
+     */
+    private int currentStreak;
 
-    public ScoreResponse(int score, int attempts, String username, Long id, long durationMs, String word, Instant wonAt) {
+    public ScoreResponse(int score,
+                         int attempts,
+                         String username,
+                         Long id,
+                         long durationMs,
+                         String word,
+                         Instant wonAt,
+                         int currentStreak) {
         this.score = score;
         this.attempts = attempts;
         this.username = username;
@@ -20,6 +32,7 @@ public class ScoreResponse {
         this.durationMs = durationMs;
         this.word = word;
         this.wonAt = wonAt;
+        this.currentStreak = currentStreak;
     }
 
     public Long getId() {
@@ -48,5 +61,9 @@ public class ScoreResponse {
 
     public Instant getWonAt() {
         return wonAt;
+    }
+
+    public int getCurrentStreak() {
+        return currentStreak;
     }
 }

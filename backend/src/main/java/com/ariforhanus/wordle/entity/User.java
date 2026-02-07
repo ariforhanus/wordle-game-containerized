@@ -1,6 +1,14 @@
 package com.ariforhanus.wordle.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Basic;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.Instant;
 
@@ -40,6 +48,27 @@ public class User {
     @Column(nullable = false, length = 20)
     private String role = "USER";
 
+    @Column(length = 64)
+    private String firstName;
+
+    @Column(length = 64)
+    private String lastName;
+
+    @Column(length = 64)
+    private String nationality;
+
+    // IMPORTANT: Use bytea (not PostgreSQL Large Object/oid). oid requires special handling
+    // and breaks authentication queries outside a transaction ("Large Objects may not be used in auto-commit mode").
+    @Basic(fetch = FetchType.LAZY)
+    @Column(columnDefinition = "bytea")
+    private byte[] avatar;
+
+    @Column(length = 64)
+    private String avatarContentType;
+
+    @Column
+    private Long avatarSize;
+
 
     public static UserBuilder builder() {
         return new UserBuilder();
@@ -69,6 +98,30 @@ public class User {
         return this.role;
     }
 
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public String getNationality() {
+        return nationality;
+    }
+
+    public byte[] getAvatar() {
+        return avatar;
+    }
+
+    public String getAvatarContentType() {
+        return avatarContentType;
+    }
+
+    public Long getAvatarSize() {
+        return avatarSize;
+    }
+
     public void setId(final Long id) {
         this.id = id;
     }
@@ -91,6 +144,30 @@ public class User {
 
     public void setRole(final String role) {
         this.role = role;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public void setNationality(String nationality) {
+        this.nationality = nationality;
+    }
+
+    public void setAvatar(byte[] avatar) {
+        this.avatar = avatar;
+    }
+
+    public void setAvatarContentType(String avatarContentType) {
+        this.avatarContentType = avatarContentType;
+    }
+
+    public void setAvatarSize(Long avatarSize) {
+        this.avatarSize = avatarSize;
     }
 
     public User() {

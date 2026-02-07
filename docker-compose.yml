@@ -36,6 +36,8 @@ services:
           SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/PGDatabase
           SPRING_DATASOURCE_USERNAME: postgres
           SPRING_DATASOURCE_PASSWORD: admin@1234
+          JWT_SECRET: 3xF!2m$9kLq@7VrNpZt%8GhR^wXay0Bc
+          SPRING_PROFILES_ACTIVE: dev
       restart: unless-stopped
 
   frontend:
