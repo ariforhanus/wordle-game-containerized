@@ -8,7 +8,6 @@ import com.ariforhanus.wordle.repository.ScoreRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -79,8 +78,8 @@ public class ScoreService {
 
     public List<ScoreResponse> dailyTop(String language, int limit, ZoneId zone) {
         LocalDate today = ZonedDateTime.now(clock.withZone(zone)).toLocalDate();
-        Instant start = today.atStartOfDay(zone).toInstant();
-        Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
+        LocalDate start = today;
+        LocalDate end = today.plusDays(1);
 
         List<Score> list = repo.findTopByLanguageAndPeriod(language, start, end, limit);
         return enrichWithStreaks(list);
@@ -91,8 +90,8 @@ public class ScoreService {
         LocalDate monday = today.with(java.time.DayOfWeek.MONDAY);
         // End of week = next Monday (or end of today if we only want up-to-now)
         // We include the full current day
-        Instant start = monday.atStartOfDay(zone).toInstant();
-        Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
+        LocalDate start = monday;
+        LocalDate end = today.plusDays(1);
 
         List<Score> list = repo.findTopByLanguageAndPeriod(language, start, end, limit);
         return enrichWithStreaks(list);
@@ -101,8 +100,8 @@ public class ScoreService {
     public List<ScoreResponse> monthlyTop(String language, int limit, ZoneId zone) {
         LocalDate today = ZonedDateTime.now(clock.withZone(zone)).toLocalDate();
         LocalDate firstOfMonth = today.withDayOfMonth(1);
-        Instant start = firstOfMonth.atStartOfDay(zone).toInstant();
-        Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
+        LocalDate start = firstOfMonth;
+        LocalDate end = today.plusDays(1);
 
         List<Score> list = repo.findTopByLanguageAndPeriod(language, start, end, limit);
         return enrichWithStreaks(list);

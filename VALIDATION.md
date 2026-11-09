@@ -115,3 +115,27 @@ Expanded acceptance coverage without changing production code or migrations. Exi
 The lock tests use explicit gates, bounded waits, and database wait-state observation rather than assuming two quickly submitted requests overlap. They use the existing disposable PostgreSQL fixture only. The browser contexts use fresh login and separate storage/network contexts; they are not physical devices or separate backend deployments. Error-injection browser contexts block service workers for reliable interception, consistent with the existing network-recovery fixtures; production worker behavior is unchanged. The unchanged release backend/Nginx artifacts were reused after the local build checks.
 
 Frontend unit coverage is 21.80% of lines and 22.44% of branches. This is targeted correctness testing, not a capacity benchmark or exhaustive concurrency proof. Other browser scenarios, Firefox, and real devices were not rerun in this step. Midnight policy remains the next acceptance item, and successful remote CI remains a separate release prerequisite.
+
+## P0.1 — Midnight, canonical puzzle dates, and stale Start screens, 2026-11-09
+
+Policy preserves late completion of existing games, keeps the continuously elapsed server timer, and assigns results to the original puzzle's `played_at`. A new day requires a separate explicit Start. Found and fixed a real inconsistency: the service persisted the original day but period leaderboards filtered completion `won_at`. Daily/weekly/monthly selection now uses half-open `LocalDate` ranges on `played_at`; aggregate SUM scoring remains unimplemented and is not claimed complete.
+
+Start captures a single server instant for date and `started_at`. An optional ISO `date` parameter guards updated clients against stale pre-midnight screens: mismatch returns structured 409 `day_changed` before puzzle creation. Status includes server `date`/`timeZone`; the frontend displays them, refuses incomplete metadata, refreshes on a day conflict, and requires another explicit action. Existing clients omitting the parameter retain server-day selection. Resume and result retrieval stay bound to the existing ID. Local timer interpolation now uses `performance.now()` instead of the device wall clock.
+
+| Check rerun for this change | Result |
+| --- | --- |
+| Java 21 / PostgreSQL full `mvn verify` | 85 passed, zero skipped/failures/errors |
+| Full frontend unit suite with V8 coverage | 23 passed, no unhandled errors |
+| TypeScript / production build and built-worker tests | Build passed; 8 tests passed |
+| Desktop/mobile Chromium targeted regression scenarios | 12 passed |
+| Selected WebKit midnight/concurrent-session scenarios | 4 passed |
+| Final two midnight E2E scenarios after metadata validation change | 6 passed across Chromium/mobile/WebKit; repeats of scenarios above |
+| `git diff --check` | Passed |
+
+Eight PostgreSQL boundary cases cover English/Turkish, wins/losses, 23:59:59.999 to 00:00 Istanbul, Sunday/Monday, month-end, and year-end. They check stale/future/invalid Start dates, no writes on rejection or lookup, a separate new-day game, old-game final/replayed results, persistent start/completion/puzzle dates, canonical leaderboard membership, and two independent daily scores. A ninth case holds an uncommitted puzzle insert, observes the Start waiting on PostgreSQL, moves the injected clock across midnight, then proves the accepted old-day Start retains its original instant/date.
+
+Frontend tests check refresh without automatic Start, explicit use of the new date, failure when an older backend omits metadata, and an active game's fixed ID/date across browser-clock changes. In E2E, only the first status date is replayed as yesterday to simulate a stale screen; the ensuing POST, real 409, refresh, and successful fresh Start hit the actual backend/PostgreSQL. The other new E2E changes the browser clock and verifies guesses still target the same server game and never send client timing/date as score inputs. Real server-clock midnight movement is exercised by the injected Clock in backend integration tests, not by a production clock-control endpoint.
+
+This step served the new release frontend with Vite Preview and the newly built backend because workspace disk capacity prevented another comfortable Docker image/container copy. These E2E results do not revalidate Nginx headers/container configuration. Error-injection contexts block workers for interception; the other browser-clock case leaves normal worker behavior enabled. Earlier Nginx results remain historical. Firefox and physical devices were not tested.
+
+Latest frontend unit coverage: 22.20% lines, 24.22% branches. No schema migration or historical data rewrite was required. Deploy backend support before matching frontend assets. Old unfinished games remain accessible by owned ID, but discovering them after a closed page is a separate pending history/Resume-selector task. Measure representative `played_at` query plans/indexes before production scale; current week/month aggregate semantics are still the existing single-game ranking. Remote CI and production release prerequisites remain open.

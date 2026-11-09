@@ -16,11 +16,9 @@ async function secondSession(
   browser: import("@playwright/test").Browser,
 ) {
   const token = await page.evaluate(() => localStorage.getItem("jwtToken"));
-  const profile = await page
-    .context()
-    .request.get("/api/v1/auth/me", {
-      headers: { Authorization: "Bearer " + token },
-    });
+  const profile = await page.context().request.get("/api/v1/auth/me", {
+    headers: { Authorization: "Bearer " + token },
+  });
   expect(profile.status()).toBe(200);
   const context = await browser.newContext({
     storageState: await page.context().storageState(),
@@ -320,7 +318,7 @@ test.describe("concurrent-session recovery", () => {
         tab.getByRole("button", { name: "Start today's game", exact: true }),
       ).toBeEnabled();
       let committed: import("@wordle/api").DailyGame | undefined;
-      await context.route("**/api/v1/daily/games?lang=en", async (route) => {
+      await context.route("**/api/v1/daily/games?*", async (route) => {
         if (route.request().method() !== "POST" || committed)
           return route.continue();
         const response = await route.fetch();
@@ -690,4 +688,131 @@ test("completed daily games offer a read-only result instead of Start or Resume"
   await expect(page.locator(".result-card")).toContainText(saved.answer);
   await expect(page.locator(".result-card")).toContainText(String(saved.score));
   expect(starts).toBe(0);
+});
+
+test.describe("midnight rollover", () => {
+  test.use({ serviceWorkers: "block" });
+  test("a stale puzzle-day Start is rejected by the real server and needs a fresh click", async ({
+    page,
+    context,
+  }) => {
+    await register(page);
+    let currentDate = "";
+    let staleDate = "";
+    let reads = 0;
+    let starts = 0;
+    await context.route("**/api/v1/daily/games?*", async (route) => {
+      if (route.request().method() !== "GET") {
+        starts++;
+        return route.continue();
+      }
+      const response = await route.fetch();
+      expect(response.status()).toBe(200);
+      const status = await response.json();
+      currentDate = status.date;
+      reads++;
+      if (reads === 1) {
+        const previous = new Date(status.date + "T00:00:00Z");
+        previous.setUTCDate(previous.getUTCDate() - 1);
+        staleDate = previous.toISOString().slice(0, 10);
+        // Replay the status a tab could have received before server midnight; POST stays real.
+        await route.fulfill({ response, json: { ...status, date: staleDate } });
+      } else await route.fulfill({ response });
+    });
+    await page.goto("/daily");
+    await expect(
+      page.getByRole("button", { name: "Start today's game", exact: true }),
+    ).toBeEnabled();
+    await expect(
+      page.getByText(`Puzzle day: ${staleDate} (Europe/Istanbul)`, {
+        exact: true,
+      }),
+    ).toBeVisible();
+    const rejected = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/api/v1/daily/games",
+    );
+    await page
+      .getByRole("button", { name: "Start today's game", exact: true })
+      .click();
+    const error = await rejected;
+    expect(error.status()).toBe(409);
+    expect(await error.json()).toEqual({ error: "day_changed" });
+    await expect(
+      page.getByText(
+        "A new puzzle day has begun. Check the date below and press Start again to begin it.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByText(`Puzzle day: ${currentDate} (Europe/Istanbul)`, {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Start today's game", exact: true }),
+    ).toBeEnabled();
+    expect(starts).toBe(1);
+    await expect(page.locator(".board")).toHaveCount(0);
+    const accepted = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/api/v1/daily/games",
+    );
+    await page
+      .getByRole("button", { name: "Start today's game", exact: true })
+      .click();
+    const response = await accepted;
+    expect(response.status()).toBe(200);
+    expect((await response.json()).date).toBe(currentDate);
+    await expect(page.locator(".board")).toBeVisible();
+    expect(starts).toBe(2);
+  });
+});
+
+test("changing the browser clock cannot move an active game to another puzzle day", async ({
+  page,
+  context,
+}) => {
+  await register(page);
+  await page.goto("/daily");
+  const started = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/v1/daily/games",
+  );
+  await page.locator(".daily-start-card button").click();
+  const game = await (await started).json();
+  await expect(page.locator(".board")).toBeVisible();
+  await page.clock.setSystemTime(
+    new Date(Date.parse(game.date + "T00:00:00Z") + 86400000 + 1000),
+  );
+  const response = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname ===
+        `/api/v1/daily/games/${game.id}/guesses`,
+  );
+  await page.keyboard.type("apple");
+  await page
+    .locator(".keyboard")
+    .getByRole("button", { name: "ENTER", exact: true })
+    .click();
+  const saved = await response;
+  expect(saved.status()).toBe(200);
+  expect(saved.request().postDataJSON()).toEqual({
+    guess: "APPLE",
+    attempt: 1,
+  });
+  const result = await saved.json();
+  expect(result.id).toBe(game.id);
+  expect(result.date).toBe(game.date);
+  await expect(page.getByText(game.date, { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "You can finish this puzzle after midnight. Your timer continues and your score belongs to the puzzle date shown above. A new day's game requires a separate Start.",
+      { exact: true },
+    ),
+  ).toBeVisible();
 });

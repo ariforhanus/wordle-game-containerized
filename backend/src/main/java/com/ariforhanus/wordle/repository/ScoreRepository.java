@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -17,18 +16,20 @@ public interface ScoreRepository extends JpaRepository<Score, Long> {
     List<Score> findTop10ByLanguageAndWonTrueOrderByScoreDescWonAtAsc(String language);
 
     /**
-     * Leaderboard query with LIMIT pushed to DB level. Only includes winners (won = true).
-     * Tie-breaker: same score → earlier win time ranks higher.
+     * Leaderboard query with LIMIT pushed to DB level. Only includes winners (won = true). Period
+     * membership uses puzzle played_at, not completion time. Tie-breaker: same score → earlier win
+     * time ranks higher.
      */
     @Query(
             value =
-                    "SELECT * FROM scores WHERE language = :language AND won = true AND won_at >="
-                        + " :start AND won_at < :end ORDER BY score DESC, won_at ASC LIMIT :lim",
+                    "SELECT * FROM scores WHERE language = :language AND won = true AND played_at"
+                        + " >= :start AND played_at < :end ORDER BY score DESC, won_at ASC LIMIT"
+                        + " :lim",
             nativeQuery = true)
     List<Score> findTopByLanguageAndPeriod(
             @Param("language") String language,
-            @Param("start") Instant start,
-            @Param("end") Instant end,
+            @Param("start") LocalDate start,
+            @Param("end") LocalDate end,
             @Param("lim") int limit);
 
     /** Daily challenge: check if user already played today in this language */
@@ -48,7 +49,7 @@ public interface ScoreRepository extends JpaRepository<Score, Long> {
 
     @Query(
             "select distinct s.userId as userId, s.playedAt as playedAt, s.won as won from Score s"
-                + " where s.userId in :ids")
+                    + " where s.userId in :ids")
     List<PlayedDay> playedDays(@Param("ids") java.util.Collection<Long> ids);
 
     interface PlayedDay {

@@ -417,6 +417,171 @@ class SecurityAndGameIntegrationTest {
         }
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+        "en,2026-11-09,true", "tr,2026-11-09,true", "en,2026-11-15,true",
+        "tr,2026-11-30,true", "en,2026-12-31,true", "tr,2026-12-31,true",
+        "en,2026-11-09,false", "tr,2026-11-09,false"
+    })
+    void midnightKeepsPuzzleDatesAndRequiresAnExplicitNewDayStart(
+            String language, LocalDate oldDate, boolean winning) throws Exception {
+        var zone = ZoneId.of("Europe/Istanbul");
+        Instant boundary = oldDate.plusDays(1).atStartOfDay(zone).toInstant();
+        clock.now.set(boundary.minusMillis(1));
+        String session = jwt.generateToken(user.getId(), user.getUsername(), "USER");
+        var before = gameRequest(get("/api/v1/daily/games").param("lang", language), session);
+        assertEquals(oldDate.toString(), before.get("date").asText());
+        assertEquals("Europe/Istanbul", before.get("timeZone").asText());
+        assertEquals(0, count("daily_puzzles"));
+        var old =
+                gameRequest(
+                        post("/api/v1/daily/games")
+                                .param("lang", language)
+                                .param("date", oldDate.toString()),
+                        session);
+        String oldId = old.get("id").asText();
+        String word = language.equals("tr") ? "İNCİR" : "APPLE";
+        String oldAnswer = winning ? word : language.equals("tr") ? "KİTAP" : "CIGAR";
+        db.update(
+                "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
+                        + " WHERE id = ?)",
+                oldAnswer,
+                oldId);
+        int finalTurn = winning ? 1 : 6;
+        for (int turn = 1; turn < finalTurn; turn++) games.guess(user.getId(), oldId, word, turn);
+        clock.now.set(boundary);
+        LocalDate today = oldDate.plusDays(1);
+        var after = gameRequest(get("/api/v1/daily/games").param("lang", language), session);
+        assertEquals("not_started", after.get("state").asText());
+        assertEquals(today.toString(), after.get("date").asText());
+        assertEquals(1, count("daily_games"));
+        assertEquals(1, count("daily_puzzles"));
+        http.perform(
+                        post("/api/v1/daily/games")
+                                .param("lang", language)
+                                .param("date", oldDate.toString())
+                                .header("Authorization", "Bearer " + session))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("day_changed"));
+        http.perform(
+                        post("/api/v1/daily/games")
+                                .param("lang", language)
+                                .param("date", today.plusDays(1).toString())
+                                .header("Authorization", "Bearer " + session))
+                .andExpect(status().isConflict());
+        http.perform(
+                        post("/api/v1/daily/games")
+                                .param("lang", language)
+                                .param("date", "invalid")
+                                .header("Authorization", "Bearer " + session))
+                .andExpect(status().isBadRequest());
+        assertEquals(1, count("daily_games"));
+        assertEquals(1, count("daily_puzzles"));
+        var next =
+                gameRequest(
+                        post("/api/v1/daily/games")
+                                .param("lang", language)
+                                .param("date", today.toString()),
+                        session);
+        String nextId = next.get("id").asText();
+        assertNotEquals(oldId, nextId);
+        assertEquals(today.toString(), next.get("date").asText());
+        db.update(
+                "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
+                        + " WHERE id = ?)",
+                word,
+                nextId);
+        clock.now.set(boundary.plusSeconds(20));
+        var completed = gameRequest(turnRequest(oldId, word, finalTurn), session);
+        assertEquals(oldDate.toString(), completed.get("date").asText());
+        assertEquals(winning ? "won" : "lost", completed.get("status").asText());
+        assertEquals(20001, completed.get("elapsedMs").asLong());
+        assertEquals(oldAnswer, completed.get("answer").asText());
+        assertEquals(oldDate, db.queryForObject("SELECT played_at FROM scores", LocalDate.class));
+        assertEquals(
+                boundary.plusSeconds(20),
+                db.queryForObject("SELECT won_at FROM scores", java.sql.Timestamp.class)
+                        .toInstant());
+        assertEquals(0, scores.dailyTop(language, 10, zone).size());
+        boolean inWeek = winning && !oldDate.isBefore(today.with(java.time.DayOfWeek.MONDAY));
+        boolean inMonth = winning && !oldDate.isBefore(today.withDayOfMonth(1));
+        assertEquals(inWeek ? 1 : 0, scores.weeklyTop(language, 10, zone).size());
+        assertEquals(inMonth ? 1 : 0, scores.monthlyTop(language, 10, zone).size());
+        var current = gameRequest(get("/api/v1/daily/games").param("lang", language), session);
+        assertEquals(nextId, current.get("game").get("id").asText());
+        assertEquals("playing", current.get("state").asText());
+        clock.now.set(boundary.plusSeconds(21));
+        assertEquals(completed, gameRequest(turnRequest(oldId, word, finalTurn), session));
+        gameRequest(turnRequest(nextId, word, 1), session);
+        assertEquals(2, count("daily_games"));
+        assertEquals(2, count("scores"));
+        assertEquals(1, scores.dailyTop(language, 10, zone).size());
+        assertEquals(
+                db.queryForObject("SELECT id FROM scores WHERE played_at = ?", Long.class, today),
+                scores.dailyTop(language, 10, zone).getFirst().getId());
+        assertEquals(
+                boundary.minusMillis(1),
+                db.queryForObject(
+                                "SELECT started_at FROM daily_games WHERE id = ?",
+                                java.sql.Timestamp.class,
+                                oldId)
+                        .toInstant());
+    }
+
+    @Test
+    void aStartBlockedAcrossMidnightKeepsItsCapturedServerDay() throws Exception {
+        var zone = ZoneId.of("Europe/Istanbul");
+        LocalDate oldDate = LocalDate.of(2026, 11, 9);
+        Instant boundary = oldDate.plusDays(1).atStartOfDay(zone).toInstant();
+        clock.now.set(boundary.minusMillis(1));
+        var pool = Executors.newSingleThreadExecutor();
+        try (var blocker = dataSource.getConnection()) {
+            blocker.setAutoCommit(false);
+            try {
+                try (var insert =
+                        blocker.prepareStatement(
+                                "INSERT INTO daily_puzzles(id,played_at,language,answer) VALUES"
+                                        + " (?,?,'en','APPLE')")) {
+                    insert.setString(1, oldDate + "_en");
+                    insert.setObject(2, oldDate);
+                    insert.executeUpdate();
+                }
+                var pending = pool.submit(() -> games.start(user.getId(), "en", oldDate));
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                int waiting;
+                do {
+                    waiting =
+                            db.queryForObject(
+                                    "SELECT count(*) FROM pg_stat_activity WHERE"
+                                        + " datname=current_database() AND wait_event_type='Lock'"
+                                        + " AND query ILIKE '%INSERT INTO daily_puzzles%'",
+                                    Integer.class);
+                    if (waiting > 0) break;
+                    Thread.sleep(10);
+                } while (System.nanoTime() < deadline);
+                assertTrue(waiting > 0, "Start must be blocked on the uncommitted puzzle");
+                clock.now.set(boundary.plusSeconds(1));
+                blocker.commit();
+                var started = pending.get(10, TimeUnit.SECONDS);
+                assertEquals(oldDate.toString(), started.date());
+                assertEquals(1001, started.elapsedMs());
+                assertEquals(
+                        boundary.minusMillis(1),
+                        db.queryForObject(
+                                        "SELECT started_at FROM daily_games WHERE id = ?",
+                                        java.sql.Timestamp.class,
+                                        started.id())
+                                .toInstant());
+                assertEquals("not_started", games.status(user.getId(), "en").state());
+                assertNotEquals(
+                        started.id(), games.start(user.getId(), "en", oldDate.plusDays(1)).id());
+            } finally {
+                blocker.rollback();
+                pool.shutdownNow();
+            }
+        }
+    }
+
     @Test
     void completionAcrossMidnightBelongsToOriginalPuzzle() {
         var game = startApple();
@@ -769,7 +934,7 @@ class SecurityAndGameIntegrationTest {
         String answer = winning ? guess : language.equals("tr") ? "KİTAP" : "CIGAR";
         db.update(
                 "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
-                    + " WHERE id = ?)",
+                        + " WHERE id = ?)",
                 answer,
                 game.id());
         int turn = winning ? 1 : 6;
@@ -810,8 +975,8 @@ class SecurityAndGameIntegrationTest {
                     waiting =
                             db.queryForObject(
                                     "SELECT count(*) FROM pg_stat_activity WHERE datname ="
-                                        + " current_database() AND wait_event_type = 'Lock' AND"
-                                        + " query ILIKE '%daily_games%FOR UPDATE%'",
+                                            + " current_database() AND wait_event_type = 'Lock' AND"
+                                            + " query ILIKE '%daily_games%FOR UPDATE%'",
                                     Integer.class);
                     if (waiting >= 2) break;
                     Thread.sleep(10);
@@ -871,7 +1036,7 @@ class SecurityAndGameIntegrationTest {
         var game = games.start(user.getId(), language);
         db.update(
                 "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
-                    + " WHERE id = ?)",
+                        + " WHERE id = ?)",
                 language.equals("tr") ? "İNCİR" : "APPLE",
                 game.id());
         var words =

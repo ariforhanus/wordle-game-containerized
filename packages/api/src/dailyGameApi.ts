@@ -13,8 +13,11 @@ export interface DailyGame {
   answer: string | null;
   score: number | null;
 }
-export function start(lang: string): Promise<DailyGame> {
-  return post(`/api/v1/daily/games?lang=${encodeURIComponent(lang)}`, {});
+export function start(lang: string, date?: string): Promise<DailyGame> {
+  return post(
+    `/api/v1/daily/games?lang=${encodeURIComponent(lang)}${date ? `&date=${encodeURIComponent(date)}` : ""}`,
+    {},
+  );
 }
 export function load(id: string): Promise<DailyGame> {
   return get(`/api/v1/daily/games/${encodeURIComponent(id)}`);
@@ -31,6 +34,8 @@ export function guess(
 }
 
 export interface DailyGameStatus {
+  date: string;
+  timeZone: string;
   state: "not_started" | "playing" | "finished" | "already_played";
   game: DailyGame | null;
 }

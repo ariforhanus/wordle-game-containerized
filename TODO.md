@@ -12,7 +12,7 @@ Mevcut temel: oyun kaydı Start isteğinde sunucuda oluşturuluyor; skor süresi
 - [x] Oyun başladıktan sonra süre sekme/sayfa kapatılsa, cihaz değişse veya bağlantı kesilse bile işlemeye devam etsin; Resume `started_at` değerini yenilemesin. Mevcut sunucu tarafı süre hesabını koru ve regresyon testleri ekle.
 - [x] Start ve Resume ekranlarını ayır; başlangıçtan sonra sürenin durmadığını Start öncesinde açıkla. Durum sorgusuyla mevcut oyunu bul; sorgu yeni oyun yaratmasın.
 - [x] Eşzamanlı Start/Resume, farklı oturumlar/cihazlar, yinelenen istekler ve yanıt kaybında aynı oyun ve tek skor garantisini birlikte test et; mevcut satır kilidi ve idempotency kontrollerini koru.
-- [ ] Uygulama zaman diliminde gece yarısı geçişini test et: gece yarısından önce başlayan oyun, sonra gelen tahmin/retry, eski oyunun süresi ve sonraki günün oyunu. Tamamlama/kapanma politikasını açıkça belgele; puzzle günü, skor günü ve sıralama tutarlı olsun.
+- [x] Uygulama zaman diliminde gece yarısı geçişini test et: gece yarısından önce başlayan oyun, sonra gelen tahmin/retry, eski oyunun süresi ve sonraki günün oyunu. Tamamlama/kapanma politikasını açıkça belgele; puzzle günü, skor günü ve sıralama tutarlı olsun.
 
 ## P0.2 — CI ve production çıkış engelleri
 
@@ -63,12 +63,13 @@ Doğruluk constraint'leri P0/P1 özellikleriyle birlikte teslim edilir; aşağı
 
 ## P1.4 — Günlük oyun UX ve erişilebilirlik
 
+- [ ] Gece yarısından önce başlanıp sayfası kapanmış eski oyunlar için geçmiş/Resume seçicisi ekle; erişimi sunucuda kullanıcı ID'siyle doğrula ve bugünkü oyunu otomatik başlatma. Bilinen oyun ID'siyle devam etme mevcut.
 - [ ] Oyun sonunda seçili dilin istatistiklerini, tahmin dağılımını ve sunucunun gün/zaman dilimiyle uyumlu sonraki oyuna geri sayımı göster; gün değişiminde eski oyunu yanlışlıkla başlatma.
 - [ ] Günlük ve serbest oyunun farkını açıkla: sıralama, günlük hak, süre ve çevrimdışı kullanım kuralları.
 - [ ] Ağ hatasında yazılmış/iletilmiş tahminleri koru; retry sırasında çift tahmin oluşturma. Mevcut kayıp yanıt testine yazılmakta olan tahmin, offline/online geçişi ve yeniden bağlantı senaryolarını ekle.
 - [ ] Mobil klavye/tahta, yatay ekran, yakınlaştırma ve odak davranışını doğrula; emülasyona ek fiziksel cihaz kontrolü yap.
 - [ ] Reduced-motion tercihini uygula; sonuç/klavye durumları yalnızca renkle aktarılmasın. Ekran okuyucu duyuruları, klavye erişimi, kontrast ve renk körlüğü seçeneklerini iyileştir.
-- [ ] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %21,80 satır / %22,44 dal kapsamını özellikle UI hata yollarında genişlet.
+- [ ] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %22,20 satır / %24,22 dal kapsamını özellikle UI hata yollarında genişlet.
 - [ ] Firefox'ta başarılı tarayıcı koşusu elde et; yerelde sayfa açılmadan context çöküyor. WebKit testini gerçek Safari/fiziksel cihaz doğrulaması yerine sayma; manuel yardımcı teknoloji testlerini tamamla.
 
 ## P2.1 — Yeni diller ve kelime rotasyonu
@@ -142,7 +143,17 @@ Frontend'e bekleyen Start/tahminde çift gönderimi engelleme ve yanıtı kaybol
 
 Son koşu: **76 backend**, **20 frontend**, **8 build edilmiş worker** ve **6 hedefli E2E** (masaüstü Chromium, mobil Chromium ve WebKit'te ikişer senaryo) geçti. Production build ve `git diff --check` geçti. Hata enjekte eden E2E bağlamlarında mevcut interception kuralı gereği worker kapalı; worker/offline davranışı ayrı testlerde korunuyor. Frontend satır kapsamı **%21,80**, dal kapsamı **%22,44**; geniş kapsam ihtiyacı açık. Bu tur migration/üretim mantığı değiştirilmedi; yük kapasitesi veya tüm tarayıcı senaryolarının tekrar doğrulandığı iddia edilmiyor.
 
-Sıradaki tek TODO: uygulama zaman diliminde gece yarısı geçişi, eski oyunun tamamlanma politikası ve sonraki günün oyununun tarih/skor tutarlılığı. Uzak CI, Firefox ve fiziksel cihaz doğrulamaları ayrı açık işler.
+### P0.1 / gece yarısı ve skor günü
+
+2026-11-09: eski oyunun gece yarısından sonra tamamlanabilmesi korundu; süre ilk Start'tan devam ediyor ve skor eski puzzle'ın `played_at` gününe yazılıyor. Yeni gün ayrı, açık Start istiyor. Start'ın günü ve başlangıç anı artık tek sunucu saat okumasından geliyor; veritabanında beklerken gece yarısını geçmek günü değiştirmiyor.
+
+Bulunan tutarsızlık giderildi: daily/weekly/monthly dönem sorguları bitiş zamanı `won_at` yerine puzzle günü `played_at` üzerinden seçiyor. Haftalık/aylık SUM sıralaması henüz yapılmadı. Durum API'si gün/zaman dilimini veriyor; frontend tarihi gösteriyor ve Start'a beklenen günü ekliyor. Eski ekranın günü geçmişse sunucu kayıt oluşturmadan `409 day_changed` dönüyor; ekran tarihi yenileyip tekrar tıklama istiyor. Metadata vermeyen eski backend yanıtında başlangıç kapalı kalıyor. Süre göstergesi cihaz duvar saati yerine monoton saat kullanıyor.
+
+**85 backend**, **23 frontend**, **8 build edilmiş worker**, **12 masaüstü/mobil Chromium + 4 seçili WebKit E2E** senaryosu geçti; yeni iki E2E senaryosu son build'de üç projede yeniden doğrulandı (tekrarlar sayılmadı). Backend testleri 1 ms sınırı, İngilizce/Türkçe, galibiyet/kayıp, hafta/ay/yıl geçişi, retry ve kilit bekleyerek gece yarısını geçen Start'ı kapsıyor. E2E, eski durum tarihini simüle edip gerçek backend'in reddini doğruluyor; sunucu saatini production test endpoint'iyle değiştirmiyor. Bu tur E2E sunumu disk sınırı nedeniyle production build üzerinde Vite Preview ile yapıldı; Nginx yeniden doğrulandı iddiası yok.
+
+Politika, uyumlu eski istemci davranışı, deploy sırası ve sınırlar `OPERATIONS.md` içinde. Bilinen eski oyun ID'siyle bitirme mümkün; geçmiş yarım oyun seçicisi P1 UX takibine eklendi. Schema/veri migration'ı yapılmadı; yeni tarih sorgusu için temsilî EXPLAIN/indeks çalışması P1.3'te açık.
+
+P0.1'in beş kabul maddesi tamamlandı. Sıradaki geliştirme TODO'su: P1.1 günlük leaderboard kabul kuralını mevcut davranış ve yeni tarih seçimiyle doğrulamak; ardından haftalık/aylık SUM sıralamasına geçmek. P0.2 CI/production engelleri, Firefox ve fiziksel cihaz doğrulamaları ayrıca açık.
 
 ## Mühendislik kuralları
 

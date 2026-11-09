@@ -39,8 +39,17 @@ public class DailyGameController {
 
     @PostMapping
     public DailyGameService.GameView start(
-            Authentication auth, @RequestParam(defaultValue = "en") String lang) {
-        return games.start(userId(auth), lang);
+            Authentication auth,
+            @RequestParam(defaultValue = "en") String lang,
+            @RequestParam(required = false) java.time.LocalDate date) {
+        return games.start(userId(auth), lang, date);
+    }
+
+    @ExceptionHandler(DailyGameService.DayChangedException.class)
+    @org.springframework.web.bind.annotation.ResponseStatus(
+            org.springframework.http.HttpStatus.CONFLICT)
+    public java.util.Map<String, String> dayChanged() {
+        return java.util.Map.of("error", "day_changed");
     }
 
     @GetMapping("/{id}")

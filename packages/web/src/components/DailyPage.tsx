@@ -33,6 +33,7 @@ export default function DailyPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [verificationNeeded, setVerificationNeeded] = useState(false);
+  const [dayChanged, setDayChanged] = useState(false);
   const [alreadyPlayed, setAlreadyPlayed] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const inFlight = useRef(false);
@@ -58,6 +59,9 @@ export default function DailyPage() {
         .status(i18n.language)
         .then((result) => {
           if (!active) return;
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(result.date) || !result.timeZone) {
+            throw new Error("Daily status is missing calendar metadata");
+          }
           setAvailable(result);
           setAlreadyPlayed(result.state === "already_played");
           setLookup("ready");
@@ -74,11 +78,11 @@ export default function DailyPage() {
   }, [i18n.language, lookupVersion]);
   useEffect(() => {
     if (!game) return;
-    const receivedAt = Date.now();
+    const receivedAt = performance.now();
     setElapsed(game.elapsedMs);
     if (game.status !== "playing") return;
     const timer = window.setInterval(
-      () => setElapsed(game.elapsedMs + Date.now() - receivedAt),
+      () => setElapsed(game.elapsedMs + performance.now() - receivedAt),
       1000,
     );
     return () => clearInterval(timer);
@@ -90,10 +94,11 @@ export default function DailyPage() {
     inFlight.current = true;
     setBusy(true);
     setError(false);
+    setDayChanged(false);
     try {
       const result = available?.game
         ? await dailyGameApi.load(available.game.id)
-        : await dailyGameApi.start(requestedLang);
+        : await dailyGameApi.start(requestedLang, available!.date);
       if (
         result.language === selectedLang.current &&
         requestedLang === selectedLang.current
@@ -101,7 +106,18 @@ export default function DailyPage() {
         setGame(result);
     } catch (err) {
       if (requestedLang !== selectedLang.current) return;
-      if (err instanceof ApiError && err.status === 409) setAlreadyPlayed(true);
+      if (
+        err instanceof ApiError &&
+        err.status === 409 &&
+        typeof err.body === "object" &&
+        err.body !== null &&
+        "error" in err.body &&
+        err.body.error === "day_changed"
+      ) {
+        setDayChanged(true);
+        setLookupVersion((v) => v + 1);
+      } else if (err instanceof ApiError && err.status === 409)
+        setAlreadyPlayed(true);
       else if (err instanceof ApiError && err.status === 403)
         setVerificationNeeded(true);
       else setError(true);
@@ -204,6 +220,15 @@ export default function DailyPage() {
           </h1>
           <p>{t("daily.desc")}</p>
           {lookup === "loading" && <p role="status">{t("daily.loading")}</p>}
+          {dayChanged && <p role="status">{t("daily.dayChanged")}</p>}
+          {lookup === "ready" && available && (
+            <p>
+              {t("daily.puzzleDay", {
+                date: available.game?.date ?? available.date,
+                timeZone: available.timeZone,
+              })}
+            </p>
+          )}
           {lookup === "ready" && !alreadyPlayed && (
             <p id="daily-timer-rule">
               {t(
@@ -273,6 +298,7 @@ export default function DailyPage() {
     <div className="game-page">
       <Confetti active={game.status === "won"} />
       <p>{game.date}</p>
+      <p>{t("daily.rolloverRule")}</p>
       <div className="daily-timer" aria-label={t("daily.elapsed")}>
         {timer}
       </div>

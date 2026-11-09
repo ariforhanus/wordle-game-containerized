@@ -34,7 +34,9 @@ public class DailyGameService {
         this.zone = ZoneId.of(timezone);
     }
 
-    public record StatusView(String state, GameView game) {}
+    public record StatusView(String state, GameView game, String date, String timeZone) {}
+
+    public static class DayChangedException extends RuntimeException {}
 
     @Transactional(readOnly = true)
     public StatusView status(long userId, String language) {
@@ -55,29 +57,47 @@ public class DailyGameService {
                         today);
         if (!ids.isEmpty()) {
             var game = view(load(userId, ids.getFirst()));
-            return new StatusView(game.status().equals("playing") ? "playing" : "finished", game);
+            return new StatusView(
+                    game.status().equals("playing") ? "playing" : "finished",
+                    game,
+                    today.toString(),
+                    zone.getId());
         }
         boolean historicalResult =
                 Boolean.TRUE.equals(
                         db.queryForObject(
                                 "SELECT EXISTS (SELECT 1 FROM scores WHERE user_id = ? AND language"
-                                    + " = ? AND played_at = ?)",
+                                        + " = ? AND played_at = ?)",
                                 Boolean.class,
                                 userId,
                                 lang,
                                 today));
-        return new StatusView(historicalResult ? "already_played" : "not_started", null);
+        return new StatusView(
+                historicalResult ? "already_played" : "not_started",
+                null,
+                today.toString(),
+                zone.getId());
     }
 
     @Transactional
     public GameView start(long userId, String language) {
+        return start(userId, language, null);
+    }
+
+    @Transactional
+    public GameView start(long userId, String language, LocalDate expectedDate) {
+        // Capture the accepted Start instant once: waiting for a transaction cannot reassign its
+        // day.
+        Instant startedAt = clock.instant();
+        LocalDate today = startedAt.atZone(zone).toLocalDate();
         String lang;
         try {
             lang = SupportedLanguage.fromParam(language).getCode();
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_lang");
         }
-        var puzzle = puzzles.getOrCreate(LocalDate.now(clock.withZone(zone)), lang);
+        if (expectedDate != null && !expectedDate.equals(today)) throw new DayChangedException();
+        var puzzle = puzzles.getOrCreate(today, lang);
         boolean historicalResult =
                 Boolean.TRUE.equals(
                         db.queryForObject(
@@ -98,7 +118,7 @@ public class DailyGameService {
                 UUID.randomUUID().toString(),
                 userId,
                 puzzle.id(),
-                Timestamp.from(clock.instant()));
+                Timestamp.from(startedAt));
         String id =
                 db.queryForObject(
                         "SELECT id FROM daily_games WHERE user_id = ? AND puzzle_id = ?",
