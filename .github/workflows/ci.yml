@@ -30,6 +30,10 @@ jobs:
         with: {distribution: temurin, java-version: '21', cache: maven}
       - run: mvn -B verify
         working-directory: backend
+      - name: Operator-script failure tests
+        run: python -m unittest discover -s tests/ops -v
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with: {name: backend-coverage, path: backend/target/site/jacoco, retention-days: 7}
       - name: Rehearse database backup and isolated restore
         run: |
           docker cp deploy/backup.sh "${{ job.services.postgres.id }}:/tmp/backup.sh"
@@ -46,9 +50,11 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: {node-version: '22', cache: npm}
       - run: npm ci
-      - run: npm test
-      - run: npm run build
+      - run: npm run test:coverage -w @wordle/web
+      - run: npm run test:production -w @wordle/web
       - run: npm audit --audit-level=high
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with: {name: frontend-coverage, path: packages/web/coverage, retention-days: 7}
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -65,13 +71,16 @@ jobs:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: local-test-only
       JWT_SECRET: browser-test-only-signing-material-123456789
-      CORS_ORIGINS: http://localhost:3000
+      CORS_ORIGINS: http://localhost:18080
       MAIL_ENABLED: 'true'
       SMTP_HOST: localhost
       SMTP_PORT: '2525'
       SMTP_AUTH: 'false'
       SMTP_STARTTLS: 'false'
-      PUBLIC_URL: http://localhost:3000
+      PUBLIC_URL: http://localhost:18080
+      E2E_BASE_URL: http://localhost:18080
+      E2E_PRODUCTION: 'true'
+      APP_AUTH_RATE_LIMIT_ENABLED: 'false' # Account limits have separate PostgreSQL-backed tests.
       E2E_SMTP_CAPTURE_URL: http://localhost:8025
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -80,7 +89,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: {node-version: '22', cache: npm}
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox webkit
         working-directory: packages/web
       - run: mvn -B package -DskipTests
         working-directory: backend
@@ -96,7 +105,21 @@ jobs:
           done
           cat /tmp/wordle-e2e.log
           exit 1
+      - name: Build and serve release frontend through production Nginx
+        run: |
+          npm run build
+          docker build -f tests/e2e/Dockerfile -t wordle-e2e:ci .
+          docker run -d --name wordle-e2e --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges --add-host backend:host-gateway -p 127.0.0.1:18080:8080 wordle-e2e:ci
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:18080/healthz; then exit 0; fi
+            sleep 1
+          done
+          docker logs wordle-e2e
+          exit 1
       - run: npm run e2e -w @wordle/web
+      - name: Clean up browser server
+        if: always()
+        run: docker rm -f wordle-e2e || true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with: {name: browser-failures, path: packages/web/test-results, retention-days: 3}

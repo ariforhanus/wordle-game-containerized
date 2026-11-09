@@ -23,6 +23,7 @@ public class ScoreService {
 
     private final ScoreRepository repo;
     private final ZoneId appZone;
+    private final java.time.Clock clock;
 
     /**
      * Scoring system: 0–9999 range (stored and displayed as-is).
@@ -45,10 +46,18 @@ public class ScoreService {
     private static final int TIME_BONUS_MAX = 1499;
     private static final int MS_PER_POINT = 200; // 1 point per 200ms
 
+    public ScoreService(ScoreRepository repo, String timezone) {
+        this(repo, timezone, java.time.Clock.systemUTC());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public ScoreService(
-            ScoreRepository repo, @Value("${app.timezone:Europe/Istanbul}") String timezone) {
+            ScoreRepository repo,
+            @Value("${app.timezone:Europe/Istanbul}") String timezone,
+            java.time.Clock clock) {
         this.repo = repo;
         this.appZone = ZoneId.of(timezone);
+        this.clock = clock;
     }
 
     // ── Daily score submission ──
@@ -56,7 +65,7 @@ public class ScoreService {
     // ── Daily status check ──
 
     public Optional<ScoreResponse> getDailyStatus(Long userId, String language) {
-        LocalDate today = ZonedDateTime.now(appZone).toLocalDate();
+        LocalDate today = ZonedDateTime.now(clock.withZone(appZone)).toLocalDate();
         return repo.findByUserIdAndPlayedAtAndLanguage(userId, today, language)
                 .map(this::toRespSimple);
     }
@@ -69,7 +78,7 @@ public class ScoreService {
     }
 
     public List<ScoreResponse> dailyTop(String language, int limit, ZoneId zone) {
-        LocalDate today = ZonedDateTime.now(zone).toLocalDate();
+        LocalDate today = ZonedDateTime.now(clock.withZone(zone)).toLocalDate();
         Instant start = today.atStartOfDay(zone).toInstant();
         Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
 
@@ -78,7 +87,7 @@ public class ScoreService {
     }
 
     public List<ScoreResponse> weeklyTop(String language, int limit, ZoneId zone) {
-        LocalDate today = ZonedDateTime.now(zone).toLocalDate();
+        LocalDate today = ZonedDateTime.now(clock.withZone(zone)).toLocalDate();
         LocalDate monday = today.with(java.time.DayOfWeek.MONDAY);
         // End of week = next Monday (or end of today if we only want up-to-now)
         // We include the full current day
@@ -90,7 +99,7 @@ public class ScoreService {
     }
 
     public List<ScoreResponse> monthlyTop(String language, int limit, ZoneId zone) {
-        LocalDate today = ZonedDateTime.now(zone).toLocalDate();
+        LocalDate today = ZonedDateTime.now(clock.withZone(zone)).toLocalDate();
         LocalDate firstOfMonth = today.withDayOfMonth(1);
         Instant start = firstOfMonth.atStartOfDay(zone).toInstant();
         Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
@@ -157,7 +166,7 @@ public class ScoreService {
         var result =
                 calculateStreakDays(
                         scores.stream().filter(Score::isWon).map(Score::getPlayedAt).toList());
-        LocalDate today = LocalDate.now(appZone);
+        LocalDate today = LocalDate.now(clock.withZone(appZone));
         boolean playedToday = scores.stream().anyMatch(s -> s.getPlayedAt().equals(today));
         boolean wonToday =
                 scores.stream().anyMatch(s -> s.isWon() && s.getPlayedAt().equals(today));
@@ -199,7 +208,8 @@ public class ScoreService {
             }
         }
 
-        if (days.getLast().isBefore(LocalDate.now(appZone).minusDays(1))) current = 0;
+        if (days.getLast().isBefore(LocalDate.now(clock.withZone(appZone)).minusDays(1)))
+            current = 0;
         return new StreakResult(current, best);
     }
 
@@ -221,7 +231,7 @@ public class ScoreService {
                                         Collectors.mapping(
                                                 ScoreRepository.PlayedDay::getPlayedAt,
                                                 Collectors.toList())));
-        LocalDate today = LocalDate.now(appZone);
+        LocalDate today = LocalDate.now(clock.withZone(appZone));
         Set<Long> playedToday =
                 history.stream()
                         .filter(d -> d.getPlayedAt().equals(today))

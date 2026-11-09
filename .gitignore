@@ -33,3 +33,8 @@ packages/web/test-results/
 packages/web/playwright-report/
 *.dump
 *.dump.sha256
+
+packages/web/coverage/
+
+# Python test bytecode
+__pycache__/

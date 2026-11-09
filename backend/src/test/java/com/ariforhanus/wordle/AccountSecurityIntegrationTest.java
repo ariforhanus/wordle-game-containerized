@@ -282,7 +282,7 @@ class AccountSecurityIntegrationTest {
                         invocation -> {
                             db.update(
                                     "UPDATE users SET auth_version=auth_version+1,"
-                                        + " version=version+1 WHERE id=?",
+                                            + " version=version+1 WHERE id=?",
                                     user.getId());
                             return invocation.callRealMethod();
                         })
@@ -300,5 +300,46 @@ class AccountSecurityIntegrationTest {
                 json.readTree(result.getResponse().getContentAsString()).path("token").asText();
         http.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + stale))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void verificationExpiresExactlyAtTwentyFourHours() {
+        accounts.requestVerification(user.getId());
+        String raw = delivered.getFirst();
+        var issued = clock.instant();
+        clock.now.set(issued.plusSeconds(86400));
+        assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> accounts.consume(raw, "VERIFY", null));
+        assertFalse(users.findById(user.getId()).orElseThrow().isEmailVerified());
+        assertNull(db.queryForMap("SELECT consumed_at FROM account_tokens").get("consumed_at"));
+    }
+
+    @Test
+    void verificationIsAcceptedImmediatelyBeforeExpiry() {
+        accounts.requestVerification(user.getId());
+        String raw = delivered.getFirst();
+        clock.now.set(clock.instant().plusSeconds(86400).minusMillis(1));
+        accounts.consume(raw, "VERIFY", null);
+        assertTrue(users.findById(user.getId()).orElseThrow().isEmailVerified());
+    }
+
+    @Test
+    void smtpFailureRollsBackNewTokenAndPreservesOlderLink() {
+        accounts.requestReset(user.getEmail());
+        String original = delivered.getFirst();
+        doThrow(new org.springframework.mail.MailSendException("injected transport failure"))
+                .when(mail)
+                .send(anyString(), anyString(), anyString());
+        assertThrows(
+                org.springframework.mail.MailSendException.class,
+                () -> accounts.requestReset(user.getEmail()));
+        assertEquals(1, db.queryForObject("SELECT count(*) FROM account_tokens", Integer.class));
+        assertNull(db.queryForMap("SELECT consumed_at FROM account_tokens").get("consumed_at"));
+        accounts.consume(original, "RESET", "replacement-password-123");
+        assertTrue(
+                encoder.matches(
+                        "replacement-password-123",
+                        users.findById(user.getId()).orElseThrow().getPasswordHash()));
     }
 }

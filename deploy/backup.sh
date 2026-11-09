@@ -5,6 +5,9 @@ umask 077
 : "${PGHOST:?Set PGHOST}"
 : "${PGUSER:?Set PGUSER}"
 : "${PGDATABASE:?Set PGDATABASE}"
+retention=${BACKUP_RETENTION_DAYS:-14}
+case "$retention" in ''|*[!0-9]*) echo 'Invalid retention' >&2; exit 1;; esac
+[ "$retention" -ge 1 ] || exit 1
 # Use PGPASSFILE (0600) or a secret-injected PGPASSWORD. Never put passwords in command arguments.
 mkdir -p "$BACKUP_DIR"
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
@@ -15,9 +18,6 @@ pg_dump --format=custom --no-owner --no-acl --file="$backup_path.partial"
 pg_restore --list "$backup_path.partial" >/dev/null
 mv "$backup_path.partial" "$backup_path"
 (cd "$BACKUP_DIR" && sha256sum "wordle-$stamp.dump" > "wordle-$stamp.dump.sha256")
-retention=${BACKUP_RETENTION_DAYS:-14}
-case "$retention" in ''|*[!0-9]*) echo 'Invalid retention' >&2; exit 1;; esac
-[ "$retention" -ge 1 ] || exit 1
 find "$BACKUP_DIR" -maxdepth 1 -type f -name 'wordle-*.dump*' -mtime "+$retention" -delete
 # Monitoring checks this timestamp; never contain credential values.
 date -u +%s > "$BACKUP_DIR/last-success"

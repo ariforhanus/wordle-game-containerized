@@ -13,6 +13,11 @@ import javax.crypto.SecretKey;
 
 @Component
 public class JwtUtil {
+    private final java.time.Clock clock;
+
+    public JwtUtil(java.time.Clock clock) {
+        this.clock = clock;
+    }
 
     @Value("${jwt.secret}")
     private String secretKey;
@@ -40,7 +45,7 @@ public class JwtUtil {
     }
 
     public String generateToken(Long userId, String username, String role, long authVersion) {
-        Date now = new Date();
+        Date now = Date.from(clock.instant());
         long expirationMs = Long.parseLong(expirationTime);
         Date exp = new Date(now.getTime() + expirationMs);
 
@@ -85,13 +90,18 @@ public class JwtUtil {
 
     public boolean isValid(String token) {
         try {
-            return claims(token).getExpiration().after(new Date());
+            return claims(token).getExpiration().after(Date.from(clock.instant()));
         } catch (Exception e) {
             return false;
         }
     }
 
     private Claims claims(String token) {
-        return Jwts.parser().verifyWith(signingKey()).build().parseSignedClaims(token).getPayload();
+        return Jwts.parser()
+                .verifyWith(signingKey())
+                .clock(() -> Date.from(clock.instant()))
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

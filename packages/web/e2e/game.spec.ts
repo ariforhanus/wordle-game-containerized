@@ -24,57 +24,66 @@ test("login page supports labels and browser zoom", async ({ page }) => {
   ).not.toContain("user-scalable=no");
   await expect(page.getByLabel("Username", { exact: true })).toBeVisible();
 });
-test("daily turns survive a lost response, reload, and another tab", async ({
-  page,
-  context,
-}) => {
-  await register(page);
-  await page.goto("/daily");
-  await page.getByRole("button", { name: /Start \/ resume/ }).click();
-  await expect(page.locator(".board")).toBeVisible();
-  const start = await page.evaluate(async () => {
-    const r = await fetch("/api/v1/daily/games?lang=en", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + localStorage.getItem("jwtToken") },
+test.describe("network-response recovery", () => {
+  // Playwright cannot reliably route requests through active service workers in every engine.
+  // Worker cache behavior has separate built-artifact and offline-browser tests below.
+  test.use({ serviceWorkers: "block" });
+  test("daily turns survive a lost response, reload, and another tab", async ({
+    page,
+    context,
+  }) => {
+    await register(page);
+    await page.goto("/daily");
+    await page.getByRole("button", { name: /Start \/ resume/ }).click();
+    await expect(page.locator(".board")).toBeVisible();
+    const start = await page.evaluate(async () => {
+      const r = await fetch("/api/v1/daily/games?lang=en", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("jwtToken"),
+        },
+      });
+      return r.json();
     });
-    return r.json();
-  });
-  expect(start.answer).toBeNull();
-  let failed = false;
-  await context.route("**/daily/games/*/guesses", async (route) => {
-    if (!failed) {
-      failed = true;
-      await route.fetch();
-      await route.abort("failed");
-    } else await route.continue();
-  });
-  // Use on-screen keys too, so the same test exercises the mobile layout.
-  for (const letter of "APPLE")
+    expect(start.answer).toBeNull();
+    let failed = false;
+    await context.route("**/daily/games/*/guesses", async (route) => {
+      if (!failed) {
+        failed = true;
+        await route.fetch();
+        await route.abort("failed");
+      } else await route.continue();
+    });
+    // Use on-screen keys too, so the same test exercises the mobile layout.
+    for (const letter of "APPLE")
+      await page
+        .locator(".keyboard")
+        .getByRole("button", { name: letter, exact: true })
+        .click();
     await page
       .locator(".keyboard")
-      .getByRole("button", { name: letter, exact: true })
+      .getByRole("button", { name: "ENTER", exact: true })
       .click();
-  await page
-    .locator(".keyboard")
-    .getByRole("button", { name: "ENTER", exact: true })
-    .click();
-  await expect(page.getByRole("alert")).toBeVisible();
-  await page.getByRole("button", { name: "Retry guess" }).click();
-  await expect(page.locator(".board-row").first()).toHaveText("APPLE");
-  await page.reload();
-  await page.getByRole("button", { name: /Start \/ resume/ }).click();
-  await expect(page.locator(".board-row").first()).toHaveText("APPLE");
-  const tab = await context.newPage();
-  await tab.goto("/daily");
-  await tab.getByRole("button", { name: /Start \/ resume/ }).click();
-  await expect(tab.locator(".board-row").first()).toHaveText("APPLE");
-  const result = await page.evaluate(async () => {
-    const r = await fetch("/api/v1/auth/me", {
-      headers: { Authorization: "Bearer " + localStorage.getItem("jwtToken") },
+    await expect(page.getByRole("alert")).toBeVisible();
+    await page.getByRole("button", { name: "Retry guess" }).click();
+    await expect(page.locator(".board-row").first()).toHaveText("APPLE");
+    await page.reload();
+    await page.getByRole("button", { name: /Start \/ resume/ }).click();
+    await expect(page.locator(".board-row").first()).toHaveText("APPLE");
+    const tab = await context.newPage();
+    await tab.goto("/daily");
+    await tab.getByRole("button", { name: /Start \/ resume/ }).click();
+    await expect(tab.locator(".board-row").first()).toHaveText("APPLE");
+    const result = await page.evaluate(async () => {
+      const r = await fetch("/api/v1/auth/me", {
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("jwtToken"),
+        },
+      });
+      return r.headers.get("Cache-Control");
     });
-    return r.headers.get("Cache-Control");
+    expect(result).toBe("no-store");
   });
-  expect(result).toBe("no-store");
 });
 test("revoking all sessions forces a fresh login", async ({
   page,
@@ -121,10 +130,12 @@ test("verification and password reset use single-use email links", async ({
           .at(-1);
         link =
           message?.body.match(
-            new RegExp(
-              "http://localhost:3000/" + kind + "#token=[A-Za-z0-9_-]+",
-            ),
+            new RegExp("https?://[^\\s]+/" + kind + "#token=[A-Za-z0-9_-]+"),
           )?.[0] ?? "";
+        if (link)
+          expect(new URL(link).origin).toBe(
+            new URL(process.env.E2E_BASE_URL ?? "http://localhost:3000").origin,
+          );
         return !!link;
       })
       .toBeTruthy();
@@ -165,4 +176,79 @@ test("verification and password reset use single-use email links", async ({
       })
     ).status(),
   ).toBe(400);
+});
+
+test("Turkish daily guesses survive reload with locale-specific letters", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() => localStorage.setItem("wordle_lang", "tr"));
+  await register(page);
+  await page.goto("/daily");
+  await page.locator(".daily-start-card button").click();
+  await expect(page.locator(".board")).toBeVisible();
+  await page.keyboard.type("incir");
+  await page
+    .locator(".keyboard")
+    .getByRole("button", { name: "ENTER", exact: true })
+    .click();
+  await expect(page.locator(".board-row").first()).toHaveText("İNCİR");
+  await page.reload();
+  await page.locator(".daily-start-card button").click();
+  await expect(page.locator(".board-row").first()).toHaveText("İNCİR");
+});
+
+test("production Nginx serves security headers and a non-cacheable worker", async ({
+  page,
+  context,
+}) => {
+  test.skip(
+    !process.env.E2E_PRODUCTION,
+    "Requires the built frontend served by production Nginx",
+  );
+  const response = await context.request.get("/login");
+  expect(response.status()).toBe(200);
+  expect(response.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(response.headers()["content-security-policy"]).toContain(
+    "object-src 'none'",
+  );
+  const script = await context.request.get("/sw.js");
+  expect(script.status()).toBe(200);
+  expect(script.headers()["cache-control"]).toContain("no-cache");
+  await page.goto("/login");
+  expect(await page.locator("h1").textContent()).toBeTruthy();
+});
+
+test("production offline practice keeps every API response out of caches", async ({
+  page,
+  context,
+}) => {
+  test.skip(
+    !process.env.E2E_PRODUCTION,
+    "Requires production service-worker registration",
+  );
+  await page.goto("/game");
+  await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+  await expect(page.locator(".board")).toBeVisible({ timeout: 20000 });
+  const urls = await page.evaluate(async () => {
+    const urls: string[] = [];
+    for (const name of await caches.keys())
+      for (const request of await (await caches.open(name)).keys())
+        urls.push(request.url);
+    return urls;
+  });
+  expect(urls.length).toBeGreaterThan(3);
+  expect(urls.some((url) => new URL(url).pathname.startsWith("/api/"))).toBe(
+    false,
+  );
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator(".board")).toBeVisible();
+  expect(
+    await page.evaluate(() =>
+      fetch("/api/v1/auth/me")
+        .then(() => false)
+        .catch(() => true),
+    ),
+  ).toBe(true);
 });

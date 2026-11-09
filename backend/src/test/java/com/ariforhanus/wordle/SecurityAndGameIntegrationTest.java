@@ -37,6 +37,7 @@ class SecurityAndGameIntegrationTest {
     @Autowired JwtUtil jwt;
     @Autowired PasswordEncoder encoder;
     @Autowired DailyGameService games;
+    @Autowired com.ariforhanus.wordle.service.ScoreService scores;
     @Autowired MutableClock clock;
     @Autowired ObjectMapper json;
     User user;
@@ -350,6 +351,245 @@ class SecurityAndGameIntegrationTest {
         http.perform(post("/api/v1/auth/login").contentType("application/json").content("{"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("invalid_input"));
+    }
+
+    @Test
+    void finalScoreWriteFailureRollsBackOnlyTheNewTurn() {
+        var game = startApple();
+        games.guess(user.getId(), game.id(), "CIGAR", 1);
+        db.execute(
+                "CREATE FUNCTION test_reject_score() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN"
+                    + " RAISE EXCEPTION 'injected score failure'; END $$");
+        db.execute(
+                "CREATE TRIGGER test_reject_score BEFORE INSERT ON scores FOR EACH ROW EXECUTE"
+                    + " FUNCTION test_reject_score()");
+        try {
+            assertThrows(
+                    org.springframework.dao.DataAccessException.class,
+                    () -> games.guess(user.getId(), game.id(), "APPLE", 2));
+            var restored = games.get(user.getId(), game.id());
+            assertEquals("playing", restored.status());
+            assertEquals(
+                    java.util.List.of("CIGAR"),
+                    restored.guesses().stream().map(DailyGameService.Feedback::guess).toList());
+            assertEquals(0, count("scores"));
+            assertNull(restored.score());
+        } finally {
+            db.execute("DROP TRIGGER test_reject_score ON scores");
+            db.execute("DROP FUNCTION test_reject_score()");
+        }
+        assertEquals("won", games.guess(user.getId(), game.id(), "APPLE", 2).status());
+        assertEquals(1, count("scores"));
+    }
+
+    @Test
+    void differentConcurrentGuessesAcceptExactlyOneTurn() throws Exception {
+        var game = startApple();
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var start = new CountDownLatch(1);
+            java.util.function.Function<String, Callable<String>> task =
+                    word ->
+                            () -> {
+                                start.await();
+                                try {
+                                    games.guess(user.getId(), game.id(), word, 1);
+                                    return word;
+                                } catch (
+                                        org.springframework.web.server.ResponseStatusException ex) {
+                                    assertEquals(409, ex.getStatusCode().value());
+                                    return "conflict";
+                                }
+                            };
+            var first = pool.submit(task.apply("CIGAR"));
+            var second = pool.submit(task.apply("REBUT"));
+            start.countDown();
+            var outcomes =
+                    java.util.List.of(
+                            first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
+            assertEquals(1, outcomes.stream().filter("conflict"::equals).count());
+            var restored = games.get(user.getId(), game.id());
+            assertEquals(1, restored.guesses().size());
+            String accepted =
+                    outcomes.stream().filter(v -> !v.equals("conflict")).findFirst().orElseThrow();
+            assertEquals(accepted, restored.guesses().getFirst().guess());
+            assertEquals(0, count("scores"));
+        }
+    }
+
+    private String signedToken(String subject, Instant expiration, String signingSecret) {
+        var builder = io.jsonwebtoken.Jwts.builder().claim("authVersion", 0).claim("role", "ADMIN");
+        if (subject != null) builder.subject(subject);
+        if (expiration != null) builder.expiration(java.util.Date.from(expiration));
+        return builder.signWith(
+                        io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                                signingSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                .compact();
+    }
+
+    private static final String TEST_SIGNING_KEY =
+            "test-only-signing-key-not-for-deployment-123456789";
+
+    @Test
+    void jwtExpirationRejectsTheExactExpiryInstant() throws Exception {
+        var expires = clock.instant().plusSeconds(1);
+        String shortToken = signedToken(user.getId().toString(), expires, TEST_SIGNING_KEY);
+        clock.now.set(expires.minusMillis(1));
+        http.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + shortToken))
+                .andExpect(status().isOk());
+        clock.now.set(expires);
+        http.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + shortToken))
+                .andExpect(status().isUnauthorized());
+        clock.now.set(expires.plusMillis(1));
+        assertFalse(jwt.isValid(shortToken));
+    }
+
+    @Test
+    void jwtRejectsWrongKeysAndMissingRequiredIdentityOrExpiration() throws Exception {
+        for (String invalid :
+                java.util.List.of(
+                        signedToken(
+                                user.getId().toString(),
+                                clock.instant().plusSeconds(60),
+                                "different-signing-key-for-test-only-123456789"),
+                        signedToken(null, clock.instant().plusSeconds(60), TEST_SIGNING_KEY),
+                        signedToken(
+                                "not-a-number", clock.instant().plusSeconds(60), TEST_SIGNING_KEY),
+                        signedToken(user.getId().toString(), null, TEST_SIGNING_KEY))) {
+            http.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + invalid))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Test
+    void roleClaimsCannotOverrideTheCurrentDatabaseRole() throws Exception {
+        String forgedRole =
+                signedToken(
+                        user.getId().toString(), clock.instant().plusSeconds(60), TEST_SIGNING_KEY);
+        http.perform(get("/api/v1/admin/users").header("Authorization", "Bearer " + forgedRole))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void corsRejectsUntrustedOriginsAndDoesNotEchoThem() throws Exception {
+        http.perform(
+                        options("/api/v1/auth/login")
+                                .header("Origin", "https://untrusted.example")
+                                .header("Access-Control-Request-Method", "POST"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+        http.perform(
+                        post("/api/v1/auth/login")
+                                .header("Origin", "https://untrusted.example")
+                                .contentType("application/json")
+                                .content(
+                                        "{\"username\":\"player\",\"password\":\"a-long-test-password\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+        http.perform(
+                        options("/api/v1/auth/login")
+                                .header("Origin", "http://localhost:8080")
+                                .header("Access-Control-Request-Method", "POST")
+                                .header(
+                                        "Access-Control-Request-Headers",
+                                        "Content-Type,Authorization"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:8080"));
+    }
+
+    private Long fixtureScore(Instant at, int points, boolean won, String username) {
+        User owner =
+                users.findByUsername(username)
+                        .orElseGet(
+                                () -> {
+                                    var next = new User();
+                                    next.setUsername(username);
+                                    next.setEmail(username + "@example.com");
+                                    next.setPasswordHash("unused");
+                                    return users.save(next);
+                                });
+        return db.queryForObject(
+                "INSERT INTO"
+                    + " scores(user_id,username,language,attempts,duration_ms,won_at,played_at,score,word,won)"
+                    + " VALUES (?,?,?,1,0,?,?,?,?,?) RETURNING id",
+                Long.class,
+                owner.getId(),
+                username,
+                "en",
+                java.sql.Timestamp.from(at),
+                at.atZone(ZoneId.of("Europe/Istanbul")).toLocalDate(),
+                points,
+                "APPLE",
+                won);
+    }
+
+    @Test
+    void dailyLeaderboardUsesHalfOpenIstanbulBoundaries() {
+        clock.now.set(Instant.parse("2026-11-18T09:00:00Z"));
+        var zone = ZoneId.of("Europe/Istanbul");
+        var start = LocalDate.of(2026, 11, 18).atStartOfDay(zone).toInstant();
+        fixtureScore(start.minusNanos(1000), 9999, true, "before");
+        Long included = fixtureScore(start, 5000, true, "start");
+        fixtureScore(start.plusSeconds(86400), 9999, true, "after");
+        fixtureScore(start.plusSeconds(10), 9999, false, "lost");
+        assertEquals(
+                java.util.List.of(included),
+                scores.dailyTop("en", 10, zone).stream()
+                        .map(com.ariforhanus.wordle.dto.ScoreResponse::getId)
+                        .toList());
+    }
+
+    @Test
+    void weeklyAndMonthlyLeaderboardsExcludeTheirOuterBoundaries() {
+        clock.now.set(Instant.parse("2026-11-18T09:00:00Z"));
+        var zone = ZoneId.of("Europe/Istanbul");
+        var week = LocalDate.of(2026, 11, 16).atStartOfDay(zone).toInstant();
+        var month = LocalDate.of(2026, 11, 1).atStartOfDay(zone).toInstant();
+        fixtureScore(month.minusNanos(1000), 9999, true, "beforemonth");
+        Long monthFirst = fixtureScore(month, 1000, true, "monthfirst");
+        Long beforeWeek = fixtureScore(week.minusNanos(1000), 2000, true, "beforeweek");
+        Long weekFirst = fixtureScore(week, 3000, true, "weekfirst");
+        var tomorrow = LocalDate.of(2026, 11, 19).atStartOfDay(zone).toInstant();
+        fixtureScore(tomorrow, 9999, true, "tomorrow");
+        assertEquals(
+                java.util.List.of(weekFirst),
+                scores.weeklyTop("en", 10, zone).stream()
+                        .map(com.ariforhanus.wordle.dto.ScoreResponse::getId)
+                        .toList());
+        assertEquals(
+                java.util.List.of(weekFirst, beforeWeek, monthFirst),
+                scores.monthlyTop("en", 10, zone).stream()
+                        .map(com.ariforhanus.wordle.dto.ScoreResponse::getId)
+                        .toList());
+    }
+
+    @Test
+    void tiesUseEarlierWinTimeAndOldStreaksExpire() {
+        clock.now.set(Instant.parse("2026-11-18T09:00:00Z"));
+        var instant = clock.instant();
+        Long later = fixtureScore(instant, 5000, true, "late");
+        Long earlier = fixtureScore(instant.minusSeconds(1), 5000, true, "early");
+        assertEquals(
+                java.util.List.of(earlier, later),
+                scores.topGlobal("en").stream()
+                        .map(com.ariforhanus.wordle.dto.ScoreResponse::getId)
+                        .toList());
+        for (int days = 5; days <= 7; days++)
+            fixtureScore(instant.minusSeconds(days * 86400L), 1000, true, "player");
+        var stats = scores.statsForUser(user.getId());
+        assertEquals(0, stats.currentStreak());
+        assertEquals(3, stats.bestStreak());
+    }
+
+    @Test
+    void turkishGameHandlesLocaleCasing() {
+        var game = games.start(user.getId(), "tr");
+        db.update(
+                "UPDATE daily_puzzles SET answer='İNCİR' WHERE id=(SELECT puzzle_id FROM"
+                    + " daily_games WHERE id=?)",
+                game.id());
+        assertEquals("won", games.guess(user.getId(), game.id(), "incir", 1).status());
+        assertEquals("İNCİR", games.get(user.getId(), game.id()).answer());
+        assertEquals(1, count("scores"));
     }
 
     private DailyGameService.GameView startApple() {

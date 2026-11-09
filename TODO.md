@@ -35,6 +35,11 @@ Checked items are implemented and locally verified on `fix/security-game-integri
 
 ## P3 — Quality and maintenance
 - [x] Add desktop/mobile browser tests for lost responses, reload, multiple tabs, and session revocation.
+- [x] Add transaction-rollback, competing-guess, JWT/CORS, mail-timeout, expiry, and leaderboard-boundary tests.
+- [x] Add backup/restore failure injection and checksum validation before database creation.
+- [x] Add production Nginx/worker tests, Turkish browser coverage, and Java/frontend coverage reports.
+- [ ] Obtain a successful Firefox run; local browser contexts currently crash before application interaction.
+- [ ] Expand frontend unit coverage beyond the measured 17.27% line baseline.
 - [x] Add automated accessibility checks; fix login link contrast, grid semantics, and browser zoom.
 - [x] Add a bounded local/staging load smoke test with explicit thresholds.
 - [x] Remove the obsolete legacy frontend.

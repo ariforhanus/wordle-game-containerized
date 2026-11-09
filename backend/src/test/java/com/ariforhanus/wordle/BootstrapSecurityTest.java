@@ -33,7 +33,7 @@ class BootstrapSecurityTest {
 
     @Test
     void signingKeyConfigurationFailsBeforeServingRequests() {
-        var jwt = new JwtUtil();
+        var jwt = new JwtUtil(java.time.Clock.systemUTC());
         ReflectionTestUtils.setField(jwt, "secretKey", "short");
         assertThrows(IllegalStateException.class, jwt::validateConfiguration);
     }
