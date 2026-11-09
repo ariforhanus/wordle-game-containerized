@@ -58,7 +58,7 @@ public class User {
     private String passwordHash;
 
     @Column(nullable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
 
     @Column(nullable = false, length = 20)
     private String role = "USER";

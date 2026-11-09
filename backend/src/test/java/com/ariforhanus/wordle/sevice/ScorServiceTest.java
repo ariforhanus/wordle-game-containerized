@@ -26,7 +26,11 @@ class ScorServiceTest {
     void lossTodayBreaksCurrentStreakButNotBestStreak() {
         var repo =
                 org.mockito.Mockito.mock(com.ariforhanus.wordle.repository.ScoreRepository.class);
-        var today = java.time.LocalDate.now(java.time.ZoneId.of("Europe/Istanbul"));
+        var today = com.ariforhanus.wordle.support.TestTimes.REFERENCE_DAY;
+        var clock =
+                java.time.Clock.fixed(
+                        com.ariforhanus.wordle.support.TestTimes.DAYTIME,
+                        com.ariforhanus.wordle.support.TestTimes.APP_ZONE);
         var win = new com.ariforhanus.wordle.entity.Score();
         win.setPlayedAt(today.minusDays(1));
         win.setWon(true);
@@ -36,7 +40,7 @@ class ScorServiceTest {
         loss.setWon(false);
         loss.setAttempts(6);
         org.mockito.Mockito.when(repo.findByUserId(1L)).thenReturn(java.util.List.of(win, loss));
-        var stats = new ScoreService(repo, "Europe/Istanbul").statsForUser(1L);
+        var stats = new ScoreService(repo, "Europe/Istanbul", clock).statsForUser(1L);
         assertEquals(0, stats.currentStreak());
         assertEquals(1, stats.bestStreak());
         assertFalse(stats.guessDistribution().containsKey(6));

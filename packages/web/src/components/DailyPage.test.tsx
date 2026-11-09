@@ -29,7 +29,7 @@ vi.mock("@wordle/api", async (original) => ({
 }));
 const initial: DailyGame = {
   id: "test-game",
-  date: "2026-11-09",
+  date: "2024-01-15",
   language: "en",
   status: "playing",
   elapsedMs: 1000,
@@ -37,6 +37,11 @@ const initial: DailyGame = {
   answer: null,
   score: null,
 };
+// Fixed calendar fixtures are intentional; tests must not depend on today's machine date.
+const nextDay = new Date(`${initial.date}T00:00:00Z`);
+nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+const NEXT_TEST_DAY = nextDay.toISOString().slice(0, 10);
+
 const dayMetadata = { date: initial.date, timeZone: "Europe/Istanbul" };
 function mount() {
   return render(
@@ -87,7 +92,7 @@ describe("server-authoritative daily play", () => {
       language: "tr",
     });
     fireEvent.click(screen.getByText("daily.start"));
-    await screen.findByText("2026-11-09");
+    await screen.findByText(initial.date);
     expect(dailyGameApi.start).toHaveBeenCalledExactlyOnceWith(
       "tr",
       initial.date,
@@ -326,9 +331,9 @@ describe("server-authoritative daily play", () => {
 
   it("refreshes a stale day and requires a new explicit Start instead of silently starting tomorrow", async () => {
     const { ApiError } = await import("@wordle/api");
-    vi.mocked(dailyGameApi.start).mockRejectedValueOnce(
-      new ApiError(409, { error: "day_changed" }),
-    );
+    vi.mocked(dailyGameApi.start)
+      .mockRejectedValueOnce(new ApiError(409, { error: "day_changed" }))
+      .mockResolvedValueOnce({ ...initial, date: NEXT_TEST_DAY });
     vi.mocked(dailyGameApi.status)
       .mockResolvedValueOnce({
         ...dayMetadata,
@@ -337,7 +342,7 @@ describe("server-authoritative daily play", () => {
       })
       .mockResolvedValueOnce({
         ...dayMetadata,
-        date: "2026-11-10",
+        date: NEXT_TEST_DAY,
         state: "not_started",
         game: null,
       });
@@ -347,29 +352,29 @@ describe("server-authoritative daily play", () => {
     await waitFor(() => expect(dailyGameApi.status).toHaveBeenCalledTimes(2));
     expect(dailyGameApi.start).toHaveBeenCalledExactlyOnceWith(
       "en",
-      "2026-11-09",
+      initial.date,
     );
     expect(screen.queryByText("daily.alreadyPlayed")).toBeNull();
     expect(screen.queryByRole("grid")).toBeNull();
     fireEvent.click(await screen.findByText("daily.start"));
-    await screen.findByText(initial.date);
-    expect(dailyGameApi.start).toHaveBeenNthCalledWith(2, "en", "2026-11-10");
+    await screen.findByText(NEXT_TEST_DAY);
+    expect(dailyGameApi.start).toHaveBeenNthCalledWith(2, "en", NEXT_TEST_DAY);
   });
 
   it("keeps the original game ID and puzzle date when the browser clock crosses midnight", async () => {
     vi.useFakeTimers();
     try {
-      vi.setSystemTime(new Date("2026-11-09T20:59:59Z"));
+      vi.setSystemTime(new Date(`${initial.date}T20:59:59Z`));
       await act(async () => {
         mount();
       });
       await act(async () => fireEvent.click(screen.getByText("daily.start")));
       act(() => vi.advanceTimersByTime(2000));
       expect(screen.getByLabelText("daily.elapsed").textContent).toBe("00:03");
-      vi.setSystemTime(new Date("2026-11-11T00:00:00Z"));
+      vi.setSystemTime(new Date(`${NEXT_TEST_DAY}T12:00:00Z`));
       act(() => vi.advanceTimersByTime(1000));
       expect(screen.getByLabelText("daily.elapsed").textContent).toBe("00:04");
-      expect(screen.getByText("2026-11-09")).toBeTruthy();
+      expect(screen.getByText(initial.date)).toBeTruthy();
       expect(screen.getByText("daily.rolloverRule")).toBeTruthy();
       vi.mocked(dailyGameApi.guess).mockResolvedValue({
         ...initial,
@@ -400,7 +405,7 @@ describe("server-authoritative daily play", () => {
     });
     mount();
     fireEvent.click(await screen.findByText("daily.start"));
-    await screen.findByText("2026-11-09");
+    await screen.findByText(initial.date);
     typeWord();
     fireEvent.keyDown(window, { key: "Enter" });
     await screen.findByRole("alert");
@@ -429,7 +434,7 @@ describe("server-authoritative daily play", () => {
     });
     mount();
     fireEvent.click(await screen.findByText("daily.start"));
-    await screen.findByText("2026-11-09");
+    await screen.findByText(initial.date);
     typeWord();
     fireEvent.keyDown(window, { key: "Enter" });
     await waitFor(() =>

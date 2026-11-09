@@ -33,12 +33,15 @@ public class AuthController {
 
     private final String dummyPasswordHash;
     private final JwtUtil jwt;
+    private final java.time.Clock clock;
 
-    public AuthController(UserRepository users, PasswordEncoder encoder, JwtUtil jwt) {
+    public AuthController(
+            UserRepository users, PasswordEncoder encoder, JwtUtil jwt, java.time.Clock clock) {
         this.users = users;
         this.encoder = encoder;
         this.dummyPasswordHash = encoder.encode(java.util.UUID.randomUUID().toString());
         this.jwt = jwt;
+        this.clock = clock;
     }
 
     @Value("${jwt.expiration}")
@@ -87,6 +90,7 @@ public class AuthController {
         }
         email = email.trim().toLowerCase(java.util.Locale.ROOT);
         User u = new User();
+        u.setCreatedAt(clock.instant());
         u.setUsername(username);
         u.setEmail(email);
         u.setPasswordHash(encoder.encode(password));

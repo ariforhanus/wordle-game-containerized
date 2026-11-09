@@ -139,3 +139,22 @@ Frontend tests check refresh without automatic Start, explicit use of the new da
 This step served the new release frontend with Vite Preview and the newly built backend because workspace disk capacity prevented another comfortable Docker image/container copy. These E2E results do not revalidate Nginx headers/container configuration. Error-injection contexts block workers for interception; the other browser-clock case leaves normal worker behavior enabled. Earlier Nginx results remain historical. Firefox and physical devices were not tested.
 
 Latest frontend unit coverage: 22.20% lines, 24.22% branches. No schema migration or historical data rewrite was required. Deploy backend support before matching frontend assets. Old unfinished games remain accessible by owned ID, but discovering them after a closed page is a separate pending history/Resume-selector task. Measure representative `played_at` query plans/indexes before production scale; current week/month aggregate semantics are still the existing single-game ranking. Remote CI and production release prerequisites remain open.
+
+## Requested interruption — time-source and fixture quality, 2026-11-09
+
+The reported `clock.now.set(Instant.parse(...))` statements were test code, not a frozen production clock. Fixed instants remain deliberate test data. The audit did find application paths bypassing the shared clock: `WordService` daily-date selection, admin dashboard dates, and implicit entity creation/completion defaults. Daily word/admin dates now derive from the injected clock; registration and bootstrap explicitly assign account creation instants. Entity-level implicit timestamps, an unused legacy Score constructor, and the ScoreService convenience constructor that silently chose a real clock were removed. No persisted historical data or schema was changed.
+
+Test support is now independent of integration test classes: `TestTimes`, `MutableClock`, and `TestClockConfiguration` live under `src/test/.../support`. Fixtures use a known Monday in a leap year, with calendar-relative weekday/month/year/leap-day cases. The mutable instant is private; tests use explicit set/Duration advance operations. Zone views share a live atomic source instead of a fixed snapshot. Contract tests cover zone view updates, concurrent advances, invalid adjustments, and a known New York spring-forward boundary. A fixed DTO timestamp is still legitimate local sample data; date literals are not banned indiscriminately.
+
+The formerly wall-clock-dependent streak unit test now supplies a fixed clock. Integration regressions check registration/bootstrap creation time, the injected admin reporting day, and agreement between daily word and daily game calendar selection. Frontend fixture dates are derived from one reference day, and the day-change mock now returns a game on the requested new day.
+
+| Check rerun for this change | Result |
+| --- | --- |
+| Java 21 / PostgreSQL full `mvn verify` | 95 passed, zero skipped/failures/errors |
+| Full frontend unit suite with V8 coverage | 23 passed, no unhandled errors |
+| TypeScript / production build and built-worker tests | Build passed; 8 tests passed |
+| Release build/Vite Preview desktop/mobile Chromium targeted regressions | 12 passed |
+| Production JAR packaging inspection | Test clock/configuration/fixture classes absent |
+| Source audit and `git diff --check` | Passed; Java real-clock factory is production ClockConfig |
+
+The E2E selection includes registration, explicit Start, closed-page Resume, multiple-login concurrent recovery, real server stale-date rejection, and client-clock changes. Nginx, WebKit, Firefox, and physical devices were not rerun for this interruption. Frontend coverage remains 22.20% lines / 24.22% branches. The current integration fixtures use shared database state and sequential execution; enabling parallel test classes requires isolation or resource locks. No leaderboard feature TODO was completed by this cleanup, and remote CI/production prerequisites remain open.

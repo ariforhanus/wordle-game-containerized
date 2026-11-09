@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
@@ -24,6 +25,7 @@ public class WordService {
     private final RandomWordApiProvider randomWord;
     private final DefinitionApiProvider definition;
     private final String timezone;
+    private final Clock clock;
 
     // LRU cache for definitions (bounded to prevent memory leak)
     private final Map<String, String> definitionCache =
@@ -38,11 +40,13 @@ public class WordService {
             DailyPuzzleService puzzles,
             RandomWordApiProvider randomWord,
             DefinitionApiProvider definition,
-            @Value("${app.timezone:Europe/Istanbul}") String timezone) {
+            @Value("${app.timezone:Europe/Istanbul}") String timezone,
+            Clock clock) {
         this.puzzles = puzzles;
         this.randomWord = randomWord;
         this.definition = definition;
         this.timezone = timezone;
+        this.clock = clock;
     }
 
     /** Practice modu için rastgele kelime döner. */
@@ -52,11 +56,11 @@ public class WordService {
     }
 
     /**
-     * Günlük kelime: Her dil için gün başına deterministik bir kelime seçer. Thread-safe:
-     * synchronized block ile race condition önlenir.
+     * Daily word uses the shared application clock and the persisted unique puzzle per
+     * day/language.
      */
     public WordDto getDailyWord(String lang) {
-        var puzzle = puzzles.getOrCreate(LocalDate.now(ZoneId.of(timezone)), lang);
+        var puzzle = puzzles.getOrCreate(LocalDate.now(clock.withZone(ZoneId.of(timezone))), lang);
         return buildDto(lang, puzzle.answer());
     }
 

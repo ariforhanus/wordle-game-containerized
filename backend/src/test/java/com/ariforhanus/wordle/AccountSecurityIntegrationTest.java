@@ -1,5 +1,7 @@
 package com.ariforhanus.wordle;
 
+import static com.ariforhanus.wordle.support.TestTimes.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -9,6 +11,8 @@ import com.ariforhanus.wordle.entity.User;
 import com.ariforhanus.wordle.jwt.JwtUtil;
 import com.ariforhanus.wordle.repository.UserRepository;
 import com.ariforhanus.wordle.service.*;
+import com.ariforhanus.wordle.support.MutableClock;
+import com.ariforhanus.wordle.support.TestClockConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.*;
@@ -22,14 +26,14 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.Instant;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 
 @SpringBootTest(properties = "app.require-verified-email=true")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(SecurityAndGameIntegrationTest.TimeConfig.class)
+@Import(TestClockConfiguration.class)
 class AccountSecurityIntegrationTest {
     @Autowired MockMvc http;
     @Autowired JdbcTemplate db;
@@ -38,7 +42,7 @@ class AccountSecurityIntegrationTest {
     @org.springframework.test.context.bean.override.mockito.MockitoSpyBean PasswordEncoder encoder;
     @Autowired ObjectMapper json;
     @Autowired AccountService accounts;
-    @Autowired SecurityAndGameIntegrationTest.MutableClock clock;
+    @Autowired MutableClock clock;
     @MockitoBean AccountMail mail;
     User user;
     String token;
@@ -49,8 +53,9 @@ class AccountSecurityIntegrationTest {
         db.execute(
                 "TRUNCATE auth_rate_limits, security_audit, daily_games, daily_puzzles, scores,"
                         + " users RESTART IDENTITY CASCADE");
-        clock.now.set(Instant.parse("2026-11-09T20:59:00Z"));
+        clock.set(BEFORE_MIDNIGHT);
         user = new User();
+        user.setCreatedAt(clock.instant());
         user.setUsername("player");
         user.setEmail("player@example.com");
         user.setPasswordHash(encoder.encode("original-password-123"));
@@ -151,7 +156,7 @@ class AccountSecurityIntegrationTest {
         accounts.requestReset(user.getEmail());
         String second = delivered.getLast();
         assertThrows(Exception.class, () -> accounts.consume(first, "RESET", "next-password-123"));
-        clock.now.set(clock.instant().plusSeconds(1801));
+        clock.advance(Duration.ofMinutes(30).plusSeconds(1));
         assertThrows(Exception.class, () -> accounts.consume(second, "RESET", "next-password-123"));
     }
 
@@ -261,6 +266,7 @@ class AccountSecurityIntegrationTest {
     @Test
     void adminRoleChangesAreAuditedAndRevokeTargetSessions() throws Exception {
         User admin = new User();
+        admin.setCreatedAt(clock.instant());
         admin.setUsername("admin");
         admin.setEmail("admin@example.com");
         admin.setPasswordHash("unused");
@@ -311,7 +317,7 @@ class AccountSecurityIntegrationTest {
         accounts.requestVerification(user.getId());
         String raw = delivered.getFirst();
         var issued = clock.instant();
-        clock.now.set(issued.plusSeconds(86400));
+        clock.set(issued.plus(Duration.ofHours(24)));
         assertThrows(
                 org.springframework.web.server.ResponseStatusException.class,
                 () -> accounts.consume(raw, "VERIFY", null));
@@ -323,7 +329,7 @@ class AccountSecurityIntegrationTest {
     void verificationIsAcceptedImmediatelyBeforeExpiry() {
         accounts.requestVerification(user.getId());
         String raw = delivered.getFirst();
-        clock.now.set(clock.instant().plusSeconds(86400).minusMillis(1));
+        clock.advance(Duration.ofHours(24).minusMillis(1));
         accounts.consume(raw, "VERIFY", null);
         assertTrue(users.findById(user.getId()).orElseThrow().isEmailVerified());
     }

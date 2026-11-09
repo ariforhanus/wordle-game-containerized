@@ -155,10 +155,22 @@ Politika, uyumlu eski istemci davranışı, deploy sırası ve sınırlar `OPERA
 
 P0.1'in beş kabul maddesi tamamlandı. Sıradaki geliştirme TODO'su: P1.1 günlük leaderboard kabul kuralını mevcut davranış ve yeni tarih seçimiyle doğrulamak; ardından haftalık/aylık SUM sıralamasına geçmek. P0.2 CI/production engelleri, Firefox ve fiziksel cihaz doğrulamaları ayrıca açık.
 
+## Ara görev — zaman kaynağı ve test fixture kalitesi
+
+- [x] Kullanıcı önceliğiyle sabit tarih/saat kullanımlarını incele; gerçek sistem saatini doğrudan kullanan iş akışlarını ortak `Clock`'a geçir, test fixture'larını kapsülle ve doğrula.
+
+2026-11-09: örnek gösterilen sabit tarihlerin testlere ait olduğu doğrulandı; üretimde sabit takvim tarihi bulunmadı. Testleri gerçek bugüne bağlamak yerine tekrar eden takvim değerleri isimli fixture'lara taşındı. Ortak `MutableClock`/`TestClockConfiguration`, başka test sınıfının iç tipine bağımlılığı ve açık `clock.now` erişimini kaldırıyor; canlı `withZone` görünümü, atomik advance ve DST davranışı test edildi. Fixture referansı çalışma gününden bağımsız, bilinen bir pazartesi/leap-year tarihi; gece yarısı, hafta/ay/yıl ve artık gün sınırları ondan türetiliyor.
+
+Gerçek düzeltmeler: günlük kelime servisi ve admin dashboard artık enjekte edilen uygulama saatini kullanıyor; kayıt/bootstrap kullanıcı oluşturma zamanını açıkça bu saatten atıyor. Entity'lerde örtük sistem saati/tarih varsayımları, kullanılmayan eski Score kurucusu ve ScoreService'in gizli gerçek saat oluşturan test kolaylık kurucusu kaldırıldı. Frontend fixture günleri de tek referanstan türetildi; eski ekran testinin mock sonucu yeni istenen günle tutarlı hale getirildi.
+
+**95 backend**, **23 frontend**, **8 build edilmiş worker** ve production build/Vite Preview üzerinde **12 masaüstü/mobil E2E** senaryosu geçti. Test saat/config/fixture sınıflarının production JAR'ında olmadığı ayrıca kontrol edildi. Schema/veri migration'ı yapılmadı. Nginx/WebKit/Firefox bu ara görevde yeniden doğrulanmadı; CI/production engelleri açık. Leaderboard TODO'ları bu ara görev nedeniyle tamamlandı işaretlenmedi.
+
 ## Mühendislik kuralları
 
 - Her uygulama turunda sıradaki tek TODO maddesini ele al; tamamlanan işi, ilgili değişiklikleri, çalıştırılan testleri ve açık riskleri raporla. Bağımlı hata düzeltmelerini ayrıca belirt; sonraki TODO'yu bitmiş sayma.
 
+- Zamana bağlı iş kuralları için constructor ile `Clock` enjekte et; gerçek saatin Java fabrikası production `ClockConfig` olsun. Entity'lere örtük `now()`/varsayılan makine zaman dilimi ekleme; zamanı uygulama katmanında açıkça ata.
+- Testte `Clock.fixed` veya test destek `MutableClock` kullan; sabit sınır tarihleri geçerli fixture'lardır. Tekrarlanan tarihleri isimlendir/türet, testleri makinenin bugünkü tarihine bağlama ve test saatini production'a taşıma. İş süresi/süre aşımı birim testlerinde uyumak yerine saati ilerlet; gerçek ağ/veritabanı senkronizasyon beklemelerini sınırla.
 - Mevcut işlevleri koru; uygulamadan önce ilgili kodu, API sözleşmelerini ve testleri incele.
 - Doğruluğu veritabanı constraint/transaction'larıyla koru; süre, skor, dönem ve streak hesaplarını sunucu belirlesin.
 - Her davranış değişikliğine uygun backend, frontend ve E2E testlerini ekle; mevcut yeşil testleri kaldırarak geçiş sağlama.

@@ -1,5 +1,7 @@
 package com.ariforhanus.wordle;
 
+import static com.ariforhanus.wordle.support.TestTimes.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -8,15 +10,15 @@ import com.ariforhanus.wordle.entity.User;
 import com.ariforhanus.wordle.jwt.JwtUtil;
 import com.ariforhanus.wordle.repository.UserRepository;
 import com.ariforhanus.wordle.service.DailyGameService;
+import com.ariforhanus.wordle.support.MutableClock;
+import com.ariforhanus.wordle.support.TestClockConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -24,9 +26,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 @SpringBootTest
+@Import(TestClockConfiguration.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class SecurityAndGameIntegrationTest {
@@ -37,6 +39,7 @@ class SecurityAndGameIntegrationTest {
     @Autowired JwtUtil jwt;
     @Autowired PasswordEncoder encoder;
     @Autowired DailyGameService games;
+    @Autowired com.ariforhanus.wordle.service.WordService words;
     @Autowired com.ariforhanus.wordle.service.ScoreService scores;
     @Autowired MutableClock clock;
     @Autowired ObjectMapper json;
@@ -48,13 +51,58 @@ class SecurityAndGameIntegrationTest {
         db.execute(
                 "TRUNCATE TABLE auth_rate_limits, security_audit, daily_games, daily_puzzles,"
                         + " scores, users RESTART IDENTITY CASCADE");
-        clock.now.set(Instant.parse("2026-11-09T20:59:00Z"));
+        clock.set(BEFORE_MIDNIGHT);
         user = new User();
+        user.setCreatedAt(clock.instant());
         user.setUsername("player");
         user.setEmail("player@example.com");
         user.setPasswordHash(encoder.encode("a-long-test-password"));
         user = users.save(user);
         token = jwt.generateToken(user.getId(), user.getUsername(), "USER");
+    }
+
+    @Test
+    void registrationPersistsTheInjectedCreationInstant() throws Exception {
+        http.perform(
+                        post("/api/v1/auth/register")
+                                .contentType("application/json")
+                                .content(
+                                        "{\"username\":\"clock_user\",\"email\":\"clock_user@example.com\",\"password\":\"long-test-password-123\"}"))
+                .andExpect(status().isOk());
+        assertEquals(
+                clock.instant(), users.findByUsername("clock_user").orElseThrow().getCreatedAt());
+    }
+
+    @Test
+    void adminDashboardUsesTheSameApplicationDayAsTheGame() throws Exception {
+        clock.set(PERIOD_TIME);
+        user.setRole("ADMIN");
+        users.save(user);
+        String adminToken = jwt.generateToken(user.getId(), user.getUsername(), "ADMIN");
+        fixtureScore(clock.instant(), 1000, true, "todayplayer");
+        fixtureScore(clock.instant().minus(Duration.ofDays(1)), 1000, true, "yesterdayplayer");
+        http.perform(get("/api/v1/admin/stats").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.todayPlayers").value(1))
+                .andExpect(jsonPath("$.activeUsers").value(2));
+    }
+
+    @Test
+    void dailyWordAndDailyGameUseTheSameInjectedCalendar() {
+        clock.set(BEFORE_MIDNIGHT);
+        var word = words.getDailyWord("tr");
+        var game = games.start(user.getId(), "tr");
+        assertEquals(REFERENCE_DAY.toString(), game.date());
+        assertEquals(
+                word.word(),
+                db.queryForObject(
+                        "SELECT answer FROM daily_puzzles WHERE played_at = ? AND language = 'tr'",
+                        String.class,
+                        REFERENCE_DAY));
+        clock.advance(Duration.ofMinutes(2));
+        words.getDailyWord("tr");
+        assertEquals(2, count("daily_puzzles"));
+        assertEquals(REFERENCE_DAY.plusDays(1).toString(), games.start(user.getId(), "tr").date());
     }
 
     @Test
@@ -85,7 +133,7 @@ class SecurityAndGameIntegrationTest {
                             get("/api/v1/daily/games/not-started")
                                     .header("Authorization", "Bearer " + token))
                     .andExpect(status().isNotFound());
-            clock.now.set(clock.instant().plusSeconds(30));
+            clock.advance(Duration.ofSeconds(30));
         }
         assertEquals(0, count("daily_games"));
         assertEquals(0, count("daily_puzzles"));
@@ -110,7 +158,7 @@ class SecurityAndGameIntegrationTest {
                                 java.sql.Timestamp.class,
                                 id)
                         .toInstant());
-        clock.now.set(explicitStart.plusSeconds(30));
+        clock.set(explicitStart.plusSeconds(30));
         http.perform(get("/api/v1/daily/games/" + id).header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.elapsedMs").value(30000));
@@ -141,7 +189,7 @@ class SecurityAndGameIntegrationTest {
     void statusFindsOnlyTheCurrentUsersLanguageAndDayWithoutResettingTime() throws Exception {
         var game = startApple();
         Instant original = clock.instant();
-        clock.now.set(original.plusSeconds(10));
+        clock.set(original.plusSeconds(10));
         http.perform(
                         get("/api/v1/daily/games")
                                 .param("lang", "en")
@@ -158,6 +206,7 @@ class SecurityAndGameIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("not_started"));
         var other = new User();
+        other.setCreatedAt(clock.instant());
         other.setUsername("other");
         other.setEmail("other@example.com");
         other.setPasswordHash("unused");
@@ -176,7 +225,7 @@ class SecurityAndGameIntegrationTest {
                                 java.sql.Timestamp.class,
                                 game.id())
                         .toInstant());
-        clock.now.set(original.plusSeconds(120));
+        clock.set(original.plusSeconds(120));
         String fresh = jwt.generateToken(user.getId(), user.getUsername(), "USER");
         http.perform(
                         get("/api/v1/daily/games")
@@ -271,7 +320,7 @@ class SecurityAndGameIntegrationTest {
                                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.answer").isEmpty());
-        clock.now.set(clock.instant().plusSeconds(20));
+        clock.advance(Duration.ofSeconds(20));
         var result = games.guess(user.getId(), game.id(), "apple", 1);
         assertEquals("won", result.status());
         assertEquals("APPLE", result.answer());
@@ -286,7 +335,7 @@ class SecurityAndGameIntegrationTest {
     void disconnectedTimeCountsAndResumeFromAnotherSessionKeepsTheOriginalStart(String language)
             throws Exception {
         // Stay within one puzzle day; midnight behavior has a separate acceptance item.
-        clock.now.set(Instant.parse("2026-11-09T10:00:00Z"));
+        clock.set(DAYTIME);
         Instant startedAt = clock.instant();
         var game = games.start(user.getId(), language);
         String answer = language.equals("tr") ? "İNCİR" : "APPLE";
@@ -296,7 +345,7 @@ class SecurityAndGameIntegrationTest {
                 answer,
                 game.id());
         // There are no game requests while this deterministic server clock advances.
-        clock.now.set(startedAt.plusSeconds(120));
+        clock.set(startedAt.plusSeconds(120));
         String newSession = jwt.generateToken(user.getId(), user.getUsername(), "USER");
         for (int retry = 0; retry < 3; retry++) {
             http.perform(
@@ -315,7 +364,7 @@ class SecurityAndGameIntegrationTest {
                                 game.id())
                         .toInstant());
         assertEquals(1, count("daily_games"));
-        clock.now.set(startedAt.plusSeconds(180));
+        clock.set(startedAt.plusSeconds(180));
         http.perform(
                         post("/api/v1/daily/games/" + game.id() + "/guesses")
                                 .header("Authorization", "Bearer " + newSession)
@@ -338,7 +387,7 @@ class SecurityAndGameIntegrationTest {
                         Long.class,
                         user.getId(),
                         language));
-        clock.now.set(startedAt.plusSeconds(240));
+        clock.set(startedAt.plusSeconds(240));
         var finished = games.start(user.getId(), language);
         assertEquals(game.id(), finished.id());
         assertEquals(180000, finished.elapsedMs());
@@ -356,6 +405,7 @@ class SecurityAndGameIntegrationTest {
     void gameOwnershipIsEnforced() throws Exception {
         var game = startApple();
         User other = new User();
+        other.setCreatedAt(clock.instant());
         other.setUsername("other");
         other.setEmail("other@example.com");
         other.setPasswordHash("unused");
@@ -417,17 +467,43 @@ class SecurityAndGameIntegrationTest {
         }
     }
 
+    private static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments>
+            midnightCases() {
+        var sunday =
+                REFERENCE_DAY.with(
+                        java.time.temporal.TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        var monthEnd = REFERENCE_DAY.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+        var yearEnd = REFERENCE_DAY.with(java.time.temporal.TemporalAdjusters.lastDayOfYear());
+        return java.util.stream.Stream.of(
+                org.junit.jupiter.params.provider.Arguments.of("en", REFERENCE_DAY, true),
+                org.junit.jupiter.params.provider.Arguments.of("tr", REFERENCE_DAY, true),
+                org.junit.jupiter.params.provider.Arguments.of("en", sunday, true),
+                org.junit.jupiter.params.provider.Arguments.of("tr", monthEnd, true),
+                org.junit.jupiter.params.provider.Arguments.of("en", yearEnd, true),
+                org.junit.jupiter.params.provider.Arguments.of("tr", yearEnd, true),
+                org.junit.jupiter.params.provider.Arguments.of(
+                        "en",
+                        REFERENCE_DAY
+                                .withMonth(2)
+                                .with(java.time.temporal.TemporalAdjusters.lastDayOfMonth()),
+                        true),
+                org.junit.jupiter.params.provider.Arguments.of(
+                        "tr",
+                        REFERENCE_DAY
+                                .withMonth(2)
+                                .with(java.time.temporal.TemporalAdjusters.lastDayOfMonth()),
+                        true),
+                org.junit.jupiter.params.provider.Arguments.of("en", REFERENCE_DAY, false),
+                org.junit.jupiter.params.provider.Arguments.of("tr", REFERENCE_DAY, false));
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.CsvSource({
-        "en,2026-11-09,true", "tr,2026-11-09,true", "en,2026-11-15,true",
-        "tr,2026-11-30,true", "en,2026-12-31,true", "tr,2026-12-31,true",
-        "en,2026-11-09,false", "tr,2026-11-09,false"
-    })
+    @org.junit.jupiter.params.provider.MethodSource("midnightCases")
     void midnightKeepsPuzzleDatesAndRequiresAnExplicitNewDayStart(
             String language, LocalDate oldDate, boolean winning) throws Exception {
-        var zone = ZoneId.of("Europe/Istanbul");
+        var zone = APP_ZONE;
         Instant boundary = oldDate.plusDays(1).atStartOfDay(zone).toInstant();
-        clock.now.set(boundary.minusMillis(1));
+        clock.set(boundary.minusMillis(1));
         String session = jwt.generateToken(user.getId(), user.getUsername(), "USER");
         var before = gameRequest(get("/api/v1/daily/games").param("lang", language), session);
         assertEquals(oldDate.toString(), before.get("date").asText());
@@ -449,7 +525,7 @@ class SecurityAndGameIntegrationTest {
                 oldId);
         int finalTurn = winning ? 1 : 6;
         for (int turn = 1; turn < finalTurn; turn++) games.guess(user.getId(), oldId, word, turn);
-        clock.now.set(boundary);
+        clock.set(boundary);
         LocalDate today = oldDate.plusDays(1);
         var after = gameRequest(get("/api/v1/daily/games").param("lang", language), session);
         assertEquals("not_started", after.get("state").asText());
@@ -491,7 +567,7 @@ class SecurityAndGameIntegrationTest {
                         + " WHERE id = ?)",
                 word,
                 nextId);
-        clock.now.set(boundary.plusSeconds(20));
+        clock.set(boundary.plusSeconds(20));
         var completed = gameRequest(turnRequest(oldId, word, finalTurn), session);
         assertEquals(oldDate.toString(), completed.get("date").asText());
         assertEquals(winning ? "won" : "lost", completed.get("status").asText());
@@ -510,7 +586,7 @@ class SecurityAndGameIntegrationTest {
         var current = gameRequest(get("/api/v1/daily/games").param("lang", language), session);
         assertEquals(nextId, current.get("game").get("id").asText());
         assertEquals("playing", current.get("state").asText());
-        clock.now.set(boundary.plusSeconds(21));
+        clock.set(boundary.plusSeconds(21));
         assertEquals(completed, gameRequest(turnRequest(oldId, word, finalTurn), session));
         gameRequest(turnRequest(nextId, word, 1), session);
         assertEquals(2, count("daily_games"));
@@ -530,10 +606,10 @@ class SecurityAndGameIntegrationTest {
 
     @Test
     void aStartBlockedAcrossMidnightKeepsItsCapturedServerDay() throws Exception {
-        var zone = ZoneId.of("Europe/Istanbul");
-        LocalDate oldDate = LocalDate.of(2026, 11, 9);
+        var zone = APP_ZONE;
+        LocalDate oldDate = REFERENCE_DAY;
         Instant boundary = oldDate.plusDays(1).atStartOfDay(zone).toInstant();
-        clock.now.set(boundary.minusMillis(1));
+        clock.set(boundary.minusMillis(1));
         var pool = Executors.newSingleThreadExecutor();
         try (var blocker = dataSource.getConnection()) {
             blocker.setAutoCommit(false);
@@ -560,7 +636,7 @@ class SecurityAndGameIntegrationTest {
                     Thread.sleep(10);
                 } while (System.nanoTime() < deadline);
                 assertTrue(waiting > 0, "Start must be blocked on the uncommitted puzzle");
-                clock.now.set(boundary.plusSeconds(1));
+                clock.set(boundary.plusSeconds(1));
                 blocker.commit();
                 var started = pending.get(10, TimeUnit.SECONDS);
                 assertEquals(oldDate.toString(), started.date());
@@ -585,13 +661,12 @@ class SecurityAndGameIntegrationTest {
     @Test
     void completionAcrossMidnightBelongsToOriginalPuzzle() {
         var game = startApple();
-        clock.now.set(Instant.parse("2026-11-09T21:01:00Z"));
+        clock.set(REFERENCE_DAY.plusDays(1).atStartOfDay(APP_ZONE).plusMinutes(1).toInstant());
         var result = games.guess(user.getId(), game.id(), "APPLE", 1);
-        assertEquals("2026-11-09", result.date());
+        assertEquals(REFERENCE_DAY.toString(), result.date());
         assertEquals(
-                LocalDate.parse("2026-11-09"),
-                db.queryForObject("SELECT played_at FROM scores", LocalDate.class));
-        assertEquals("2026-11-10", games.start(user.getId(), "en").date());
+                REFERENCE_DAY, db.queryForObject("SELECT played_at FROM scores", LocalDate.class));
+        assertEquals(REFERENCE_DAY.plusDays(1).toString(), games.start(user.getId(), "en").date());
     }
 
     @Test
@@ -799,10 +874,10 @@ class SecurityAndGameIntegrationTest {
     }
 
     private java.util.List<String> independentSessions(int count) {
-        clock.now.set(Instant.parse("2026-11-09T10:00:00Z"));
+        clock.set(DAYTIME);
         var sessions = new java.util.ArrayList<String>();
         for (int index = 0; index < count; index++) {
-            clock.now.set(clock.instant().plusSeconds(1));
+            clock.advance(Duration.ofSeconds(1));
             sessions.add(jwt.generateToken(user.getId(), user.getUsername(), "USER"));
         }
         assertEquals(count, sessions.stream().distinct().count());
@@ -876,7 +951,7 @@ class SecurityAndGameIntegrationTest {
         var results = race(starts);
         String id = results.getFirst().get("id").asText();
         for (var result : results) assertEquals(id, result.get("id").asText());
-        clock.now.set(startedAt.plusSeconds(30));
+        clock.set(startedAt.plusSeconds(30));
         var resumes =
                 race(
                         java.util.List.<Callable<com.fasterxml.jackson.databind.JsonNode>>of(
@@ -940,7 +1015,7 @@ class SecurityAndGameIntegrationTest {
         int turn = winning ? 1 : 6;
         for (int index = 1; index < turn; index++)
             games.guess(user.getId(), game.id(), guess, index);
-        clock.now.set(startedAt.plusSeconds(20));
+        clock.set(startedAt.plusSeconds(20));
         var pool = Executors.newFixedThreadPool(3);
         try (var blocker = dataSource.getConnection()) {
             blocker.setAutoCommit(false);
@@ -994,7 +1069,7 @@ class SecurityAndGameIntegrationTest {
                 assertEquals(winning ? "won" : "lost", completed.get("status").asText());
                 assertEquals(turn, completed.get("guesses").size());
                 assertEquals(20000, completed.get("elapsedMs").asLong());
-                clock.now.set(startedAt.plusSeconds(40));
+                clock.set(startedAt.plusSeconds(40));
                 assertEquals(
                         completed,
                         gameRequest(turnRequest(game.id(), guess, turn), sessions.get(2)));
@@ -1101,13 +1176,13 @@ class SecurityAndGameIntegrationTest {
     void jwtExpirationRejectsTheExactExpiryInstant() throws Exception {
         var expires = clock.instant().plusSeconds(1);
         String shortToken = signedToken(user.getId().toString(), expires, TEST_SIGNING_KEY);
-        clock.now.set(expires.minusMillis(1));
+        clock.set(expires.minusMillis(1));
         http.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + shortToken))
                 .andExpect(status().isOk());
-        clock.now.set(expires);
+        clock.set(expires);
         http.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + shortToken))
                 .andExpect(status().isUnauthorized());
-        clock.now.set(expires.plusMillis(1));
+        clock.set(expires.plusMillis(1));
         assertFalse(jwt.isValid(shortToken));
     }
 
@@ -1170,6 +1245,7 @@ class SecurityAndGameIntegrationTest {
                         .orElseGet(
                                 () -> {
                                     var next = new User();
+                                    next.setCreatedAt(clock.instant());
                                     next.setUsername(username);
                                     next.setEmail(username + "@example.com");
                                     next.setPasswordHash("unused");
@@ -1184,7 +1260,7 @@ class SecurityAndGameIntegrationTest {
                 username,
                 "en",
                 java.sql.Timestamp.from(at),
-                at.atZone(ZoneId.of("Europe/Istanbul")).toLocalDate(),
+                at.atZone(APP_ZONE).toLocalDate(),
                 points,
                 "APPLE",
                 won);
@@ -1192,9 +1268,9 @@ class SecurityAndGameIntegrationTest {
 
     @Test
     void dailyLeaderboardUsesHalfOpenIstanbulBoundaries() {
-        clock.now.set(Instant.parse("2026-11-18T09:00:00Z"));
-        var zone = ZoneId.of("Europe/Istanbul");
-        var start = LocalDate.of(2026, 11, 18).atStartOfDay(zone).toInstant();
+        clock.set(PERIOD_TIME);
+        var zone = APP_ZONE;
+        var start = PERIOD_DAY.atStartOfDay(zone).toInstant();
         fixtureScore(start.minusNanos(1000), 9999, true, "before");
         Long included = fixtureScore(start, 5000, true, "start");
         fixtureScore(start.plusSeconds(86400), 9999, true, "after");
@@ -1208,15 +1284,15 @@ class SecurityAndGameIntegrationTest {
 
     @Test
     void weeklyAndMonthlyLeaderboardsExcludeTheirOuterBoundaries() {
-        clock.now.set(Instant.parse("2026-11-18T09:00:00Z"));
-        var zone = ZoneId.of("Europe/Istanbul");
-        var week = LocalDate.of(2026, 11, 16).atStartOfDay(zone).toInstant();
-        var month = LocalDate.of(2026, 11, 1).atStartOfDay(zone).toInstant();
+        clock.set(PERIOD_TIME);
+        var zone = APP_ZONE;
+        var week = PERIOD_DAY.with(DayOfWeek.MONDAY).atStartOfDay(zone).toInstant();
+        var month = PERIOD_DAY.withDayOfMonth(1).atStartOfDay(zone).toInstant();
         fixtureScore(month.minusNanos(1000), 9999, true, "beforemonth");
         Long monthFirst = fixtureScore(month, 1000, true, "monthfirst");
         Long beforeWeek = fixtureScore(week.minusNanos(1000), 2000, true, "beforeweek");
         Long weekFirst = fixtureScore(week, 3000, true, "weekfirst");
-        var tomorrow = LocalDate.of(2026, 11, 19).atStartOfDay(zone).toInstant();
+        var tomorrow = PERIOD_DAY.plusDays(1).atStartOfDay(zone).toInstant();
         fixtureScore(tomorrow, 9999, true, "tomorrow");
         assertEquals(
                 java.util.List.of(weekFirst),
@@ -1232,7 +1308,7 @@ class SecurityAndGameIntegrationTest {
 
     @Test
     void tiesUseEarlierWinTimeAndOldStreaksExpire() {
-        clock.now.set(Instant.parse("2026-11-18T09:00:00Z"));
+        clock.set(PERIOD_TIME);
         var instant = clock.instant();
         Long later = fixtureScore(instant, 5000, true, "late");
         Long earlier = fixtureScore(instant.minusSeconds(1), 5000, true, "early");
@@ -1268,31 +1344,5 @@ class SecurityAndGameIntegrationTest {
 
     private int count(String table) {
         return db.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class);
-    }
-
-    @TestConfiguration
-    static class TimeConfig {
-        @Bean
-        @Primary
-        MutableClock testClock() {
-            return new MutableClock();
-        }
-    }
-
-    static class MutableClock extends Clock {
-        final AtomicReference<Instant> now =
-                new AtomicReference<>(Instant.parse("2026-11-09T20:59:00Z"));
-
-        public ZoneId getZone() {
-            return ZoneOffset.UTC;
-        }
-
-        public Clock withZone(ZoneId zone) {
-            return Clock.fixed(instant(), zone);
-        }
-
-        public Instant instant() {
-            return now.get();
-        }
     }
 }

@@ -45,11 +45,6 @@ public class ScoreService {
     private static final int TIME_BONUS_MAX = 1499;
     private static final int MS_PER_POINT = 200; // 1 point per 200ms
 
-    public ScoreService(ScoreRepository repo, String timezone) {
-        this(repo, timezone, java.time.Clock.systemUTC());
-    }
-
-    @org.springframework.beans.factory.annotation.Autowired
     public ScoreService(
             ScoreRepository repo,
             @Value("${app.timezone:Europe/Istanbul}") String timezone,

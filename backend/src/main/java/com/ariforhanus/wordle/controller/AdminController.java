@@ -25,6 +25,7 @@ public class AdminController {
     private final ScoreRepository scoreRepo;
     private final WordService wordService;
     private final ZoneId appZone;
+    private final java.time.Clock clock;
     private final com.ariforhanus.wordle.service.AuditService audit;
 
     public AdminController(
@@ -33,8 +34,10 @@ public class AdminController {
             WordService wordService,
             com.ariforhanus.wordle.service.AuditService audit,
             @org.springframework.beans.factory.annotation.Value("${app.timezone:Europe/Istanbul}")
-                    String timezone) {
+                    String timezone,
+            java.time.Clock clock) {
         this.audit = audit;
+        this.clock = clock;
         this.userRepo = userRepo;
         this.scoreRepo = scoreRepo;
         this.wordService = wordService;
@@ -53,7 +56,7 @@ public class AdminController {
         long totalUsers = userRepo.count();
         long totalGames = scoreRepo.count();
 
-        LocalDate today = ZonedDateTime.now(appZone).toLocalDate();
+        LocalDate today = ZonedDateTime.now(clock.withZone(appZone)).toLocalDate();
 
         long todayPlayers = scoreRepo.countPlayersOn(today);
         long activeUsers = scoreRepo.countPlayersSince(today.minusDays(6));

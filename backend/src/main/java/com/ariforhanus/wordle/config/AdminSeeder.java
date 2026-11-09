@@ -25,6 +25,7 @@ public class AdminSeeder implements ApplicationRunner {
 
     private final UserRepository users;
     private final PasswordEncoder encoder;
+    private final java.time.Clock clock;
 
     @Value("${ADMIN_USERNAME:}")
     private String adminUsername;
@@ -35,9 +36,10 @@ public class AdminSeeder implements ApplicationRunner {
     @Value("${ADMIN_EMAIL:}")
     private String adminEmail;
 
-    public AdminSeeder(UserRepository users, PasswordEncoder encoder) {
+    public AdminSeeder(UserRepository users, PasswordEncoder encoder, java.time.Clock clock) {
         this.users = users;
         this.encoder = encoder;
+        this.clock = clock;
     }
 
     @Override
@@ -73,6 +75,7 @@ public class AdminSeeder implements ApplicationRunner {
             log.info("Bootstrap administrator already provisioned.");
         } else {
             User admin = new User();
+            admin.setCreatedAt(clock.instant());
             admin.setUsername(adminUsername);
             admin.setEmail(adminEmail);
             admin.setPasswordHash(encoder.encode(adminPassword));

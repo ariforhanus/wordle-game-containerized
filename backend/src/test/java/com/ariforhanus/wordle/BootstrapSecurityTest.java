@@ -23,7 +23,13 @@ class BootstrapSecurityTest {
         user.setRole("USER");
         user.setEmail("attacker@example.com");
         when(users.findByUsername("admin")).thenReturn(Optional.of(user));
-        var seeder = new AdminSeeder(users, encoder);
+        var seeder =
+                new AdminSeeder(
+                        users,
+                        encoder,
+                        java.time.Clock.fixed(
+                                com.ariforhanus.wordle.support.TestTimes.DAYTIME,
+                                java.time.ZoneOffset.UTC));
         ReflectionTestUtils.setField(seeder, "adminUsername", "admin");
         ReflectionTestUtils.setField(seeder, "adminPassword", "unique-bootstrap-password");
         ReflectionTestUtils.setField(seeder, "adminEmail", "owner@example.com");
@@ -32,8 +38,34 @@ class BootstrapSecurityTest {
     }
 
     @Test
+    void newBootstrapAdminUsesTheInjectedCreationTime() {
+        var users = mock(UserRepository.class);
+        when(users.findByUsername("admin")).thenReturn(Optional.empty());
+        var time = com.ariforhanus.wordle.support.TestTimes.DAYTIME;
+        var seeder =
+                new AdminSeeder(
+                        users,
+                        new BCryptPasswordEncoder(),
+                        java.time.Clock.fixed(time, java.time.ZoneOffset.UTC));
+        ReflectionTestUtils.setField(seeder, "adminUsername", "admin");
+        ReflectionTestUtils.setField(seeder, "adminPassword", "unique-bootstrap-password");
+        ReflectionTestUtils.setField(seeder, "adminEmail", "owner@example.com");
+        seeder.run(null);
+        verify(users)
+                .save(
+                        argThat(
+                                user ->
+                                        time.equals(user.getCreatedAt())
+                                                && "ADMIN".equals(user.getRole())));
+    }
+
+    @Test
     void signingKeyConfigurationFailsBeforeServingRequests() {
-        var jwt = new JwtUtil(java.time.Clock.systemUTC());
+        var jwt =
+                new JwtUtil(
+                        java.time.Clock.fixed(
+                                com.ariforhanus.wordle.support.TestTimes.DAYTIME,
+                                java.time.ZoneOffset.UTC));
         ReflectionTestUtils.setField(jwt, "secretKey", "short");
         assertThrows(IllegalStateException.class, jwt::validateConfiguration);
     }
