@@ -119,3 +119,5 @@ forward 8080, and start on creation/resume. The preview Compose/Nginx overrides,
 startup/Compose/smoke scripts, ignore rules and this guide provide the isolated
 preview workflow. See `docs/CODESPACES_PREVIEW_VALIDATION.md` for recorded checks
 and any remaining environment or device limitations.
+
+Reference: [GitHub's port-forwarding documentation](https://docs.github.com/en/codespaces/developing-in-a-codespace/forwarding-ports-in-your-codespace).

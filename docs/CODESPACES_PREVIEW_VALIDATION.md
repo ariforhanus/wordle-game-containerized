@@ -48,4 +48,44 @@ Validation started on 2026-11-09 against `fix/security-game-integrity`.
   smoke, stop/start and repeated startup with data/secret preservation on an Ubuntu
   runner with its normal Docker storage driver.
 
-Additional local backend and browser checks are recorded below when complete.
+## Additional integration checks completed
+
+- Backend Maven `verify`: **95 tests passed**, zero failures/errors/skips, against
+  PostgreSQL 17.4. Used a temporary JDK/Maven install and the runner's proxy/CA trust;
+  no repository build settings were changed.
+- Built release React assets and served them with Nginx using the preview-only
+  configuration. Ran the packaged Spring Boot application in its Java 21 runtime
+  container with the restricted application database role on the same private
+  Docker network as PostgreSQL. To fit this runner's storage, compilation happened
+  outside the multi-stage Docker build; this does not validate the full image build.
+- `./scripts/smoke-preview.sh --full`: passed frontend, PostgreSQL/Flyway,
+  registration, login, JWT-authenticated requests, daily game completion/reload,
+  server score, persisted statistics and all four leaderboard routes. The temporary
+  smoke account was deleted through the application's account-deletion endpoint.
+- Six existing Playwright tests passed using mobile Chromium: daily start behavior,
+  timer persistence across closed pages, login labels/zoom, Turkish guesses/reload,
+  finished results, and protection against browser-clock changes.
+- A simulated Codespaces HTTPS Host/Origin request through preview Nginx returned
+  HTTP 200 even with conflicting client-supplied forwarding headers. An unapproved
+  Origin returned HTTP 403. This tests proxy/CORS compatibility, not GitHub's real
+  HTTPS/authentication gate.
+- Restarted PostgreSQL and both runtime containers with the same database volume:
+  persisted user count matched and the read-only smoke test passed afterward.
+  An attempted PostgreSQL container recreation first hit the runner's storage limit;
+  after clearing downloaded test caches, existing-container restart succeeded.
+
+## Remaining checks and account blockers
+
+- [The triggered Actions run](https://github.com/ariforhanus/wordle-game-containerized/actions/runs/42641278650)
+  did not execute any job steps. GitHub's check annotation says **The job was not
+  started because your account is locked due to a billing issue.** The new real
+  Compose fresh/restart/repeated-start CI job therefore remains unexecuted. Resolve
+  the account's billing issue and rerun Verify to exercise it.
+- WebKit was downloaded and a browser test was attempted, but launch failed due to
+  missing host libraries (including libharfbuzz-icu, libmanette, libhyphen and
+  libGLESv2). Physical iPhone Safari and WebKit behavior remain unverified.
+- Fresh and resumed Codespaces need an authorized account to run the final live
+  check. Create the Codespace from this branch, confirm private 8080 forwarding,
+  register/play in Safari, stop/resume it, and verify the account and daily game
+  persist. The exact iPhone steps are in the usage guide. No production changes,
+  deployment or merge into main were performed.
