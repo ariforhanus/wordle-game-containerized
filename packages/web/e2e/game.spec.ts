@@ -11,6 +11,57 @@ async function register(page: import("@playwright/test").Page) {
   await page.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/$/);
 }
+test("daily visits, reloads, language changes and status reads do not start the timer", async ({
+  page,
+}) => {
+  await register(page);
+  const starts: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/api/v1/daily/games"
+    )
+      starts.push(request.url());
+  });
+  for (const language of ["en", "tr", "en"]) {
+    await page.evaluate(
+      (language) => localStorage.setItem("wordle_lang", language),
+      language,
+    );
+    await page.goto("/daily");
+    await expect(page.locator(".daily-start-card button")).toBeEnabled();
+    const status = await page.evaluate(async (language) => {
+      const response = await fetch("/api/v1/daily/status?lang=" + language, {
+        headers: {
+          Authorization: "Bearer " + localStorage.getItem("jwtToken"),
+        },
+      });
+      return { status: response.status, body: await response.json() };
+    }, language);
+    expect(status).toEqual({ status: 200, body: { played: false } });
+    await page.reload();
+    await expect(page.locator(".daily-start-card button")).toBeEnabled();
+    await expect(page.locator(".board")).toHaveCount(0);
+    expect(starts).toHaveLength(0);
+  }
+  const started = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/v1/daily/games",
+  );
+  await page.locator(".daily-start-card button").click();
+  const response = await started;
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toMatchObject({
+    language: "en",
+    status: "playing",
+    guesses: [],
+    answer: null,
+  });
+  await expect(page.locator(".board")).toBeVisible();
+  expect(starts).toHaveLength(1);
+});
+
 test("login page supports labels and browser zoom", async ({ page }) => {
   await page.goto("/login");
   const results = await new AxeBuilder({ page }).analyze();

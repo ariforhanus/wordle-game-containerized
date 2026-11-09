@@ -66,6 +66,59 @@ class SecurityAndGameIntegrationTest {
     }
 
     @Test
+    void statusAndReadRequestsNeverStartADailyGame() throws Exception {
+        for (String language : java.util.List.of("en", "tr", "en")) {
+            http.perform(
+                            get("/api/v1/daily/status")
+                                    .param("lang", language)
+                                    .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.played").value(false));
+            http.perform(
+                            get("/api/v1/daily/games/not-started")
+                                    .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isNotFound());
+            clock.now.set(clock.instant().plusSeconds(30));
+        }
+        assertEquals(0, count("daily_games"));
+        assertEquals(0, count("daily_puzzles"));
+        assertEquals(0, count("scores"));
+
+        Instant explicitStart = clock.instant();
+        var response =
+                http.perform(
+                                post("/api/v1/daily/games")
+                                        .param("lang", "tr")
+                                        .header("Authorization", "Bearer " + token))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.elapsedMs").value(0))
+                        .andExpect(jsonPath("$.language").value("tr"))
+                        .andReturn();
+        String id = json.readTree(response.getResponse().getContentAsString()).get("id").asText();
+        assertEquals(1, count("daily_games"));
+        assertEquals(
+                explicitStart,
+                db.queryForObject(
+                                "SELECT started_at FROM daily_games WHERE id = ?",
+                                java.sql.Timestamp.class,
+                                id)
+                        .toInstant());
+        clock.now.set(explicitStart.plusSeconds(30));
+        http.perform(get("/api/v1/daily/games/" + id).header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.elapsedMs").value(30000));
+        assertEquals(
+                explicitStart,
+                db.queryForObject(
+                                "SELECT started_at FROM daily_games WHERE id = ?",
+                                java.sql.Timestamp.class,
+                                id)
+                        .toInstant());
+        assertEquals(1, count("daily_games"));
+        assertEquals(0, count("scores"));
+    }
+
+    @Test
     void removedAndDemotedAdminsCannotUseOldTokens() throws Exception {
         user.setRole("ADMIN");
         user = users.save(user);
@@ -359,10 +412,10 @@ class SecurityAndGameIntegrationTest {
         games.guess(user.getId(), game.id(), "CIGAR", 1);
         db.execute(
                 "CREATE FUNCTION test_reject_score() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN"
-                    + " RAISE EXCEPTION 'injected score failure'; END $$");
+                        + " RAISE EXCEPTION 'injected score failure'; END $$");
         db.execute(
                 "CREATE TRIGGER test_reject_score BEFORE INSERT ON scores FOR EACH ROW EXECUTE"
-                    + " FUNCTION test_reject_score()");
+                        + " FUNCTION test_reject_score()");
         try {
             assertThrows(
                     org.springframework.dao.DataAccessException.class,
@@ -585,7 +638,7 @@ class SecurityAndGameIntegrationTest {
         var game = games.start(user.getId(), "tr");
         db.update(
                 "UPDATE daily_puzzles SET answer='İNCİR' WHERE id=(SELECT puzzle_id FROM"
-                    + " daily_games WHERE id=?)",
+                        + " daily_games WHERE id=?)",
                 game.id());
         assertEquals("won", games.guess(user.getId(), game.id(), "incir", 1).status());
         assertEquals("İNCİR", games.get(user.getId(), game.id()).answer());

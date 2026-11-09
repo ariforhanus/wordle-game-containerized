@@ -27,6 +27,7 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
     const curr = guesses.length;
     prevGuessCount.current = curr;
 
+    const timers: ReturnType<typeof setTimeout>[] = [];
     if (curr > prev && curr > 0) {
       // A new guess was just submitted — reveal row (curr - 1)
       const rowIdx = curr - 1;
@@ -35,17 +36,28 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
 
       // Reveal each cell one by one
       for (let c = 0; c < wordLength; c++) {
-        setTimeout(() => {
-          setRevealedCells((s) => new Set(s).add(c));
-        }, c * 300 + 250);
+        timers.push(
+          setTimeout(
+            () => {
+              setRevealedCells((s) => new Set(s).add(c));
+            },
+            c * 300 + 250,
+          ),
+        );
       }
 
       // Clear revealing state after all animations done
-      setTimeout(() => {
-        setRevealingRow(null);
-        setRevealedCells(new Set());
-      }, wordLength * 300 + 400);
+      timers.push(
+        setTimeout(
+          () => {
+            setRevealingRow(null);
+            setRevealedCells(new Set());
+          },
+          wordLength * 300 + 400,
+        ),
+      );
     }
+    return () => timers.forEach(clearTimeout);
   }, [guesses.length, wordLength]);
 
   const rows: React.ReactNode[] = [];
@@ -71,21 +83,25 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
               style={{ animationDelay: `${c * 300}ms` }}
             >
               {guess[c]}
-            </div>
+            </div>,
           );
         } else if (hideColors) {
           // Blind mode: show letter but no color feedback
           cells.push(
-            <div role="gridcell" key={c} className="cell cell-filled cell-blind">
+            <div
+              role="gridcell"
+              key={c}
+              className="cell cell-filled cell-blind"
+            >
               {guess[c]}
-            </div>
+            </div>,
           );
         } else {
           // Already revealed (previous rows) — show final state
           cells.push(
             <div role="gridcell" key={c} className={`cell cell-${statuses[c]}`}>
               {guess[c]}
-            </div>
+            </div>,
           );
         }
       }
@@ -96,14 +112,14 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
         const popClass = letter ? "cell-pop" : "";
         cells.push(
           <div
-              role="gridcell"
+            role="gridcell"
             key={c}
             className={`cell ${letter ? "cell-filled" : ""} ${popClass} ${
               shakeRow ? "shake" : ""
             }`}
           >
             {letter}
-          </div>
+          </div>,
         );
       }
     } else {
@@ -116,9 +132,17 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
     rows.push(
       <div role="row" key={r} className="board-row">
         {cells}
-      </div>
+      </div>,
     );
   }
 
-  return <div className="board" role="grid" aria-label={t("game.enterGuess") as string}>{rows}</div>;
+  return (
+    <div
+      className="board"
+      role="grid"
+      aria-label={t("game.enterGuess") as string}
+    >
+      {rows}
+    </div>
+  );
 }

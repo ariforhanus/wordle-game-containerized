@@ -8,7 +8,7 @@ Bu liste `fix/security-game-integrity` dalının mevcut kodu ve `VALIDATION.md` 
 
 Mevcut temel: oyun kaydı Start isteğinde sunucuda oluşturuluyor; skor süresi kalıcı `started_at` üzerinden hesaplanıyor. Ekranda Start/Resume ortak buton kullanılıyor. Aşağıdaki işler bu temeli koruyarak tamamlanacak.
 
-- [ ] Günlük oyun yalnızca açık Start eylemiyle başlasın; sayfayı açma, durum sorgulama veya dil değiştirme oyunu başlatmasın. Backend, frontend ve E2E testleriyle doğrula.
+- [x] Günlük oyun yalnızca açık Start eylemiyle başlasın; sayfayı açma, durum sorgulama veya dil değiştirme oyunu başlatmasın. Backend, frontend ve E2E testleriyle doğrula.
 - [ ] Oyun başladıktan sonra süre sekme/sayfa kapatılsa, cihaz değişse veya bağlantı kesilse bile işlemeye devam etsin; Resume `started_at` değerini yenilemesin. Mevcut sunucu tarafı süre hesabını koru ve regresyon testleri ekle.
 - [ ] Start ve Resume ekranlarını ayır; başlangıçtan sonra sürenin durmadığını Start öncesinde açıkla. Durum sorgusuyla mevcut oyunu bul; sorgu yeni oyun yaratmasın.
 - [ ] Eşzamanlı Start/Resume, farklı oturumlar/cihazlar, yinelenen istekler ve yanıt kaybında aynı oyun ve tek skor garantisini birlikte test et; mevcut satır kilidi ve idempotency kontrollerini koru.
@@ -108,7 +108,17 @@ Production'ı engelleyen uygulama/aktivasyon işleri P0.2'de; burası ek politik
 - [x] Otomatik erişilebilirlik kontrolleri; login kontrastı, grid semantiği ve browser zoom düzeltmeleri.
 - [x] Sınırlı yerel/staging yük smoke testi; eski frontend ve açık içeren PWA build zincirinin kaldırılması, yalnızca statik dosyalara çevrimdışı destek.
 
+## Son tamamlanan TODO — P0.1 / yalnızca Start ile başlama
+
+2026-11-09: mevcut Start davranışı korundu; sayfa açma, dil değiştirme, reload/remount ve salt okunur durum isteklerinin oyun başlatmadığı üç katmanda test edildi. Backend testi, açık Start isteğine kadar puzzle/oyun/skor tablosunda kayıt oluşmadığını ve başlangıç zamanının sunucunun Start anı olduğunu doğruluyor. Frontend testi tıklamadan önce API çağrısı yapılmadığını; gerçek tarayıcı testi dil değişimi/reload sonrası da başlangıç POST isteği gönderilmediğini doğruluyor.
+
+Doğrulama sırasında bulunan tahta animasyonu zamanlayıcı sızıntısı giderildi; normal animasyon ve unmount temizliği için iki test eklendi. Tam backend suite: **63 geçti**; frontend suite: **11 geçti**; build edilmiş worker: **8 geçti**; production Nginx masaüstü/mobil Chromium hedefli E2E: **4 geçti**. TypeScript/production build ve `git diff --check` geçti. Bu tur uzak CI'nin geçtiğini veya bütün tarayıcıların tekrar çalıştırıldığını göstermez; ayrıntılar `VALIDATION.md` içinde.
+
+Sıradaki tek TODO: sayfa kapatma/cihaz değiştirme sonrası sürenin devam etmesi ve Resume'un `started_at` değerini yenilememesi. Start/Resume ekran ayrımı ve gece yarısı politikası henüz tamamlanmadı.
+
 ## Mühendislik kuralları
+
+- Her uygulama turunda sıradaki tek TODO maddesini ele al; tamamlanan işi, ilgili değişiklikleri, çalıştırılan testleri ve açık riskleri raporla. Bağımlı hata düzeltmelerini ayrıca belirt; sonraki TODO'yu bitmiş sayma.
 
 - Mevcut işlevleri koru; uygulamadan önce ilgili kodu, API sözleşmelerini ve testleri incele.
 - Doğruluğu veritabanı constraint/transaction'larıyla koru; süre, skor, dönem ve streak hesaplarını sunucu belirlesin.
