@@ -2,10 +2,12 @@ package com.ariforhanus.wordle.config;
 
 import com.ariforhanus.wordle.jwt.JwtUtil;
 import com.ariforhanus.wordle.service.AppUserDetailsService;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -34,8 +36,13 @@ public class SecurityConfig {
 
     private final AppUserDetailsService uds;
     private final JwtUtil jwtUtil;
+    private final com.ariforhanus.wordle.repository.UserRepository users;
 
-    public SecurityConfig(AppUserDetailsService uds, JwtUtil jwtUtil) {
+    public SecurityConfig(
+            AppUserDetailsService uds,
+            JwtUtil jwtUtil,
+            com.ariforhanus.wordle.repository.UserRepository users) {
+        this.users = users;
         this.uds = uds;
         this.jwtUtil = jwtUtil;
     }
@@ -47,44 +54,68 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filter(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
+        http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(reg -> reg
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/**").permitAll()
-                        .anyRequest().permitAll()
-                )
+                .sessionManagement(
+                        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(
+                        reg ->
+                                reg.requestMatchers("/api/v1/admin/**")
+                                        .hasRole("ADMIN")
+                                        .requestMatchers(
+                                                org.springframework.http.HttpMethod.POST,
+                                                "/api/v1/auth/login",
+                                                "/api/v1/auth/register")
+                                        .permitAll()
+                                        .requestMatchers(
+                                                org.springframework.http.HttpMethod.GET,
+                                                "/api/v1/word/random",
+                                                "/api/v1/leaderboard/**",
+                                                "/api/v1/leaderboard",
+                                                "/actuator/health",
+                                                "/actuator/health/**")
+                                        .permitAll()
+                                        .requestMatchers("/api/**")
+                                        .authenticated()
+                                        .anyRequest()
+                                        .denyAll())
+                .exceptionHandling(
+                        ex -> ex.authenticationEntryPoint((req, res, err) -> res.sendError(401)))
                 .addFilterBefore(jwtAuthFilter(), UsernamePasswordAuthenticationFilter.class)
                 .userDetailsService(uds);
         return http.build();
     }
 
     /**
-     * JWT filter that extracts the role from the token and sets Spring Security context.
-     * This enables role-based access control for admin endpoints.
+     * JWT filter that extracts the role from the token and sets Spring Security context. This
+     * enables role-based access control for admin endpoints.
      */
     @Bean
     public OncePerRequestFilter jwtAuthFilter() {
         return new OncePerRequestFilter() {
             @Override
-            protected void doFilterInternal(HttpServletRequest request,
-                                            HttpServletResponse response,
-                                            FilterChain filterChain) throws ServletException, IOException {
+            protected void doFilterInternal(
+                    HttpServletRequest request,
+                    HttpServletResponse response,
+                    FilterChain filterChain)
+                    throws ServletException, IOException {
                 String authHeader = request.getHeader("Authorization");
                 if (authHeader != null && authHeader.startsWith("Bearer ")) {
                     String token = authHeader.substring(7);
                     try {
                         if (jwtUtil.isValid(token)) {
                             Long userId = jwtUtil.extractUserId(token);
-                            String username = jwtUtil.extractUsername(token);
-                            String role = jwtUtil.extractRole(token);
+                            var user = userId == null ? null : users.findById(userId).orElse(null);
+                            String username = user == null ? null : user.getUsername();
+                            String role = user == null ? null : user.getRole();
 
-                            if (userId != null && username != null) {
+                            if (user != null) {
                                 // Spring Security expects ROLE_ prefix
-                                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
-                                var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
+                                var authorities =
+                                        List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                                var auth =
+                                        new UsernamePasswordAuthenticationToken(
+                                                username, null, authorities);
                                 SecurityContextHolder.getContext().setAuthentication(auth);
                             }
                         }
@@ -97,30 +128,32 @@ public class SecurityConfig {
         };
     }
 
+    @org.springframework.beans.factory.annotation.Value("${app.cors-origins:}")
+    private String allowedOrigins;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:5500",
-            "http://127.0.0.1:5500",
-            "http://localhost:80",
-            "http://127.0.0.1:80",
-            "http://localhost",
-            "http://wordle-frontend"
-        ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedOrigins(
+                Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim)
+                        .filter(v -> !v.isEmpty())
+                        .toList());
+        configuration.setAllowedMethods(
+                Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setExposedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
-        
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
+            throws Exception {
         return config.getAuthenticationManager();
     }
 }

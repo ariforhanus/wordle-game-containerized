@@ -6,17 +6,18 @@ import type { AdminUser } from "@wordle/api";
 export default function AdminUsers() {
   const { t } = useTranslation();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<AdminUser | null>(null);
 
   const fetchUsers = useCallback((q?: string) => {
     setLoading(true);
-    adminApi.getUsers(q || undefined)
+    adminApi.getUsers(q || undefined, page)
       .then(setUsers)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     fetchUsers();
@@ -73,7 +74,7 @@ export default function AdminUsers() {
           className="admin-search-input"
           placeholder={t("admin.searchUsers")}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
         />
       </div>
 
@@ -141,6 +142,11 @@ export default function AdminUsers() {
         </div>
       )}
 
+      <div className="admin-actions">
+        <button disabled={page === 0 || loading} onClick={() => setPage(p => p - 1)} aria-label={t("admin.previousPage")}>←</button>
+        <span>{page + 1}</span>
+        <button disabled={users.length < 50 || loading} onClick={() => setPage(p => p + 1)} aria-label={t("admin.nextPage")}>→</button>
+      </div>
       {/* Delete confirmation */}
       {confirmDelete && (
         <div className="admin-confirm-overlay" onClick={() => setConfirmDelete(null)}>

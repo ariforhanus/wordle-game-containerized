@@ -44,21 +44,10 @@ export default defineConfig({
         globPatterns: [
           "**/*.{js,css,html,svg,png,ico,json,txt}",
         ],
-        // Runtime caching for API calls: try network first, fall back to cache
-        runtimeCaching: [
-          {
-            urlPattern: /^https?:\/\/.*\/api\//,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "api-cache",
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60, // 1 hour
-              },
-              networkTimeoutSeconds: 5,
-            },
-          },
-        ],
+        // Never cache authenticated API calls. Also avoid cached SPA fallbacks for APIs.
+        navigateFallbackDenylist: [/^\/api\//],
+        runtimeCaching: [],
+
       },
     }),
   ],

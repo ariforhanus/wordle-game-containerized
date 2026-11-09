@@ -1,3 +1,6 @@
+function escapeProfile(value) {
+    return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 var _a;
 const letters = document.querySelectorAll(".letter-box");
 const loadingDiv = document.querySelector(".loading");
@@ -1191,7 +1194,7 @@ function openEditProfilePopup(token, user) {
                 </div>
                 <div class="edit-profile-field">
                     <label>${usernameLabel}</label>
-                    <input type="text" name="username" value="${user.username}" autocomplete="username" required />
+                    <input type="text" name="username" value="${escapeProfile(user.username)}" autocomplete="username" required />
                 </div>
                 <div class="edit-profile-grid edit-profile-grid-compact">
                     <div class="edit-profile-field">
@@ -1372,7 +1375,7 @@ async function renderUserInfo(token) {
         // Avatar HTML
         let avatarHTML = '';
         if (user.avatar && user.avatarContentType) {
-            avatarHTML = `<img src="data:${user.avatarContentType};base64,${user.avatar}" alt="${user.username}" class="user-avatar-img" />`;
+            avatarHTML = `<img src="data:${user.avatarContentType};base64,${user.avatar}" alt="${escapeProfile(user.username)}" class="user-avatar-img" />`;
         }
         else {
             avatarHTML = `<i class="fa-solid fa-user"></i>`;
@@ -1385,7 +1388,7 @@ async function renderUserInfo(token) {
                 <div class="user-avatar">
                     ${avatarHTML}
                 </div>
-                <h2 class="user-name">@${user.username}</h2>
+                <h2 class="user-name">@${escapeProfile(user.username)}</h2>
             </div>
         `;
         // Edit button click handler

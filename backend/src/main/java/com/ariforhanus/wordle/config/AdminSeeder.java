@@ -2,6 +2,7 @@ package com.ariforhanus.wordle.config;
 
 import com.ariforhanus.wordle.entity.User;
 import com.ariforhanus.wordle.repository.UserRepository;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,11 +12,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 /**
- * Seeds an initial ADMIN user on application startup if the environment
- * variables ADMIN_USERNAME, ADMIN_PASSWORD and ADMIN_EMAIL are set.
+ * Seeds an initial ADMIN user on application startup if the environment variables ADMIN_USERNAME,
+ * ADMIN_PASSWORD and ADMIN_EMAIL are set.
  *
- * - If the user does not exist yet, it will be created with ADMIN role.
- * - If the user already exists, its role will be promoted to ADMIN (idempotent).
+ * <p>- If the user does not exist yet, it will be created with ADMIN role. - Existing users must
+ * already match the intended administrator; conflicts fail closed.
  */
 @Component
 public class AdminSeeder implements ApplicationRunner {
@@ -54,16 +55,22 @@ public class AdminSeeder implements ApplicationRunner {
             return;
         }
 
+        if (adminPassword.length() < 12
+                || adminPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            throw new IllegalStateException(
+                    "Bootstrap password must contain 12–72 characters and at most 72 UTF-8 bytes");
+        }
         var existing = users.findByUsername(adminUsername);
         if (existing.isPresent()) {
             User user = existing.get();
-            if (!"ADMIN".equals(user.getRole())) {
-                user.setRole("ADMIN");
-                users.save(user);
-                log.info("Promoted existing user '{}' to ADMIN.", adminUsername);
-            } else {
-                log.info("Admin user '{}' already exists with ADMIN role.", adminUsername);
+            if (!"ADMIN".equals(user.getRole())
+                    || !adminEmail.equals(user.getEmail())
+                    || !encoder.matches(adminPassword, user.getPasswordHash())) {
+                throw new IllegalStateException(
+                        "Bootstrap account conflicts with an existing user; provision an"
+                                + " administrator explicitly");
             }
+            log.info("Bootstrap administrator already provisioned.");
         } else {
             User admin = new User();
             admin.setUsername(adminUsername);

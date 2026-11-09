@@ -41,3 +41,6 @@ export type {
   AdminUser,
   DailyWordInfo,
 } from "./adminApi.js";
+
+export * as dailyGameApi from "./dailyGameApi.js";
+export type { DailyGame } from "./dailyGameApi.js";

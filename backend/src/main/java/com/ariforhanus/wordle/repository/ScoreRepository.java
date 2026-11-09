@@ -1,6 +1,7 @@
 package com.ariforhanus.wordle.repository;
 
 import com.ariforhanus.wordle.entity.Score;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,29 +14,48 @@ import java.util.Optional;
 
 @Repository
 public interface ScoreRepository extends JpaRepository<Score, Long> {
-    List<Score> findTop10ByLanguageOrderByScoreDesc(String language);
+    List<Score> findTop10ByLanguageAndWonTrueOrderByScoreDescWonAtAsc(String language);
 
     /**
-     * Leaderboard query with LIMIT pushed to DB level.
-     * Only includes winners (won = true).
+     * Leaderboard query with LIMIT pushed to DB level. Only includes winners (won = true).
      * Tie-breaker: same score → earlier win time ranks higher.
      */
-    @Query(value = "SELECT * FROM scores WHERE language = :language AND won = true AND won_at BETWEEN :start AND :end ORDER BY score DESC, won_at ASC LIMIT :lim",
+    @Query(
+            value =
+                    "SELECT * FROM scores WHERE language = :language AND won = true AND won_at >="
+                        + " :start AND won_at < :end ORDER BY score DESC, won_at ASC LIMIT :lim",
             nativeQuery = true)
     List<Score> findTopByLanguageAndPeriod(
             @Param("language") String language,
             @Param("start") Instant start,
             @Param("end") Instant end,
-            @Param("lim") int limit
-    );
+            @Param("lim") int limit);
 
-    /**
-     * Daily challenge: check if user already played today in this language
-     */
-    Optional<Score> findByUserIdAndPlayedAtAndLanguage(Long userId, LocalDate playedAt, String language);
+    /** Daily challenge: check if user already played today in this language */
+    Optional<Score> findByUserIdAndPlayedAtAndLanguage(
+            Long userId, LocalDate playedAt, String language);
 
-    /**
-     * All scores for a user (for stats/streak calculation)
-     */
+    /** All scores for a user (for stats/streak calculation) */
     List<Score> findByUserId(Long userId);
+
+    long countByUserId(Long userId);
+
+    @Query("select count(distinct s.userId) from Score s where s.playedAt = :date")
+    long countPlayersOn(@Param("date") LocalDate date);
+
+    @Query("select count(distinct s.userId) from Score s where s.playedAt >= :date")
+    long countPlayersSince(@Param("date") LocalDate date);
+
+    @Query(
+            "select distinct s.userId as userId, s.playedAt as playedAt, s.won as won from Score s"
+                + " where s.userId in :ids")
+    List<PlayedDay> playedDays(@Param("ids") java.util.Collection<Long> ids);
+
+    interface PlayedDay {
+        Long getUserId();
+
+        LocalDate getPlayedAt();
+
+        boolean getWon();
+    }
 }

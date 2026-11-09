@@ -1,3 +1,6 @@
+function escapeProfile(value: unknown): string {
+    return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 const letters = document.querySelectorAll(".letter-box");
 const loadingDiv = document.querySelector(".loading");
 const brandName = document.querySelector(".brand-name");
@@ -1295,21 +1298,21 @@ function openEditProfilePopup(token: string, user: {
                 </div>
                 <div class="edit-profile-field">
                     <label>${usernameLabel}</label>
-                    <input type="text" name="username" value="${user.username}" autocomplete="username" required />
+                    <input type="text" name="username" value="${escapeProfile(user.username)}" autocomplete="username" required />
                 </div>
                 <div class="edit-profile-grid edit-profile-grid-compact">
                     <div class="edit-profile-field">
                         <label>${firstNameLabel}</label>
-                        <input type="text" name="firstName" value="${user.firstName ?? ""}" autocomplete="given-name" />
+                        <input type="text" name="firstName" value="${escapeProfile(user.firstName)}" autocomplete="given-name" />
                     </div>
                     <div class="edit-profile-field">
                         <label>${lastNameLabel}</label>
-                        <input type="text" name="lastName" value="${user.lastName ?? ""}" autocomplete="family-name" />
+                        <input type="text" name="lastName" value="${escapeProfile(user.lastName)}" autocomplete="family-name" />
                     </div>
                 </div>
                 <div class="edit-profile-field edit-profile-field-email">
                     <label>${emailLabel}</label>
-                    <input type="email" name="email" value="${user.email ?? ""}" readonly class="edit-profile-readonly" />
+                    <input type="email" name="email" value="${escapeProfile(user.email)}" readonly class="edit-profile-readonly" />
                 </div>
                 <div class="edit-profile-field edit-profile-field-country">
                     <label>${countryLabel}</label>
@@ -1492,7 +1495,7 @@ async function renderUserInfo(token: string): Promise<void> {
         // Avatar HTML
         let avatarHTML = '';
         if (user.avatar && user.avatarContentType) {
-            avatarHTML = `<img src="data:${user.avatarContentType};base64,${user.avatar}" alt="${user.username}" class="user-avatar-img" />`;
+            avatarHTML = `<img src="data:${user.avatarContentType};base64,${user.avatar}" alt="${escapeProfile(user.username)}" class="user-avatar-img" />`;
         } else {
             avatarHTML = `<i class="fa-solid fa-user"></i>`;
         }
@@ -1505,7 +1508,7 @@ async function renderUserInfo(token: string): Promise<void> {
                 <div class="user-avatar">
                     ${avatarHTML}
                 </div>
-                <h2 class="user-name">@${user.username}</h2>
+                <h2 class="user-name">@${escapeProfile(user.username)}</h2>
             </div>
         `;
 

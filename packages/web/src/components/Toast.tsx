@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, useCallback, useRef, type ReactNode } from "react";
 import "./Toast.css";
 
 // ── Types ──
@@ -68,8 +68,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const info = useCallback((msg: string) => toast(msg, "info"), [toast]);
   const warning = useCallback((msg: string) => toast(msg, "warning", 4000), [toast]);
 
+  const value = useMemo(() => ({ toast, success, error, info, warning }),
+    [toast, success, error, info, warning]);
   return (
-    <ToastContext.Provider value={{ toast, success, error, info, warning }}>
+    <ToastContext.Provider value={value}>
       {children}
 
       {/* Toast container */}

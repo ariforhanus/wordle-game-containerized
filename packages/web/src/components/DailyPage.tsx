@@ -1,552 +1,113 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
-import { wordApi, scoreApi, isAuthenticated, getTokenUsername } from "@wordle/api";
-import { formatScore } from "../utils/formatScore";
-import { toUpperCase, getAttempts, createGame, replayGuesses } from "@wordle/engine";
-import { useGame } from "../hooks/useGame";
+import { dailyGameApi, isAuthenticated, ApiError } from "@wordle/api";
+import type { DailyGame } from "@wordle/api";
+import { buildKeyboardState, isValidLetter, toUpperCase, type GameState } from "@wordle/engine";
 import { useToast } from "./Toast";
 import { usePageTitleKey } from "../hooks/usePageTitle";
-import { buildShareText, copyToClipboard } from "../utils/shareResult";
-import Confetti from "./Confetti";
 import Board from "./Board";
 import Keyboard from "./Keyboard";
-import { IST_OFFSET_MINUTES } from "../constants";
+import Confetti from "./Confetti";
+import { buildShareText, copyToClipboard } from "../utils/shareResult";
 import "./GamePage.css";
 import "./DailyPage.css";
 
-// ── localStorage helpers (per-user + per-language keys) ──
-
-interface DailySession {
-  date: string;
-  lang: string;
-  elapsedMs: number;
-  guesses: string[];
-}
-
-function getTodayIST(): string {
-  const now = new Date();
-  const istTime = new Date(now.getTime() + IST_OFFSET_MINUTES * 60_000 - now.getTimezoneOffset() * 60_000);
-  return istTime.toISOString().split("T")[0];
-}
-
-function sessionKey(lang: string): string {
-  const user = getTokenUsername() ?? "anon";
-  return `dailySession_${user}_${lang}`;
-}
-
-function loadSessionForLang(lang: string): DailySession | null {
-  try {
-    const raw = localStorage.getItem(sessionKey(lang));
-    if (!raw) return null;
-    const s: DailySession = JSON.parse(raw);
-    if (s.date === getTodayIST() && s.lang === lang) return s;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function saveSession(session: DailySession): void {
-  try {
-    localStorage.setItem(sessionKey(session.lang), JSON.stringify(session));
-  } catch { /* ignore */ }
-}
-
-function clearSessionForLang(lang: string): void {
-  try {
-    localStorage.removeItem(sessionKey(lang));
-  } catch { /* ignore */ }
-}
-
-// ── Clean up old keys from previous format ──
-(function migrateOldSessions() {
-  try {
-    // Remove old single-key format
-    localStorage.removeItem("dailySession");
-    // Remove old per-lang (no user) format
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith("dailySession_") && key.split("_").length === 2) {
-        localStorage.removeItem(key);
-      }
-    }
-  } catch { /* ignore */ }
-})();
-
-// ── Pre-game screen: reacts to language changes ──
-
-type PreGameStatus =
-  | { type: "loading" }
-  | { type: "already_played"; score?: number; attempts?: number }
-  | { type: "continue"; session: DailySession }
-  | { type: "start" };
-
-function PreGameScreen({
-  onStart,
-  onResume,
-}: {
-  onStart: (lang: string) => void;
-  onResume: (lang: string, session: DailySession) => void;
-}) {
-  const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
-  const lang = i18n.language;
-
-  const [status, setStatus] = useState<PreGameStatus>({ type: "loading" });
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate("/login");
-      return;
-    }
-
-    let cancelled = false;
-    setStatus({ type: "loading" });
-
-    async function check() {
-      try {
-        // Check if there's an active session for this lang
-        const session = loadSessionForLang(lang);
-
-        // Check backend status
-        const result = await scoreApi.getDailyStatus(lang);
-        if (cancelled) return;
-
-        if (result.played) {
-          setStatus({
-            type: "already_played",
-            score: result.score?.score,
-            attempts: result.score?.attempts,
-          });
-        } else if (session) {
-          // Session exists (game was started) — continue even if no guesses yet
-          setStatus({ type: "continue", session });
-        } else {
-          setStatus({ type: "start" });
-        }
-      } catch {
-        // If status check fails, check for local session
-        const session = loadSessionForLang(lang);
-        if (cancelled) return;
-        if (session) {
-          setStatus({ type: "continue", session });
-        } else {
-          setStatus({ type: "start" });
-        }
-      }
-    }
-    check();
-    return () => { cancelled = true; };
-  }, [lang, navigate]);
-
-  if (status.type === "loading") {
-    return (
-      <div className="page-center">
-        <div className="spinner" />
-      </div>
-    );
-  }
-
-  if (status.type === "already_played") {
-    return (
-      <div className="page-center">
-        <div className="result-card">
-          <h2>{t("daily.alreadyPlayed")}</h2>
-          {status.score != null && (
-            <p className="result-text">
-              {t("daily.todayScore", {
-                score: formatScore(status.score),
-                attempts: status.attempts,
-              })}
-            </p>
-          )}
-          <Link to="/leaderboard" className="btn-primary">
-            {t("daily.goToLeaderboard")}
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (status.type === "continue") {
-    return (
-      <div className="page-center">
-        <div className="result-card daily-start-card">
-          <div className="daily-start-icon">
-            <i className="fas fa-calendar-day" />
-          </div>
-          <h2>{t("daily.title")}</h2>
-          <p className="daily-start-desc">{t("daily.desc")}</p>
-          <button className="btn-primary" onClick={() => onResume(lang, status.session)}>
-            <i className="fas fa-play" /> {t("daily.continue")}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // type === "start"
-  return (
-    <div className="page-center">
-      <div className="result-card daily-start-card">
-        <div className="daily-start-icon">
-          <i className="fas fa-calendar-day" />
-        </div>
-        <h2>{t("daily.title")}</h2>
-        <p className="daily-start-desc">{t("daily.desc")}</p>
-        <button className="btn-primary" onClick={() => onStart(lang)}>
-          <i className="fas fa-play" /> {t("daily.startGame")}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Main game screen: language is locked ──
-
-function DailyGame({
-  gameLang,
-  initialSession,
-}: {
-  gameLang: string;
-  initialSession: DailySession | null;
-}) {
-  const { t } = useTranslation();
-  const toastCtx = useToast();
-  const lang = gameLang; // locked
-
-  const [answer, setAnswer] = useState("");
-  const [definition, setDefinition] = useState("");
-  const [validWords, setValidWords] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [timerText, setTimerText] = useState("00:00");
-  const [resultMsg, setResultMsg] = useState<string | null>(null);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const scoreSentRef = useRef(false);
-  const timerRef = useRef<number | null>(null);
-  const gameEndedRef = useRef(false);
-
-  const accumulatedMsRef = useRef(initialSession?.elapsedMs ?? 0);
-  const segmentStartRef = useRef(Date.now());
-
-  // Always-up-to-date session ref — used for saving on unmount
-  const sessionRef = useRef<DailySession>({
-    date: getTodayIST(),
-    lang,
-    elapsedMs: initialSession?.elapsedMs ?? 0,
-    guesses: initialSession?.guesses ?? [],
-  });
-
-  const [restoredGuesses, setRestoredGuesses] = useState<string[] | null>(
-    initialSession && initialSession.guesses.length > 0 ? initialSession.guesses : null
-  );
-
-  const getTotalElapsed = useCallback(() => {
-    return accumulatedMsRef.current + (Date.now() - segmentStartRef.current);
-  }, []);
-
-  const snapshotElapsed = useCallback(() => {
-    accumulatedMsRef.current += Date.now() - segmentStartRef.current;
-    segmentStartRef.current = Date.now();
-  }, []);
-
-  // Load word
-  useEffect(() => {
-    let cancelled = false;
-    async function loadWord() {
-      try {
-        const today = getTodayIST();
-        const cacheKey = `dailyWord_${lang}`;
-        let word = "";
-        let def = "";
-
-        try {
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (parsed.date === today) {
-              word = toUpperCase(parsed.word, lang);
-              def = parsed.definition;
-            }
-          }
-        } catch { /* ignore */ }
-
-        if (!word) {
-          const data = await wordApi.getDailyWord(lang);
-          if (cancelled) return;
-          word = toUpperCase(data.word, lang);
-          def = data.definition;
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify({ word, definition: def, date: today }));
-          } catch { /* ignore */ }
-        }
-
-        setAnswer(word);
-        setDefinition(def);
-      } catch (err) {
-        console.error("Failed to load daily word:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    loadWord();
-    return () => { cancelled = true; };
-  }, [lang]);
-
-  // Load valid words
-  useEffect(() => {
-    async function load() {
-      try {
-        let res = await fetch(`/words_${lang}_possible.txt`);
-        if (!res.ok) res = await fetch("/words_en_possible.txt");
-        const text = await res.text();
-        const words = text
-          .split("\n")
-          .map((w) => toUpperCase(w.trim(), lang))
-          .filter((w) => w.length === 5);
-        setValidWords(new Set(words));
-      } catch (err) {
-        console.error("Failed to load valid words:", err);
-      }
-    }
-    load();
-  }, [lang]);
-
-  // Timer
-  useEffect(() => {
-    function tick() {
-      const totalSec = Math.floor(getTotalElapsed() / 1000);
-      const m = Math.floor(totalSec / 60).toString().padStart(2, "0");
-      const s = (totalSec % 60).toString().padStart(2, "0");
-      setTimerText(`${m}:${s}`);
-    }
-    tick();
-    timerRef.current = window.setInterval(tick, 1000);
-    return () => {
-      if (timerRef.current !== null) clearInterval(timerRef.current);
-    };
-  }, [getTotalElapsed]);
-
-  // Pause on tab hidden
-  useEffect(() => {
-    function handleVisibility() {
-      if (document.hidden) {
-        snapshotElapsed();
-        if (timerRef.current !== null) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
-      } else {
-        segmentStartRef.current = Date.now();
-        if (timerRef.current === null) {
-          timerRef.current = window.setInterval(() => {
-            const totalSec = Math.floor(getTotalElapsed() / 1000);
-            const m = Math.floor(totalSec / 60).toString().padStart(2, "0");
-            const s = (totalSec % 60).toString().padStart(2, "0");
-            setTimerText(`${m}:${s}`);
-          }, 1000);
-        }
-      }
-    }
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [snapshotElapsed, getTotalElapsed]);
-
-  // Save session on unmount — uses ref directly (no localStorage read)
-  useEffect(() => {
-    function saveBeforeUnload() {
-      if (gameEndedRef.current) return;
-      snapshotElapsed();
-      sessionRef.current.elapsedMs = accumulatedMsRef.current;
-      saveSession(sessionRef.current);
-    }
-    window.addEventListener("beforeunload", saveBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", saveBeforeUnload);
-      // Component unmounting — save from ref
-      if (gameEndedRef.current) return;
-      snapshotElapsed();
-      sessionRef.current.elapsedMs = accumulatedMsRef.current;
-      saveSession(sessionRef.current);
-    };
-  }, [lang, snapshotElapsed]);
-
-  const handleWin = useCallback(
-    (gameState: { answer: string }) => {
-      gameEndedRef.current = true;
-      if (timerRef.current !== null) clearInterval(timerRef.current);
-      setShowConfetti(true);
-      setResultMsg(
-        `${t("game.congrats")} ${t("game.word")}: ${gameState.answer}`
-      );
-      clearSessionForLang(lang);
-    },
-    [t, lang]
-  );
-
-  const handleLose = useCallback(
-    (gameState: { answer: string }) => {
-      gameEndedRef.current = true;
-      if (timerRef.current !== null) clearInterval(timerRef.current);
-      setResultMsg(
-        `${t("game.gameOver")} ${t("game.word")}: ${gameState.answer}`
-      );
-      clearSessionForLang(lang);
-    },
-    [t, lang]
-  );
-
-  const { state, addLetter, removeLetter, submit, shakeRow, setState } = useGame({
-    answer: answer || "XXXXX",
-    definition,
-    lang,
-    validWords,
-    onWin: handleWin,
-    onLose: handleLose,
-    onInvalidWord: () => {
-      toastCtx.warning(t("game.invalidWord"));
-    },
-  });
-
-  // Replay restored guesses
-  useEffect(() => {
-    if (restoredGuesses && answer && answer !== "XXXXX") {
-      const fresh = createGame(answer, definition, lang);
-      const restored = replayGuesses(fresh, restoredGuesses);
-      setState(restored);
-      setRestoredGuesses(null);
-    }
-  }, [restoredGuesses, answer, definition, lang, setState]);
-
-  // Persist guesses + keep sessionRef up to date
-  useEffect(() => {
-    if (!answer || answer === "XXXXX") return;
-
-    // Always update the ref with latest guesses
-    const guessStrings = state.guesses.map((g) => g.guess);
-    sessionRef.current.guesses = guessStrings;
-
-    if (state.guesses.length === 0) return;
-    if (state.status !== "playing") return;
-
-    snapshotElapsed();
-    sessionRef.current.elapsedMs = accumulatedMsRef.current;
-    saveSession(sessionRef.current);
-  }, [state.guesses, state.status, answer, lang, snapshotElapsed]);
-
-  // Send score (both win and lose)
-  useEffect(() => {
-    if ((state.status === "won" || state.status === "lost") && !scoreSentRef.current) {
-      scoreSentRef.current = true;
-      scoreApi
-        .submitScore(lang, {
-          attempts: getAttempts(state),
-          durationMs: getTotalElapsed(),
-          word: state.answer,
-          won: state.status === "won",
-        })
-        .catch(console.error);
-    }
-  }, [state.status, state.answer, lang, state, getTotalElapsed]);
-
-  // Save initial session if new game
-  useEffect(() => {
-    if (!initialSession) {
-      saveSession({
-        date: getTodayIST(),
-        lang,
-        elapsedMs: 0,
-        guesses: [],
-      });
-    }
-  }, [lang, initialSession]);
-
-  if (loading) {
-    return (
-      <div className="page-center">
-        <div className="spinner" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="game-page">
-      <Confetti active={showConfetti} />
-      <div className="daily-timer">{timerText}</div>
-      <Board state={state} shakeRow={shakeRow} />
-      <Keyboard
-        keyboard={state.keyboard}
-        onKey={addLetter}
-        onEnter={submit}
-        onBackspace={removeLetter}
-        disabled={state.status !== "playing"}
-        lang={lang}
-      />
-
-      {resultMsg && (
-        <div className="result-overlay" role="presentation">
-          <div className="result-card" role="dialog" aria-modal="true">
-            <p className="result-text">{resultMsg}</p>
-            {definition && (
-              <p className="result-def">
-                {t("game.meaning")}: {definition}
-              </p>
-            )}
-            <div className="result-actions">
-              <button className="btn-share" onClick={async () => {
-                const text = buildShareText(state, "daily");
-                const ok = await copyToClipboard(text);
-                if (ok) toastCtx.success(t("game.copied"));
-              }}>
-                <i className="fas fa-share-alt" /> {t("game.share")}
-              </button>
-              <Link to="/leaderboard" className="btn-primary">
-                {t("daily.goToLeaderboard")}
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Container: switches between PreGame and Game ──
-
 export default function DailyPage() {
-  const { i18n } = useTranslation();
-  usePageTitleKey("seo.daily");
+ const { t, i18n } = useTranslation();
+ const navigate = useNavigate();
+ const toast = useToast();
+ usePageTitleKey("seo.daily");
+ const [game, setGame] = useState<DailyGame | null>(null);
+ const [guess, setGuess] = useState("");
+ const [busy, setBusy] = useState(false);
+ const [error, setError] = useState(false);
+ const [alreadyPlayed, setAlreadyPlayed] = useState(false);
+ const [elapsed, setElapsed] = useState(0);
+ const inFlight = useRef(false);
+ const selectedLang = useRef(i18n.language);
+ selectedLang.current = i18n.language;
+ const lang = game?.language ?? i18n.language;
 
-  const [gameState, setGameState] = useState<{
-    lang: string;
-    session: DailySession | null;
-  } | null>(null);
+ useEffect(() => { if (!isAuthenticated()) navigate("/login"); }, [navigate]);
+ // Sessions and puzzle dates are stored by the server, so changing device or tab resumes the same game.
+ useEffect(() => { setGame(null); setGuess(""); setError(false); setAlreadyPlayed(false); }, [i18n.language]);
+ useEffect(() => {
+  if (!game) return;
+  const receivedAt = Date.now();
+  setElapsed(game.elapsedMs);
+  if (game.status !== "playing") return;
+  const timer = window.setInterval(() => setElapsed(game.elapsedMs + Date.now() - receivedAt), 1000);
+  return () => clearInterval(timer);
+ }, [game]);
 
-  // When user changes language mid-game → go back to pre-game screen
-  // DailyGame's cleanup will save the session via its ref
-  useEffect(() => {
-    if (gameState && i18n.language !== gameState.lang) {
-      setGameState(null);
-    }
-  }, [i18n.language, gameState]);
-
-  function handleStart(lang: string) {
-    setGameState({ lang, session: null });
+ async function start() {
+  if (inFlight.current) return;
+  inFlight.current = true; setBusy(true); setError(false);
+  try { const result = await dailyGameApi.start(i18n.language); if (result.language === selectedLang.current) setGame(result); }
+  catch (err) { if (err instanceof ApiError && err.status === 409) setAlreadyPlayed(true); else setError(true); }
+  finally { inFlight.current = false; setBusy(false); }
+ }
+ const addLetter = useCallback((letter: string) => {
+  if (inFlight.current || game?.status !== "playing") return;
+  const upper = toUpperCase(letter, lang);
+  if (isValidLetter(upper, lang)) setGuess(g => g.length < 5 ? g + upper : g);
+ }, [game?.status, lang]);
+ const removeLetter = useCallback(() => {
+  if (!inFlight.current) setGuess(g => g.slice(0, -1));
+ }, []);
+ const submit = useCallback(async () => {
+  if (!game || game.status !== "playing" || guess.length !== 5 || inFlight.current) return;
+  inFlight.current = true; setBusy(true); setError(false);
+  try {
+   const updated = await dailyGameApi.guess(game.id, guess, game.guesses.length + 1);
+   if (updated.language === selectedLang.current) { setGame(updated); setGuess(""); }
+  } catch (err) {
+   if (err instanceof ApiError && err.status === 400) toast.warning(t("game.invalidWord"));
+   else if (err instanceof ApiError && err.status === 409) {
+    try { const result = await dailyGameApi.load(game.id); if (result.language === selectedLang.current) { setGame(result); setGuess(""); } }
+    catch (err) { if (err instanceof ApiError && err.status === 409) setAlreadyPlayed(true); else setError(true); }
+   } else setError(true);
+   // Keep the same guess and turn on network failure. Retrying is idempotent on the server.
+  } finally { inFlight.current = false; setBusy(false); }
+ }, [game, guess, toast, t]);
+ useEffect(() => {
+  function onKey(e: KeyboardEvent) {
+   if (e.ctrlKey || e.metaKey || e.altKey || (e.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName))) return;
+   if (e.key === "Enter") { e.preventDefault(); void submit(); }
+   else if (e.key === "Backspace") { e.preventDefault(); removeLetter(); }
+   else if (isValidLetter(e.key, lang)) addLetter(e.key);
   }
+  window.addEventListener("keydown", onKey);
+  return () => window.removeEventListener("keydown", onKey);
+ }, [submit, removeLetter, addLetter, lang]);
 
-  function handleResume(lang: string, session: DailySession) {
-    setGameState({ lang, session });
-  }
-
-  if (gameState) {
-    return (
-      <DailyGame
-        gameLang={gameState.lang}
-        initialSession={gameState.session}
-      />
-    );
-  }
-
-  return <PreGameScreen onStart={handleStart} onResume={handleResume} />;
+ if (!game) return <div className="page-center"><div className="result-card daily-start-card">
+  <h1>{t("daily.title")}</h1><p>{t("daily.desc")}</p>
+  <button className="btn-primary" onClick={start} disabled={busy || alreadyPlayed}>{t("daily.startResume")}</button>
+  {alreadyPlayed && <p>{t("daily.alreadyPlayed")}</p>}
+  {error && <p role="alert">{t("daily.saveError")}</p>}
+ </div></div>;
+ const state: GameState = {
+  answer: game.answer ?? "", definition: "", guesses: game.guesses, currentGuess: guess,
+  status: game.status, maxAttempts: 6, wordLength: 5, lang, keyboard: buildKeyboardState(game.guesses), startedAt: 0,
+ };
+ const seconds = Math.floor(elapsed / 1000);
+ const timer = `${Math.floor(seconds / 60).toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
+ return <div className="game-page">
+  <Confetti active={game.status === "won"} />
+  <p>{game.date}</p><div className="daily-timer" aria-label={t("daily.elapsed")}>{timer}</div>
+  <Board state={state} shakeRow={false} />
+  <Keyboard keyboard={state.keyboard} onKey={addLetter} onEnter={() => void submit()} onBackspace={removeLetter}
+   disabled={busy || game.status !== "playing"} lang={lang} />
+  {error && <div role="alert"><p>{t("daily.saveError")}</p><button onClick={() => void submit()} disabled={busy}>{t("daily.retry")}</button></div>}
+  {game.status !== "playing" && <div className="result-card" role="status">
+   <p>{t(game.status === "won" ? "game.congrats" : "game.gameOver")}</p>
+   <p>{t("game.word")}: {game.answer}</p><p>{t("daily.confirmedScore", { score: game.score })}</p>
+   <button className="btn-share" onClick={async () => {
+    if (await copyToClipboard(buildShareText(state, "daily"))) toast.success(t("game.copied"));
+   }}>{t("game.share")}</button>
+   <Link to="/leaderboard" className="btn-primary">{t("daily.goToLeaderboard")}</Link>
+  </div>}
+ </div>;
 }

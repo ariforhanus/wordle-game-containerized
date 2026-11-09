@@ -31,8 +31,8 @@ export function getStats(): Promise<AdminStats> {
   return get<AdminStats>("/api/v1/admin/stats");
 }
 
-export function getUsers(search?: string): Promise<AdminUser[]> {
-  const q = search ? `?search=${encodeURIComponent(search)}` : "";
+export function getUsers(search?: string, page = 0): Promise<AdminUser[]> {
+  const q = `?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}`;
   return get<AdminUser[]>(`/api/v1/admin/users${q}`);
 }
 

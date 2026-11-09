@@ -75,7 +75,12 @@
     "timer": "Time",
     "goToLeaderboard": "Go to Leaderboard",
     "loginRequired": "You need to login to play the daily challenge.",
-    "playTodayFirst": "Play today's challenge to unlock the leaderboard."
+    "playTodayFirst": "Play today's challenge to unlock the leaderboard.",
+    "startResume": "Start / resume today’s game",
+    "saveError": "Could not confirm the request. Check your connection and retry.",
+    "elapsed": "Elapsed time",
+    "retry": "Retry guess",
+    "confirmedScore": "Saved score: {{score}}"
   },
   "leaderboard": {
     "title": "Daily Leaderboard",
@@ -115,7 +120,7 @@
     "usernameRequired": "Username is required.",
     "passwordRequired": "Password is required.",
     "emailRequired": "Enter a valid email.",
-    "passwordMinLength": "Password must be at least 6 characters.",
+    "passwordMinLength": "Password must be at least 12 characters.",
     "countryRequired": "Please select a country."
   },
   "profile": {

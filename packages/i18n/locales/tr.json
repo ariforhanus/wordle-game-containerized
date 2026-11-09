@@ -75,7 +75,12 @@
     "timer": "Süre",
     "goToLeaderboard": "Sıralamaya Git",
     "loginRequired": "Günlük meydan okumayı oynamak için giriş yapmalısın.",
-    "playTodayFirst": "Sıralamayı görmek için bugünkü meydan okumayı oyna."
+    "playTodayFirst": "Sıralamayı görmek için bugünkü meydan okumayı oyna.",
+    "startResume": "Bugünün oyununu başlat / devam et",
+    "saveError": "İstek onaylanamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+    "elapsed": "Geçen süre",
+    "retry": "Tahmini tekrar gönder",
+    "confirmedScore": "Kaydedilen puan: {{score}}"
   },
   "leaderboard": {
     "title": "Günlük Sıralama",

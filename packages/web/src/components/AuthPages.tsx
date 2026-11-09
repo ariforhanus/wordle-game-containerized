@@ -116,7 +116,7 @@ export function RegisterPage() {
       setError(t("auth.emailRequired"));
       return;
     }
-    if (form.password.length < 6) {
+    if (form.password.length < 12) {
       setError(t("auth.passwordMinLength"));
       return;
     }
@@ -197,7 +197,7 @@ export function RegisterPage() {
           value={form.password}
           onChange={(e) => update("password", e.target.value)}
           required
-          minLength={6}
+          minLength={12}
           autoComplete="new-password"
         />
 

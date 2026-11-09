@@ -86,7 +86,7 @@ async function request<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, { ...opts, headers });
+  const res = await fetch(url, { ...opts, headers, cache: "no-store" });
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
