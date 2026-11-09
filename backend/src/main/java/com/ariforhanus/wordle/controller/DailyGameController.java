@@ -31,6 +31,12 @@ public class DailyGameController {
         return user.getId();
     }
 
+    @GetMapping
+    public DailyGameService.StatusView status(
+            Authentication auth, @RequestParam(defaultValue = "en") String lang) {
+        return games.status(userId(auth), lang);
+    }
+
     @PostMapping
     public DailyGameService.GameView start(
             Authentication auth, @RequestParam(defaultValue = "en") String lang) {

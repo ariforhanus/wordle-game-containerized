@@ -58,3 +58,22 @@ Self-service deletion requires the current password and explicit UI confirmation
 Run `mvn verify` against a dedicated PostgreSQL test database, `npm test`, `npm run build`, and `npm run e2e -w @wordle/web` with a running backend. The browser suite defines desktop Chromium, mobile Chromium emulation, Firefox, and WebKit projects; it does not replace physical Safari/device or manual assistive-technology testing. CI serves the release build using production Nginx. Set `E2E_BASE_URL` and `E2E_PRODUCTION=true` when testing that server; without them, the suite starts Vite and skips production-only checks. Run `npm run test:coverage -w @wordle/web`, `npm run test:production -w @wordle/web`, and `python -m unittest discover -s tests/ops -v` for coverage reports, built-worker tests, and script failure injection. See `VALIDATION.md` for measured coverage and local browser limits. An SMTP capture server was used to validate real verification/reset delivery, token revocation, replacement-password login, and deletion.
 
 `node tests/load/smoke.mjs` runs 30 public leaderboard requests at bounded concurrency against localhost, requiring zero failures and p95 below one second. An external staging target requires `ALLOW_STAGING_LOAD_TEST=true`; never use it on production without approval. The local Vite-backed baseline passed with zero failures and p95 830 ms while browser tests were running. This is a smoke result, not a production capacity promise.
+
+## Daily Start, Resume, and saved results
+
+The daily page checks `GET /api/v1/daily/games?lang=en` (or `tr`) before offering an action. This authenticated, non-cacheable lookup is read-only: it does not create puzzles, games, or scores, and never changes `started_at`. It uses the application time zone and the current user's language/date. It applies the same optional verified-email requirement as starting or reading a game.
+
+The response has `state` and nullable `game` fields:
+
+| State | Meaning | Page action |
+| --- | --- | --- |
+| `not_started` | No game or historical score exists for today | Start; explicit `POST /api/v1/daily/games?lang=...` |
+| `playing` | An existing game is in progress | Resume; `GET /api/v1/daily/games/{id}` |
+| `finished` | A saved game is won/lost | View result; `GET /api/v1/daily/games/{id}` |
+| `already_played` | A historical score exists without a resumable game | Already-played notice; no new start |
+
+`game` contains the existing game view only for `playing`/`finished`; an unfinished answer remains hidden. The legacy `/api/v1/daily/status` completed-score endpoint remains supported. Resume/result requests refresh the saved game by ID and never create a new puzzle-day game. A concurrent Start remains protected by the existing user/puzzle uniqueness and server transaction.
+
+English and Turkish Start screens explain that elapsed time affects the score and continues after closing the page, disconnecting, or switching devices. Resume explains that elapsed time is not reset; completed results keep their recorded time and score. If the initial lookup fails, the page offers a read retry rather than guessing whether to start. Late lookup responses from a previous language are ignored. Browser keyboard shortcuts are only installed during active play so native Enter activation of the pre-game buttons works.
+
+Deploy backend support for this new GET endpoint before the matching frontend assets. A frontend deployed ahead of its backend fails closed on lookup failure. Stale day/status snapshots can occur across midnight or another session; Start remains idempotent and Resume reads the displayed existing ID. The full midnight policy and expanded concurrency acceptance items remain separate TODOs. No schema migration is required for this change.

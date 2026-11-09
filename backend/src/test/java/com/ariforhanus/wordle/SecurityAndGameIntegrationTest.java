@@ -69,6 +69,13 @@ class SecurityAndGameIntegrationTest {
     void statusAndReadRequestsNeverStartADailyGame() throws Exception {
         for (String language : java.util.List.of("en", "tr", "en")) {
             http.perform(
+                            get("/api/v1/daily/games")
+                                    .param("lang", language)
+                                    .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.state").value("not_started"))
+                    .andExpect(jsonPath("$.game").isEmpty());
+            http.perform(
                             get("/api/v1/daily/status")
                                     .param("lang", language)
                                     .header("Authorization", "Bearer " + token))
@@ -116,6 +123,92 @@ class SecurityAndGameIntegrationTest {
                         .toInstant());
         assertEquals(1, count("daily_games"));
         assertEquals(0, count("scores"));
+    }
+
+    @Test
+    void statusRequiresAuthenticationAndValidLanguage() throws Exception {
+        http.perform(get("/api/v1/daily/games")).andExpect(status().isUnauthorized());
+        http.perform(
+                        get("/api/v1/daily/games")
+                                .param("lang", "invalid")
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
+        assertEquals(0, count("daily_games"));
+        assertEquals(0, count("daily_puzzles"));
+    }
+
+    @Test
+    void statusFindsOnlyTheCurrentUsersLanguageAndDayWithoutResettingTime() throws Exception {
+        var game = startApple();
+        Instant original = clock.instant();
+        clock.now.set(original.plusSeconds(10));
+        http.perform(
+                        get("/api/v1/daily/games")
+                                .param("lang", "en")
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("playing"))
+                .andExpect(jsonPath("$.game.id").value(game.id()))
+                .andExpect(jsonPath("$.game.elapsedMs").value(10000))
+                .andExpect(jsonPath("$.game.answer").isEmpty());
+        http.perform(
+                        get("/api/v1/daily/games")
+                                .param("lang", "tr")
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("not_started"));
+        var other = new User();
+        other.setUsername("other");
+        other.setEmail("other@example.com");
+        other.setPasswordHash("unused");
+        other = users.save(other);
+        String otherToken = jwt.generateToken(other.getId(), "other", "USER");
+        http.perform(
+                        get("/api/v1/daily/games")
+                                .param("lang", "en")
+                                .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("not_started"));
+        assertEquals(
+                original,
+                db.queryForObject(
+                                "SELECT started_at FROM daily_games WHERE id = ?",
+                                java.sql.Timestamp.class,
+                                game.id())
+                        .toInstant());
+        clock.now.set(original.plusSeconds(120));
+        String fresh = jwt.generateToken(user.getId(), user.getUsername(), "USER");
+        http.perform(
+                        get("/api/v1/daily/games")
+                                .param("lang", "en")
+                                .header("Authorization", "Bearer " + fresh))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("not_started"));
+        assertEquals(1, count("daily_games"));
+        assertEquals(1, count("daily_puzzles"));
+    }
+
+    @Test
+    void statusDistinguishesSavedResultsFromLegacyCompletedScores() throws Exception {
+        var game = startApple();
+        games.guess(user.getId(), game.id(), "APPLE", 1);
+        http.perform(
+                        get("/api/v1/daily/games")
+                                .param("lang", "en")
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("finished"))
+                .andExpect(jsonPath("$.game.answer").value("APPLE"));
+        db.update("DELETE FROM daily_games WHERE id = ?", game.id());
+        http.perform(
+                        get("/api/v1/daily/games")
+                                .param("lang", "en")
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("already_played"))
+                .andExpect(jsonPath("$.game").isEmpty());
+        assertEquals(1, count("scores"));
+        assertEquals(0, count("daily_games"));
     }
 
     @Test

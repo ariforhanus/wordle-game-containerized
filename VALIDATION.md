@@ -68,3 +68,27 @@ Frontend regressions cover timer cleanup on unmount, resuming from the returned 
 | `git diff --check` | Passed |
 
 Frontend unit coverage is 17.53% lines and 16.43% branches; the existing low-coverage follow-up remains open. The deployed test frontend/backend artifacts were reused because this change affects tests/documentation only. These are local results; successful remote CI, Firefox, physical device validation, separate Start/Resume screens, and the remaining midnight/concurrency acceptance items are not claimed complete. Production secrets/data were not used and no migration or production deployment was performed.
+
+## P0.1 — Separate Start / Resume / saved-result screens, 2026-11-09
+
+Implemented an authenticated, non-cacheable, read-only `GET /api/v1/daily/games?lang=...` status lookup and its API client. It returns `not_started`, `playing`, `finished`, or `already_played` plus the existing game when applicable. PostgreSQL-backed tests verify no puzzle/game/score creation on lookup, stable `started_at`, current-user/language/day isolation, hidden unfinished answers, legacy-score handling, authentication, language validation, and the existing verified-email gate.
+
+The page waits for lookup before offering Start, Resume, or View result. Start explicitly POSTs a new/idempotent game; Resume/result fetch the known ID with GET. English/Turkish text explains the continuous timer and score impact before Start and explains that Resume does not reset elapsed time. Status failures fail closed with a read retry; delayed responses from a previously selected language are ignored. Native Enter activation of pre-game buttons is preserved by attaching game keyboard shortcuts only during active play.
+
+| Check for this change | Result |
+| --- | --- |
+| Java 21 / PostgreSQL full `mvn verify` | 68 passed, zero skipped/failures/errors |
+| Full frontend unit suite with V8 coverage | 17 passed, no unhandled errors |
+| TypeScript / production build and built-worker tests | Build passed; 8 tests passed |
+| Production Nginx desktop/mobile Chromium E2E | 22 distinct scenarios passed across suite + result-flow runs |
+| WebKit Start, closed-page Resume, status-failure retry, and saved result | 4 selected scenarios passed after the interception fixture correction |
+| Final Turkish Resume warning / casing / reload on the rebuilt image | 2 Chromium scenarios rerun successfully; included in the 22 above |
+| `git diff --check` | Passed |
+
+Chromium's full initial 20-scenario run retained real SMTP-capture verification/reset, lost responses, multiple tabs, session revocation, Turkish casing, Nginx headers, and offline behavior. Two result-view scenarios completed real games and verified reopening results sends no start POST. The targeted status-error retry was rerun successfully in all three engines after the fixture adjustment. Repeated runs are not counted as additional distinct scenarios.
+
+WebKit initially passed three selected cases but could not intercept the injected status failure through an active service worker. Like the existing lost-response fixture, only the status-failure injection test now blocks workers; it then passed in Chromium/mobile/WebKit. Real Start/Resume/result scenarios and separate worker/offline tests keep workers enabled. This changes test interception, not production worker behavior. WebKit uses the previously extracted local browser libraries; skipped host-library prevalidation does not skip browser execution. Firefox and physical Safari/device validation remain unresolved.
+
+The first browser environment startup exhausted the workspace disk while Docker copied the runtime layer and Tomcat created its management temp directory. Old task-owned test JARs and a regenerable npm cache were removed; backend/Nginx were restarted and the successful checks above used the rebuilt environment. That unsuccessful startup is not recorded as a passing test.
+
+Frontend unit coverage is now 20.96% of lines and 21.11% of branches; broad UI coverage remains an open task. No migration was needed, and the server's elapsed-time/score calculation is unchanged. Deploy backend endpoint support before matching frontend assets; an older backend causes the new frontend to fail closed. Expanded concurrency and midnight policy acceptance items, successful remote CI, and production preparation remain separate TODOs.

@@ -157,6 +157,8 @@ class AccountSecurityIntegrationTest {
 
     @Test
     void verificationCannotBeUsedAsAPasswordResetAndUnlocksRankedPlay() throws Exception {
+        http.perform(get("/api/v1/daily/games").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
         http.perform(post("/api/v1/daily/games").header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
         accounts.requestVerification(user.getId());
@@ -164,6 +166,8 @@ class AccountSecurityIntegrationTest {
         assertThrows(Exception.class, () -> accounts.consume(link, "RESET", "next-password-123"));
         accounts.consume(link, "VERIFY", null);
         assertTrue(users.findById(user.getId()).orElseThrow().isEmailVerified());
+        http.perform(get("/api/v1/daily/games").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
         http.perform(post("/api/v1/daily/games").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
         assertThrows(Exception.class, () -> accounts.consume(link, "VERIFY", null));

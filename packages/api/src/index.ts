@@ -36,12 +36,8 @@ export type {
 
 export { getAvatarDataUrl } from "./types.js";
 
-export type {
-  AdminStats,
-  AdminUser,
-  DailyWordInfo,
-} from "./adminApi.js";
+export type { AdminStats, AdminUser, DailyWordInfo } from "./adminApi.js";
 
 export * as dailyGameApi from "./dailyGameApi.js";
-export type { DailyGame } from "./dailyGameApi.js";
+export type { DailyGame, DailyGameStatus } from "./dailyGameApi.js";
 export type { AuditEntry } from "./adminApi.js";

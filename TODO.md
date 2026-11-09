@@ -6,11 +6,11 @@ Bu liste `fix/security-game-integrity` dalının mevcut kodu ve `VALIDATION.md` 
 
 ## P0.1 — Günlük oyun süresi ve adalet
 
-Mevcut temel: oyun kaydı Start isteğinde sunucuda oluşturuluyor; skor süresi kalıcı `started_at` üzerinden hesaplanıyor. Ekranda Start/Resume ortak buton kullanılıyor. Aşağıdaki işler bu temeli koruyarak tamamlanacak.
+Mevcut temel: oyun kaydı Start isteğinde sunucuda oluşturuluyor; skor süresi kalıcı `started_at` üzerinden hesaplanıyor. Ekran salt okunur durum sorgusuyla Start, Resume ve kayıtlı sonuç durumlarını ayırıyor. Aşağıdaki işler bu temeli koruyarak tamamlanacak.
 
 - [x] Günlük oyun yalnızca açık Start eylemiyle başlasın; sayfayı açma, durum sorgulama veya dil değiştirme oyunu başlatmasın. Backend, frontend ve E2E testleriyle doğrula.
 - [x] Oyun başladıktan sonra süre sekme/sayfa kapatılsa, cihaz değişse veya bağlantı kesilse bile işlemeye devam etsin; Resume `started_at` değerini yenilemesin. Mevcut sunucu tarafı süre hesabını koru ve regresyon testleri ekle.
-- [ ] Start ve Resume ekranlarını ayır; başlangıçtan sonra sürenin durmadığını Start öncesinde açıkla. Durum sorgusuyla mevcut oyunu bul; sorgu yeni oyun yaratmasın.
+- [x] Start ve Resume ekranlarını ayır; başlangıçtan sonra sürenin durmadığını Start öncesinde açıkla. Durum sorgusuyla mevcut oyunu bul; sorgu yeni oyun yaratmasın.
 - [ ] Eşzamanlı Start/Resume, farklı oturumlar/cihazlar, yinelenen istekler ve yanıt kaybında aynı oyun ve tek skor garantisini birlikte test et; mevcut satır kilidi ve idempotency kontrollerini koru.
 - [ ] Uygulama zaman diliminde gece yarısı geçişini test et: gece yarısından önce başlayan oyun, sonra gelen tahmin/retry, eski oyunun süresi ve sonraki günün oyunu. Tamamlama/kapanma politikasını açıkça belgele; puzzle günü, skor günü ve sıralama tutarlı olsun.
 
@@ -68,7 +68,7 @@ Doğruluk constraint'leri P0/P1 özellikleriyle birlikte teslim edilir; aşağı
 - [ ] Ağ hatasında yazılmış/iletilmiş tahminleri koru; retry sırasında çift tahmin oluşturma. Mevcut kayıp yanıt testine yazılmakta olan tahmin, offline/online geçişi ve yeniden bağlantı senaryolarını ekle.
 - [ ] Mobil klavye/tahta, yatay ekran, yakınlaştırma ve odak davranışını doğrula; emülasyona ek fiziksel cihaz kontrolü yap.
 - [ ] Reduced-motion tercihini uygula; sonuç/klavye durumları yalnızca renkle aktarılmasın. Ekran okuyucu duyuruları, klavye erişimi, kontrast ve renk körlüğü seçeneklerini iyileştir.
-- [ ] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %17,27 satır baz çizgisinin ötesine çıkar.
+- [ ] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %20,96 satır / %21,11 dal kapsamını özellikle UI hata yollarında genişlet.
 - [ ] Firefox'ta başarılı tarayıcı koşusu elde et; yerelde sayfa açılmadan context çöküyor. WebKit testini gerçek Safari/fiziksel cihaz doğrulaması yerine sayma; manuel yardımcı teknoloji testlerini tamamla.
 
 ## P2.1 — Yeni diller ve kelime rotasyonu
@@ -124,7 +124,15 @@ Frontend testleri, unmount sırasında yerel interval'in temizlendiğini, yenide
 
 Son koşu: **65 backend**, **13 frontend**, **8 build edilmiş worker** ve production Nginx üzerinde **4 masaüstü/mobil Chromium E2E** testi geçti; TypeScript/production build ve `git diff --check` geçti. Bu tur uygulama davranışı veya migration değiştirilmedi; testler ve dokümantasyon eklendi. Uzak CI başarısı, Firefox ve fiziksel cihaz kontrolleri açık kalıyor.
 
-Sıradaki tek TODO: Start ve Resume ekranlarını ayırmak ve sürenin durmadığını Start öncesinde açıklamak. Gece yarısı politikası ve kapsamlı eşzamanlılık kabul maddeleri ayrıca açık; bu turdaki süre testleri aynı puzzle günü içinde çalışıyor.
+### P0.1 / ayrı Start ve Resume ekranları
+
+2026-11-09: `GET /api/v1/daily/games?lang=...` salt okunur durum sorgusu eklendi. Yeni oyun Start ile POST edilir; mevcut oyun Resume ile GET üzerinden açılır; tamamlanmış oyunda kayıtlı sonuç görüntülenir. Eski skor kaydı olup oyunu olmayan kullanıcı yeniden başlatamaz. İngilizce/Türkçe ekranlar süre kuralını butondan önce açıklar; Resume süreyi sıfırlamaz. Yükleme sırasında başlangıç kapalıdır; sorgu hatası yalnızca kontrolü tekrar denemeyi sunar. Geç gelen eski dil yanıtları yok sayılır. Aktif oyun dışındaki klavye dinleyicisi kaldırılarak butonların doğal Enter davranışı korundu.
+
+Son doğrulama: **68 backend**, **17 frontend**, **8 build edilmiş worker**, **22 farklı masaüstü/mobil Chromium E2E** ve **4 seçili WebKit E2E** senaryosu geçti. E2E sonuçları bölünmüş koşulardan tekil senaryo sayılarıdır; tekrar koşuları ayrıca sayılmadı. Türkçe uyarı ve Resume metni son build üzerinden tekrar doğrulandı. Ağ hatası enjekte eden testte WebKit interception sınırı nedeniyle yalnızca o senaryoda service worker engellenir; gerçek Start/Resume, sonuç ve offline testleri worker açıkken çalışır. İlk ortam açılışı disk dolması nedeniyle başarısız oldu; eski test JAR/önbellekleri temizlenip ortam yeniden kurulduktan sonraki sonuçlar esas alındı.
+
+Backend önce, frontend sonra yayımlanmalı; API sözleşmesi ve dağıtım sırası `OPERATIONS.md` içinde. Migration gerekmedi; sunucunun süre/skor hesabı değişmedi. Uzak CI'nin başarıyla çalışması, Firefox ve fiziksel cihaz doğrulamaları hâlâ açık.
+
+Sıradaki tek TODO: eşzamanlı Start/Resume, farklı oturumlar, tekrar istek ve yanıt kaybında aynı oyun/tek skor garantisinin kabul testlerini tamamlamak. Gece yarısı politikası ayrı açık madde olarak korunuyor.
 
 ## Mühendislik kuralları
 

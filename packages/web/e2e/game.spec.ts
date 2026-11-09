@@ -42,6 +42,11 @@ test("daily visits, reloads, language changes and status reads do not start the 
     await page.reload();
     await expect(page.locator(".daily-start-card button")).toBeEnabled();
     await expect(page.locator(".board")).toHaveCount(0);
+    await expect(page.locator("#daily-timer-rule")).toContainText(
+      language === "tr"
+        ? "Süre, Başlat'a bastığında başlar"
+        : "The timer starts when you press Start",
+    );
     expect(starts).toHaveLength(0);
   }
   const started = page.waitForResponse(
@@ -49,7 +54,7 @@ test("daily visits, reloads, language changes and status reads do not start the 
       response.request().method() === "POST" &&
       new URL(response.url()).pathname === "/api/v1/daily/games",
   );
-  await page.locator(".daily-start-card button").click();
+  await page.locator(".daily-start-card button").press("Enter");
   const response = await started;
   expect(response.status()).toBe(200);
   expect(await response.json()).toMatchObject({
@@ -84,12 +89,30 @@ test("daily timer includes time with the page closed and resumes in a fresh brow
   await new Promise((resolve) => setTimeout(resolve, 2200));
   const reopened = await browser.newContext({ storageState });
   try {
+    const resumedStarts: string[] = [];
+    reopened.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === "/api/v1/daily/games"
+      )
+        resumedStarts.push(request.url());
+    });
     const nextPage = await reopened.newPage();
     await nextPage.goto("/daily");
+    await expect(
+      nextPage.getByRole("button", {
+        name: "Resume today's game",
+        exact: true,
+      }),
+    ).toBeEnabled();
+    await expect(nextPage.locator("#daily-timer-rule")).toContainText(
+      "without resetting the timer",
+    );
     const resumeResponse = nextPage.waitForResponse(
       (response) =>
-        response.request().method() === "POST" &&
-        new URL(response.url()).pathname === "/api/v1/daily/games",
+        response.request().method() === "GET" &&
+        new URL(response.url()).pathname ===
+          "/api/v1/daily/games/" + started.id,
     );
     await nextPage.locator(".daily-start-card button").click();
     const resumed = await (await resumeResponse).json();
@@ -105,6 +128,7 @@ test("daily timer includes time with the page closed and resumes in a fresh brow
         return minutes * 60 + seconds;
       })
       .toBeGreaterThanOrEqual(Math.floor(resumed.elapsedMs / 1000));
+    expect(resumedStarts).toHaveLength(0);
     const token = await nextPage.evaluate(() =>
       localStorage.getItem("jwtToken"),
     );
@@ -119,6 +143,52 @@ test("daily timer includes time with the page closed and resumes in a fresh brow
   } finally {
     await reopened.close();
   }
+});
+
+test.describe("status-error recovery", () => {
+  // WebKit cannot reliably intercept API requests through an active service worker.
+  // Separate production-worker tests and the real Start/Resume scenarios keep workers enabled.
+  test.use({ serviceWorkers: "block" });
+  test("daily status failure offers a read retry without starting a game", async ({
+    page,
+    context,
+  }) => {
+    await register(page);
+    let starts = 0;
+    context.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === "/api/v1/daily/games"
+      )
+        starts++;
+    });
+    await context.route("**/api/v1/daily/games?lang=*", async (route) => {
+      if (route.request().method() === "GET")
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: '{"error":"fixture_unavailable"}',
+        });
+      else await route.continue();
+    });
+    await page.goto("/daily");
+    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Start today's game", exact: true }),
+    ).toHaveCount(0);
+    expect(starts).toBe(0);
+    await context.unroute("**/api/v1/daily/games?lang=*");
+    await page
+      .getByRole("button", { name: "Check again", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Start today's game", exact: true }),
+    ).toBeEnabled();
+    await expect(page.locator("#daily-timer-rule")).toContainText(
+      "Time affects your score",
+    );
+    expect(starts).toBe(0);
+  });
 });
 
 test("login page supports labels and browser zoom", async ({ page }) => {
@@ -144,7 +214,7 @@ test.describe("network-response recovery", () => {
   }) => {
     await register(page);
     await page.goto("/daily");
-    await page.getByRole("button", { name: /Start \/ resume/ }).click();
+    await page.locator(".daily-start-card button").click();
     await expect(page.locator(".board")).toBeVisible();
     const start = await page.evaluate(async () => {
       const r = await fetch("/api/v1/daily/games?lang=en", {
@@ -178,11 +248,11 @@ test.describe("network-response recovery", () => {
     await page.getByRole("button", { name: "Retry guess" }).click();
     await expect(page.locator(".board-row").first()).toHaveText("APPLE");
     await page.reload();
-    await page.getByRole("button", { name: /Start \/ resume/ }).click();
+    await page.locator(".daily-start-card button").click();
     await expect(page.locator(".board-row").first()).toHaveText("APPLE");
     const tab = await context.newPage();
     await tab.goto("/daily");
-    await tab.getByRole("button", { name: /Start \/ resume/ }).click();
+    await tab.locator(".daily-start-card button").click();
     await expect(tab.locator(".board-row").first()).toHaveText("APPLE");
     const result = await page.evaluate(async () => {
       const r = await fetch("/api/v1/auth/me", {
@@ -304,6 +374,10 @@ test("Turkish daily guesses survive reload with locale-specific letters", async 
     .click();
   await expect(page.locator(".board-row").first()).toHaveText("İNCİR");
   await page.reload();
+  await expect(page.locator(".daily-start-card button")).toBeEnabled();
+  await expect(page.locator("#daily-timer-rule")).toContainText(
+    /süre sıfırlanmaz|süre ve puan değişmez/,
+  );
   await page.locator(".daily-start-card button").click();
   await expect(page.locator(".board-row").first()).toHaveText("İNCİR");
 });
@@ -361,4 +435,58 @@ test("production offline practice keeps every API response out of caches", async
         .catch(() => true),
     ),
   ).toBe(true);
+});
+
+test("completed daily games offer a read-only result instead of Start or Resume", async ({
+  page,
+  context,
+}) => {
+  await register(page);
+  await page.goto("/daily");
+  const startResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/v1/daily/games",
+  );
+  await page.locator(".daily-start-card button").click();
+  let saved = await (await startResponse).json();
+  const token = await page.evaluate(() => localStorage.getItem("jwtToken"));
+  const words = ["APPLE", "CIGAR", "REBUT", "SISSY", "HUMPH", "AWAKE"];
+  for (
+    let index = 0;
+    index < words.length && saved.status === "playing";
+    index++
+  ) {
+    const response = await context.request.post(
+      `/api/v1/daily/games/${saved.id}/guesses`,
+      {
+        headers: { Authorization: "Bearer " + token },
+        data: { guess: words[index], attempt: index + 1 },
+      },
+    );
+    expect(response.status()).toBe(200);
+    saved = await response.json();
+  }
+  expect(saved.status).not.toBe("playing");
+  let starts = 0;
+  context.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/api/v1/daily/games"
+    )
+      starts++;
+  });
+  await page.reload();
+  const resultButton = page.getByRole("button", {
+    name: "View today's result",
+    exact: true,
+  });
+  await expect(resultButton).toBeEnabled();
+  await expect(page.locator("#daily-timer-rule")).toContainText(
+    "timer and score will not change",
+  );
+  await resultButton.click();
+  await expect(page.locator(".result-card")).toContainText(saved.answer);
+  await expect(page.locator(".result-card")).toContainText(String(saved.score));
+  expect(starts).toBe(0);
 });

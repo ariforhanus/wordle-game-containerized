@@ -34,6 +34,41 @@ public class DailyGameService {
         this.zone = ZoneId.of(timezone);
     }
 
+    public record StatusView(String state, GameView game) {}
+
+    @Transactional(readOnly = true)
+    public StatusView status(long userId, String language) {
+        String lang;
+        try {
+            lang = SupportedLanguage.fromParam(language).getCode();
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_lang");
+        }
+        LocalDate today = LocalDate.now(clock.withZone(zone));
+        var ids =
+                db.queryForList(
+                        "SELECT g.id FROM daily_games g JOIN daily_puzzles p ON p.id = g.puzzle_id"
+                                + " WHERE g.user_id = ? AND p.language = ? AND p.played_at = ?",
+                        String.class,
+                        userId,
+                        lang,
+                        today);
+        if (!ids.isEmpty()) {
+            var game = view(load(userId, ids.getFirst()));
+            return new StatusView(game.status().equals("playing") ? "playing" : "finished", game);
+        }
+        boolean historicalResult =
+                Boolean.TRUE.equals(
+                        db.queryForObject(
+                                "SELECT EXISTS (SELECT 1 FROM scores WHERE user_id = ? AND language"
+                                    + " = ? AND played_at = ?)",
+                                Boolean.class,
+                                userId,
+                                lang,
+                                today));
+        return new StatusView(historicalResult ? "already_played" : "not_started", null);
+    }
+
     @Transactional
     public GameView start(long userId, String language) {
         String lang;
