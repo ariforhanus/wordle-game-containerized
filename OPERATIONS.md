@@ -1,5 +1,23 @@
 # Operations and account-security runbook
 
+## Local Docker Compose quick start
+
+With Node.js 22+ and Docker Compose installed, run from the repository root:
+
+```sh
+node deploy/setup-local-env.mjs
+docker compose config --quiet
+docker compose up --build -d
+```
+
+Open `http://localhost:8080`. The bootstrap administrator is `localadmin`; read `ADMIN_PASSWORD` from the generated local `.env`. The script generates independent random PostgreSQL administrator/application passwords, a JWT key, and an administrator password, with localhost URL/CORS settings. It writes `.env` with owner-only permissions on POSIX, does not print credentials, and refuses to overwrite an existing env file. Existing `.env` files should be reviewed/reused rather than regenerated to change passwords accidentally.
+
+`.env` is ignored by Git and is not delivered through GitHub. Running the setup command on your own computer creates its own credentials; the workspace's generated file is not a shared test password. `.env.example` remains an unfilled template for explicit configuration. No edits to `application.properties` or Compose are needed for this local setup; Compose supplies the variables. An IDE/direct Java launch needs its own environment configuration.
+
+Mail is disabled until a real provider or reachable local capture server is configured; empty SMTP fields are intentional, and verification/reset email requests return 503 while disabled. Registration, login, games, and admin testing remain available because verified-email ranked participation is off. Existing PostgreSQL volumes retain their initialized database passwords: changing `.env` does not rotate them. Reuse the matching credentials for an existing volume; this setup command never deletes volumes or data. Production DNS/TLS, mail delivery, secret rotation, and release checks remain separate tasks.
+
+For the isolated Codespaces/iPhone preview, use `./scripts/start-preview.sh` instead; it manages `.preview/secrets.env` and `.preview/runtime.env` separately. The root local `.env` and its admin credentials do not configure that preview. See `docs/CODESPACES_PREVIEW.md` for its private forwarded URL and account-registration flow.
+
 ## What is ready, and what is not activated
 
 The code and scripts are prepared for the existing monolith. Production domain, SMTP provider, backup destination, log collector, alert receiver, and authorized production credentials have not been supplied. Nothing here deploys the application, rotates live secrets, or modifies production data automatically.

@@ -158,3 +158,15 @@ The formerly wall-clock-dependent streak unit test now supplies a fixed clock. I
 | Source audit and `git diff --check` | Passed; Java real-clock factory is production ClockConfig |
 
 The E2E selection includes registration, explicit Start, closed-page Resume, multiple-login concurrent recovery, real server stale-date rejection, and client-clock changes. Nginx, WebKit, Firefox, and physical devices were not rerun for this interruption. Frontend coverage remains 22.20% lines / 24.22% branches. The current integration fixtures use shared database state and sequential execution; enabling parallel test classes requires isolation or resource locks. No leaderboard feature TODO was completed by this cleanup, and remote CI/production prerequisites remain open.
+
+## Requested interruption — local environment setup, 2026-11-09
+
+Created a private, Git-ignored workspace `.env` with independently generated database administrator/application passwords, JWT signing material, and local administrator credentials. Existing Compose/application property placeholders remain intact; they resolve from `.env`. SMTP stays disabled because no provider/capture route is configured, so its empty optional credentials are intentional.
+
+Added `node deploy/setup-local-env.mjs` so another checkout can generate its own local `.env` rather than sharing secrets through GitHub. It uses Node's cryptographic RNG, owner-only file mode on POSIX, exclusive creation, localhost/CORS defaults, and no credential output. It refuses to overwrite an existing file, preserving existing database credentials. The administrator is `localadmin`; its generated password is read from `.env`. CI's frontend job now includes the standalone Node tests.
+
+Validation: 4 Node tests passed (key parity with `.env.example`, credential strength/independence, no secret output, file permissions, non-overwrite, per-install uniqueness, and failure reporting); the base Compose, operations overlay/profile, and production profile all passed `config --quiet` with the generated env. `git check-ignore .env`, mode 0600, and `git diff --check` passed. The secret-bearing `.env` is not committed or included in the publish payload.
+
+This is configuration validation, not a successful full Docker build/start or deployment. The workspace still lacks disk capacity for a full release-image build; earlier application test results remain separate. Existing PostgreSQL volumes keep their old passwords, and no volume/data was removed or password rotated. Mail reset/verification remains unavailable until SMTP is configured. Remote CI and production prerequisites remain open.
+
+The branch acquired separate Codespaces preview commits while this setup change was in progress. They were retained by rebasing this change onto the new head; Node generator tests and all three Compose config checks were rerun after integration. The isolated preview manages its own `.preview` env files, so the root local `.env` does not replace that preview's secrets/runtime configuration.

@@ -51,6 +51,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with: {node-version: '22', cache: npm}
+      - name: Test local environment setup
+        run: node --test tests/ops/setup-local-env.test.mjs
       - run: npm ci
       - run: npm run test:coverage -w @wordle/web
       - run: npm run test:production -w @wordle/web

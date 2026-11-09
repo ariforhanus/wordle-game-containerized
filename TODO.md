@@ -165,6 +165,14 @@ Gerçek düzeltmeler: günlük kelime servisi ve admin dashboard artık enjekte 
 
 **95 backend**, **23 frontend**, **8 build edilmiş worker** ve production build/Vite Preview üzerinde **12 masaüstü/mobil E2E** senaryosu geçti. Test saat/config/fixture sınıflarının production JAR'ında olmadığı ayrıca kontrol edildi. Schema/veri migration'ı yapılmadı. Nginx/WebKit/Firefox bu ara görevde yeniden doğrulanmadı; CI/production engelleri açık. Leaderboard TODO'ları bu ara görev nedeniyle tamamlandı işaretlenmedi.
 
+## Ara görev — yerel test için env hazırlığı
+
+- [x] Yerel Compose için eksik zorunlu env değerlerini oluştur ve farklı bilgisayarda aynı kurulumu güvenli biçimde yeniden üretilebilir yap.
+
+2026-11-09: workspace `.env` dosyası rastgele, birbirinden bağımsız DB/JWT/admin değerleriyle oluşturuldu; Git dışında ve 0600 izinli. `node deploy/setup-local-env.mjs` kullanıcının kendi checkout'unda farklı değerlerle dosya oluşturuyor; mevcut dosyayı değiştirmiyor ve parolaları çıktıya yazmıyor. Admin `localadmin`; parola `.env` içindeki `ADMIN_PASSWORD`. Node 22+ ve Docker Compose ile açılış komutları `OPERATIONS.md` başında.
+
+4 kurulum testi, üç Compose yapılandırma doğrulaması (ana/operations/production) ve diff/ignore/izin kontrolleri geçti. Gerçek SMTP olmadan mail kapalı, verified-email şartı kapalı. Bu dosya yalnızca yerel test içindir; mevcut DB volume'unun parolası env değiştirerek dönmez. Full Docker build/start disk sınırı nedeniyle yapılmadı; production secret rotation/SMTP/CI işleri tamamlandı sayılmadı. Leaderboard geliştirmesi sırada kalıyor.
+
 ## Mühendislik kuralları
 
 - Her uygulama turunda sıradaki tek TODO maddesini ele al; tamamlanan işi, ilgili değişiklikleri, çalıştırılan testleri ve açık riskleri raporla. Bağımlı hata düzeltmelerini ayrıca belirt; sonraki TODO'yu bitmiş sayma.
