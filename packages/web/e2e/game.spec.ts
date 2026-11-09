@@ -11,6 +11,41 @@ async function register(page: import("@playwright/test").Page) {
   await page.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/$/);
 }
+async function secondSession(
+  page: import("@playwright/test").Page,
+  browser: import("@playwright/test").Browser,
+) {
+  const token = await page.evaluate(() => localStorage.getItem("jwtToken"));
+  const profile = await page
+    .context()
+    .request.get("/api/v1/auth/me", {
+      headers: { Authorization: "Bearer " + token },
+    });
+  expect(profile.status()).toBe(200);
+  const context = await browser.newContext({
+    storageState: await page.context().storageState(),
+    serviceWorkers: "block",
+  });
+  try {
+    const login = await context.request.post("/api/v1/auth/login", {
+      data: {
+        username: (await profile.json()).username,
+        password: "browser-password-123",
+      },
+    });
+    expect(login.status()).toBe(200);
+    const sessionToken = String((await login.json()).token);
+    await context.addInitScript(
+      (token) => localStorage.setItem("jwtToken", token),
+      sessionToken,
+    );
+    return { context, token: sessionToken };
+  } catch (error) {
+    await context.close();
+    throw error;
+  }
+}
+
 test("daily visits, reloads, language changes and status reads do not start the timer", async ({
   page,
 }) => {
@@ -265,6 +300,172 @@ test.describe("network-response recovery", () => {
     expect(result).toBe("no-store");
   });
 });
+test.describe("concurrent-session recovery", () => {
+  test.use({ serviceWorkers: "block" });
+  test("stale Start screens and a lost Start response converge on one game", async ({
+    page,
+    context,
+    browser,
+  }) => {
+    await register(page);
+    await page.goto("/daily");
+    await expect(
+      page.getByRole("button", { name: "Start today's game", exact: true }),
+    ).toBeEnabled();
+    const other = await secondSession(page, browser);
+    try {
+      const tab = await other.context.newPage();
+      await tab.goto("/daily");
+      await expect(
+        tab.getByRole("button", { name: "Start today's game", exact: true }),
+      ).toBeEnabled();
+      let committed: import("@wordle/api").DailyGame | undefined;
+      await context.route("**/api/v1/daily/games?lang=en", async (route) => {
+        if (route.request().method() !== "POST" || committed)
+          return route.continue();
+        const response = await route.fetch();
+        expect(response.status()).toBe(200);
+        committed = await response.json();
+        await route.abort("failed");
+      });
+      const otherStart = tab.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new URL(response.url()).pathname === "/api/v1/daily/games",
+      );
+      await Promise.all([
+        page
+          .getByRole("button", { name: "Start today's game", exact: true })
+          .click(),
+        tab
+          .getByRole("button", { name: "Start today's game", exact: true })
+          .click(),
+      ]);
+      await expect(page.getByRole("alert")).toBeVisible();
+      await expect(tab.locator(".board")).toBeVisible();
+      const started = await (await otherStart).json();
+      expect(started.id).toBe(committed!.id);
+      const retry = page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new URL(response.url()).pathname === "/api/v1/daily/games",
+      );
+      await page
+        .getByRole("button", { name: "Start today's game", exact: true })
+        .click();
+      const resumed = await (await retry).json();
+      expect(resumed.id).toBe(started.id);
+      expect(resumed.elapsedMs).toBeGreaterThanOrEqual(committed!.elapsedMs);
+      await expect(page.locator(".board")).toBeVisible();
+      await page.reload();
+      await expect(
+        page.getByRole("button", { name: "Resume today's game", exact: true }),
+      ).toBeEnabled();
+      await page
+        .getByRole("button", { name: "Resume today's game", exact: true })
+        .click();
+      await expect(page.locator(".board")).toBeVisible();
+    } finally {
+      await other.context.close();
+    }
+  });
+
+  test("duplicate turns from another login and a lost final response keep one score", async ({
+    page,
+    context,
+    browser,
+  }) => {
+    await register(page);
+    await page.goto("/daily");
+    await page.locator(".daily-start-card button").click();
+    await expect(page.locator(".board")).toBeVisible();
+    const other = await secondSession(page, browser);
+    try {
+      let terminal: import("@wordle/api").DailyGame | undefined;
+      await context.route("**/daily/games/*/guesses", async (route) => {
+        const [first, duplicate] = await Promise.all([
+          route.fetch(),
+          other.context.request.post(route.request().url(), {
+            headers: { Authorization: "Bearer " + other.token },
+            data: route.request().postDataJSON(),
+          }),
+        ]);
+        expect(first.status()).toBe(200);
+        expect(duplicate.status()).toBe(200);
+        const accepted = await first.json();
+        const repeated = await duplicate.json();
+        expect(repeated.id).toBe(accepted.id);
+        expect(repeated.guesses).toEqual(accepted.guesses);
+        expect(repeated.status).toBe(accepted.status);
+        if (accepted.status !== "playing" && !terminal) {
+          terminal = accepted;
+          expect(repeated).toEqual(accepted);
+          await route.abort("failed");
+        } else await route.fulfill({ response: first });
+      });
+      for (const word of [
+        "APPLE",
+        "CIGAR",
+        "REBUT",
+        "SISSY",
+        "HUMPH",
+        "AWAKE",
+      ]) {
+        await page.keyboard.type(word);
+        await page
+          .locator(".keyboard")
+          .getByRole("button", { name: "ENTER", exact: true })
+          .click();
+        // A settled UI enables ENTER again, or exposes Retry after the committed final response was lost.
+        await expect
+          .poll(async () =>
+            terminal
+              ? "finished"
+              : (await page
+                    .locator(".keyboard")
+                    .getByRole("button", { name: "ENTER", exact: true })
+                    .isEnabled())
+                ? "ready"
+                : "busy",
+          )
+          .not.toBe("busy");
+        if (terminal) break;
+      }
+      expect(terminal).toBeTruthy();
+      await expect(page.getByRole("alert")).toBeVisible();
+      await context.unroute("**/daily/games/*/guesses");
+      await page
+        .getByRole("button", { name: "Retry guess", exact: true })
+        .click();
+      await expect(page.locator(".result-card")).toContainText(
+        terminal!.answer!,
+      );
+      await expect(page.locator(".result-card")).toContainText(
+        String(terminal!.score),
+      );
+      const replay = await other.context.request.post(
+        `/api/v1/daily/games/${terminal!.id}/guesses`,
+        {
+          headers: { Authorization: "Bearer " + other.token },
+          data: {
+            guess: terminal!.guesses.at(-1)!.guess,
+            attempt: terminal!.guesses.length,
+          },
+        },
+      );
+      expect(replay.status()).toBe(200);
+      expect(await replay.json()).toEqual(terminal);
+      const stats = await other.context.request.get("/api/v1/stats/me", {
+        headers: { Authorization: "Bearer " + other.token },
+      });
+      expect(stats.status()).toBe(200);
+      expect((await stats.json()).totalGames).toBe(1);
+    } finally {
+      await other.context.close();
+    }
+  });
+});
+
 test("revoking all sessions forces a fresh login", async ({
   page,
   context,

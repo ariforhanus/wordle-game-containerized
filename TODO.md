@@ -11,7 +11,7 @@ Mevcut temel: oyun kaydı Start isteğinde sunucuda oluşturuluyor; skor süresi
 - [x] Günlük oyun yalnızca açık Start eylemiyle başlasın; sayfayı açma, durum sorgulama veya dil değiştirme oyunu başlatmasın. Backend, frontend ve E2E testleriyle doğrula.
 - [x] Oyun başladıktan sonra süre sekme/sayfa kapatılsa, cihaz değişse veya bağlantı kesilse bile işlemeye devam etsin; Resume `started_at` değerini yenilemesin. Mevcut sunucu tarafı süre hesabını koru ve regresyon testleri ekle.
 - [x] Start ve Resume ekranlarını ayır; başlangıçtan sonra sürenin durmadığını Start öncesinde açıkla. Durum sorgusuyla mevcut oyunu bul; sorgu yeni oyun yaratmasın.
-- [ ] Eşzamanlı Start/Resume, farklı oturumlar/cihazlar, yinelenen istekler ve yanıt kaybında aynı oyun ve tek skor garantisini birlikte test et; mevcut satır kilidi ve idempotency kontrollerini koru.
+- [x] Eşzamanlı Start/Resume, farklı oturumlar/cihazlar, yinelenen istekler ve yanıt kaybında aynı oyun ve tek skor garantisini birlikte test et; mevcut satır kilidi ve idempotency kontrollerini koru.
 - [ ] Uygulama zaman diliminde gece yarısı geçişini test et: gece yarısından önce başlayan oyun, sonra gelen tahmin/retry, eski oyunun süresi ve sonraki günün oyunu. Tamamlama/kapanma politikasını açıkça belgele; puzzle günü, skor günü ve sıralama tutarlı olsun.
 
 ## P0.2 — CI ve production çıkış engelleri
@@ -68,7 +68,7 @@ Doğruluk constraint'leri P0/P1 özellikleriyle birlikte teslim edilir; aşağı
 - [ ] Ağ hatasında yazılmış/iletilmiş tahminleri koru; retry sırasında çift tahmin oluşturma. Mevcut kayıp yanıt testine yazılmakta olan tahmin, offline/online geçişi ve yeniden bağlantı senaryolarını ekle.
 - [ ] Mobil klavye/tahta, yatay ekran, yakınlaştırma ve odak davranışını doğrula; emülasyona ek fiziksel cihaz kontrolü yap.
 - [ ] Reduced-motion tercihini uygula; sonuç/klavye durumları yalnızca renkle aktarılmasın. Ekran okuyucu duyuruları, klavye erişimi, kontrast ve renk körlüğü seçeneklerini iyileştir.
-- [ ] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %20,96 satır / %21,11 dal kapsamını özellikle UI hata yollarında genişlet.
+- [ ] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %21,80 satır / %22,44 dal kapsamını özellikle UI hata yollarında genişlet.
 - [ ] Firefox'ta başarılı tarayıcı koşusu elde et; yerelde sayfa açılmadan context çöküyor. WebKit testini gerçek Safari/fiziksel cihaz doğrulaması yerine sayma; manuel yardımcı teknoloji testlerini tamamla.
 
 ## P2.1 — Yeni diller ve kelime rotasyonu
@@ -132,7 +132,17 @@ Son doğrulama: **68 backend**, **17 frontend**, **8 build edilmiş worker**, **
 
 Backend önce, frontend sonra yayımlanmalı; API sözleşmesi ve dağıtım sırası `OPERATIONS.md` içinde. Migration gerekmedi; sunucunun süre/skor hesabı değişmedi. Uzak CI'nin başarıyla çalışması, Firefox ve fiziksel cihaz doğrulamaları hâlâ açık.
 
-Sıradaki tek TODO: eşzamanlı Start/Resume, farklı oturumlar, tekrar istek ve yanıt kaybında aynı oyun/tek skor garantisinin kabul testlerini tamamlamak. Gece yarısı politikası ayrı açık madde olarak korunuyor.
+### P0.1 / eşzamanlı oturum ve tekrar istekleri
+
+2026-11-09: mevcut PostgreSQL tekillik/satır kilidi davranışı üretim kodu değiştirilmeden genişletilmiş kabul testleriyle doğrulandı. İngilizce/Türkçe testleri farklı JWT oturumlarının önce aynı `not_started` durumunu görmesini, dört eşzamanlı Start'ın aynı kaydı döndürmesini ve ardından karışık Start/Resume/durum okumalarının başlangıç zamanını değiştirmemesini kontrol ediyor. Farklı eşzamanlı tahminlerde bir istek kabul ediliyor, diğeri 409 alıyor; retry kabul edilmiş tahmini değiştiremiyor.
+
+Galibiyet ve kayıp son hamleleri için gerçek bir PostgreSQL transaction'ı oyun satırını kilitli tutuyor. `pg_stat_activity` üzerinden iki HTTP hamlesinin gerçekten kilitte beklediği görülmeden kilit bırakılmıyor. Beklerken Resume tamamlanmamış tutarlı durumu okuyor; kilit açıldıktan sonra aynı hamleye iki yanıt ve sonradan yapılan replay aynı bitmiş sonucu veriyor. Tek skor, sabit `duration_ms`/puan ve değişmeyen `started_at` kontrol ediliyor.
+
+Frontend'e bekleyen Start/tahminde çift gönderimi engelleme ve yanıtı kaybolan Start'ı yeniden deneme testleri eklendi. E2E testleri ayrı tarayıcı bağlamı ve yeni girişle eşzamanlı Start, commit edilmiş Start yanıtının kaybı, iki oturumdan yinelenen hamleler ve commit edilmiş son yanıtın kaybından kurtulmayı doğruluyor; kullanıcı istatistiği tek oyun gösteriyor.
+
+Son koşu: **76 backend**, **20 frontend**, **8 build edilmiş worker** ve **6 hedefli E2E** (masaüstü Chromium, mobil Chromium ve WebKit'te ikişer senaryo) geçti. Production build ve `git diff --check` geçti. Hata enjekte eden E2E bağlamlarında mevcut interception kuralı gereği worker kapalı; worker/offline davranışı ayrı testlerde korunuyor. Frontend satır kapsamı **%21,80**, dal kapsamı **%22,44**; geniş kapsam ihtiyacı açık. Bu tur migration/üretim mantığı değiştirilmedi; yük kapasitesi veya tüm tarayıcı senaryolarının tekrar doğrulandığı iddia edilmiyor.
+
+Sıradaki tek TODO: uygulama zaman diliminde gece yarısı geçişi, eski oyunun tamamlanma politikası ve sonraki günün oyununun tarih/skor tutarlılığı. Uzak CI, Firefox ve fiziksel cihaz doğrulamaları ayrı açık işler.
 
 ## Mühendislik kuralları
 

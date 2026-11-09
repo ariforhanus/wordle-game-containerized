@@ -633,6 +633,292 @@ class SecurityAndGameIntegrationTest {
         }
     }
 
+    private java.util.List<String> independentSessions(int count) {
+        clock.now.set(Instant.parse("2026-11-09T10:00:00Z"));
+        var sessions = new java.util.ArrayList<String>();
+        for (int index = 0; index < count; index++) {
+            clock.now.set(clock.instant().plusSeconds(1));
+            sessions.add(jwt.generateToken(user.getId(), user.getUsername(), "USER"));
+        }
+        assertEquals(count, sessions.stream().distinct().count());
+        return sessions;
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode gameRequest(
+            org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
+            String session)
+            throws Exception {
+        var result =
+                http.perform(request.header("Authorization", "Bearer " + session))
+                        .andExpect(status().isOk())
+                        .andReturn();
+        return json.readTree(result.getResponse().getContentAsString());
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder turnRequest(
+            String id, String word, int turn) throws Exception {
+        return post("/api/v1/daily/games/" + id + "/guesses")
+                .contentType("application/json")
+                .content(json.writeValueAsString(java.util.Map.of("guess", word, "attempt", turn)));
+    }
+
+    private <T> java.util.List<T> race(java.util.List<Callable<T>> tasks) throws Exception {
+        var pool = Executors.newFixedThreadPool(tasks.size());
+        var ready = new CountDownLatch(tasks.size());
+        var go = new CountDownLatch(1);
+        var futures = new java.util.ArrayList<Future<T>>();
+        try {
+            for (var task : tasks)
+                futures.add(
+                        pool.submit(
+                                () -> {
+                                    ready.countDown();
+                                    assertTrue(
+                                            go.await(5, TimeUnit.SECONDS), "race gate timed out");
+                                    return task.call();
+                                }));
+            assertTrue(ready.await(5, TimeUnit.SECONDS), "workers did not reach the race gate");
+            go.countDown();
+            var results = new java.util.ArrayList<T>();
+            for (var future : futures) results.add(future.get(10, TimeUnit.SECONDS));
+            return results;
+        } finally {
+            go.countDown();
+            futures.forEach(future -> future.cancel(true));
+            pool.shutdownNow();
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"en", "tr"})
+    void staleStartScreensAcrossSessionsAndMixedResumesKeepOneGame(String language)
+            throws Exception {
+        var sessions = independentSessions(4);
+        for (String session : sessions) {
+            assertEquals(
+                    "not_started",
+                    gameRequest(get("/api/v1/daily/games").param("lang", language), session)
+                            .get("state")
+                            .asText());
+        }
+        Instant startedAt = clock.instant();
+        var starts = new java.util.ArrayList<Callable<com.fasterxml.jackson.databind.JsonNode>>();
+        for (String session : sessions)
+            starts.add(
+                    () ->
+                            gameRequest(
+                                    post("/api/v1/daily/games").param("lang", language), session));
+        var results = race(starts);
+        String id = results.getFirst().get("id").asText();
+        for (var result : results) assertEquals(id, result.get("id").asText());
+        clock.now.set(startedAt.plusSeconds(30));
+        var resumes =
+                race(
+                        java.util.List.<Callable<com.fasterxml.jackson.databind.JsonNode>>of(
+                                () ->
+                                        gameRequest(
+                                                post("/api/v1/daily/games").param("lang", language),
+                                                sessions.get(0)),
+                                () ->
+                                        gameRequest(
+                                                post("/api/v1/daily/games").param("lang", language),
+                                                sessions.get(1)),
+                                () ->
+                                        gameRequest(
+                                                get("/api/v1/daily/games/" + id), sessions.get(2)),
+                                () ->
+                                        gameRequest(
+                                                get("/api/v1/daily/games/" + id), sessions.get(3)),
+                                () ->
+                                        gameRequest(
+                                                        get("/api/v1/daily/games")
+                                                                .param("lang", language),
+                                                        sessions.get(0))
+                                                .get("game"),
+                                () ->
+                                        gameRequest(
+                                                        get("/api/v1/daily/games")
+                                                                .param("lang", language),
+                                                        sessions.get(1))
+                                                .get("game")));
+        for (var result : resumes) {
+            assertEquals(id, result.get("id").asText());
+            assertEquals(30000, result.get("elapsedMs").asLong());
+            assertTrue(result.get("answer").isNull());
+        }
+        assertEquals(1, count("daily_games"));
+        assertEquals(1, count("daily_puzzles"));
+        assertEquals(0, count("scores"));
+        assertEquals(
+                startedAt,
+                db.queryForObject(
+                                "SELECT started_at FROM daily_games WHERE id = ?",
+                                java.sql.Timestamp.class,
+                                id)
+                        .toInstant());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"en,true", "en,false", "tr,true", "tr,false"})
+    void finalTurnWaitsForDatabaseLockAndCommitsOnceAcrossSessions(String language, boolean winning)
+            throws Exception {
+        var sessions = independentSessions(3);
+        var game = games.start(user.getId(), language);
+        Instant startedAt = clock.instant();
+        String guess = language.equals("tr") ? "İNCİR" : "APPLE";
+        String answer = winning ? guess : language.equals("tr") ? "KİTAP" : "CIGAR";
+        db.update(
+                "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
+                    + " WHERE id = ?)",
+                answer,
+                game.id());
+        int turn = winning ? 1 : 6;
+        for (int index = 1; index < turn; index++)
+            games.guess(user.getId(), game.id(), guess, index);
+        clock.now.set(startedAt.plusSeconds(20));
+        var pool = Executors.newFixedThreadPool(3);
+        try (var blocker = dataSource.getConnection()) {
+            blocker.setAutoCommit(false);
+            try {
+                try (var lock =
+                        blocker.prepareStatement(
+                                "SELECT id FROM daily_games WHERE id = ? FOR UPDATE")) {
+                    lock.setString(1, game.id());
+                    lock.executeQuery().close();
+                }
+                var first =
+                        pool.submit(
+                                () ->
+                                        gameRequest(
+                                                turnRequest(game.id(), guess, turn),
+                                                sessions.get(0)));
+                var second =
+                        pool.submit(
+                                () ->
+                                        gameRequest(
+                                                turnRequest(game.id(), guess, turn),
+                                                sessions.get(1)));
+                var resumed =
+                        pool.submit(
+                                () ->
+                                        gameRequest(
+                                                post("/api/v1/daily/games").param("lang", language),
+                                                sessions.get(2)));
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                int waiting;
+                do {
+                    waiting =
+                            db.queryForObject(
+                                    "SELECT count(*) FROM pg_stat_activity WHERE datname ="
+                                        + " current_database() AND wait_event_type = 'Lock' AND"
+                                        + " query ILIKE '%daily_games%FOR UPDATE%'",
+                                    Integer.class);
+                    if (waiting >= 2) break;
+                    Thread.sleep(10);
+                } while (System.nanoTime() < deadline);
+                assertTrue(waiting >= 2, "both HTTP turns must actually wait on PostgreSQL locks");
+                var snapshot =
+                        gameRequest(get("/api/v1/daily/games/" + game.id()), sessions.get(2));
+                assertEquals("playing", snapshot.get("status").asText());
+                assertEquals(turn - 1, snapshot.get("guesses").size());
+                assertEquals(0, count("scores"));
+                blocker.commit();
+                var completed = first.get(10, TimeUnit.SECONDS);
+                assertEquals(completed, second.get(10, TimeUnit.SECONDS));
+                assertEquals(game.id(), resumed.get(10, TimeUnit.SECONDS).get("id").asText());
+                assertEquals(winning ? "won" : "lost", completed.get("status").asText());
+                assertEquals(turn, completed.get("guesses").size());
+                assertEquals(20000, completed.get("elapsedMs").asLong());
+                clock.now.set(startedAt.plusSeconds(40));
+                assertEquals(
+                        completed,
+                        gameRequest(turnRequest(game.id(), guess, turn), sessions.get(2)));
+                http.perform(
+                                turnRequest(
+                                                game.id(),
+                                                winning
+                                                        ? answer.equals("APPLE") ? "REBUT" : "ELMAS"
+                                                        : answer,
+                                                turn)
+                                        .header("Authorization", "Bearer " + sessions.get(1)))
+                        .andExpect(status().isConflict());
+                assertEquals(1, count("daily_games"));
+                assertEquals(1, count("scores"));
+                assertEquals(
+                        20000L, db.queryForObject("SELECT duration_ms FROM scores", Long.class));
+                assertEquals(
+                        completed.get("score").asInt(),
+                        db.queryForObject("SELECT score FROM scores", Integer.class));
+                assertEquals(
+                        startedAt,
+                        db.queryForObject(
+                                        "SELECT started_at FROM daily_games WHERE id = ?",
+                                        java.sql.Timestamp.class,
+                                        game.id())
+                                .toInstant());
+            } finally {
+                blocker.rollback();
+                pool.shutdownNow();
+            }
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"en", "tr"})
+    void differentSessionHttpTurnsConflictWithoutOverwritingTheAcceptedGuess(String language)
+            throws Exception {
+        var sessions = independentSessions(2);
+        var game = games.start(user.getId(), language);
+        db.update(
+                "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
+                    + " WHERE id = ?)",
+                language.equals("tr") ? "İNCİR" : "APPLE",
+                game.id());
+        var words =
+                language.equals("tr")
+                        ? java.util.List.of("ELMAS", "KİTAP")
+                        : java.util.List.of("CIGAR", "REBUT");
+        var results =
+                race(
+                        java.util.List.<Callable<org.springframework.test.web.servlet.MvcResult>>of(
+                                () ->
+                                        http.perform(
+                                                        turnRequest(game.id(), words.get(0), 1)
+                                                                .header(
+                                                                        "Authorization",
+                                                                        "Bearer "
+                                                                                + sessions.get(0)))
+                                                .andReturn(),
+                                () ->
+                                        http.perform(
+                                                        turnRequest(game.id(), words.get(1), 1)
+                                                                .header(
+                                                                        "Authorization",
+                                                                        "Bearer "
+                                                                                + sessions.get(1)))
+                                                .andReturn()));
+        assertEquals(
+                java.util.List.of(200, 409),
+                results.stream().map(result -> result.getResponse().getStatus()).sorted().toList());
+        var persisted = games.get(user.getId(), game.id());
+        assertEquals(1, persisted.guesses().size());
+        String accepted = persisted.guesses().getFirst().guess();
+        assertTrue(words.contains(accepted));
+        assertEquals(
+                1,
+                gameRequest(turnRequest(game.id(), accepted, 1), sessions.get(1))
+                        .get("guesses")
+                        .size());
+        String rejected =
+                words.stream().filter(word -> !word.equals(accepted)).findFirst().orElseThrow();
+        http.perform(
+                        turnRequest(game.id(), rejected, 1)
+                                .header("Authorization", "Bearer " + sessions.get(0)))
+                .andExpect(status().isConflict());
+        assertEquals(accepted, games.get(user.getId(), game.id()).guesses().getFirst().guess());
+        assertEquals(0, count("scores"));
+    }
+
     private String signedToken(String subject, Instant expiration, String signingSecret) {
         var builder = io.jsonwebtoken.Jwts.builder().claim("authVersion", 0).claim("role", "ADMIN");
         if (subject != null) builder.subject(subject);

@@ -236,6 +236,68 @@ describe("server-authoritative daily play", () => {
     expect(dailyGameApi.start).not.toHaveBeenCalled();
   });
 
+  it("submits only one Start while its response is pending", async () => {
+    let resolve!: (game: DailyGame) => void;
+    vi.mocked(dailyGameApi.start).mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    mount();
+    const button = await screen.findByRole("button", { name: "daily.start" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    fireEvent.keyDown(window, { key: "Enter" });
+    expect(dailyGameApi.start).toHaveBeenCalledExactlyOnceWith("en");
+    expect(button.hasAttribute("disabled")).toBe(true);
+    await act(async () => resolve(initial));
+    expect(screen.getByText(initial.date)).toBeTruthy();
+  });
+
+  it("retries an unconfirmed Start without inventing a game or score", async () => {
+    vi.mocked(dailyGameApi.start).mockRejectedValueOnce(
+      new Error("response lost"),
+    );
+    mount();
+    fireEvent.click(await screen.findByText("daily.start"));
+    await screen.findByRole("alert");
+    expect(screen.queryByRole("grid")).toBeNull();
+    fireEvent.click(screen.getByText("daily.start"));
+    await screen.findByText(initial.date);
+    expect(dailyGameApi.start).toHaveBeenNthCalledWith(1, "en");
+    expect(dailyGameApi.start).toHaveBeenNthCalledWith(2, "en");
+    expect(screen.queryByText("daily.confirmedScore")).toBeNull();
+  });
+
+  it("does not issue another turn while the first guess request is pending", async () => {
+    let resolve!: (game: DailyGame) => void;
+    vi.mocked(dailyGameApi.guess).mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    mount();
+    fireEvent.click(await screen.findByText("daily.start"));
+    await screen.findByText(initial.date);
+    typeWord();
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(window, { key: "Backspace" });
+    expect(dailyGameApi.guess).toHaveBeenCalledExactlyOnceWith(
+      initial.id,
+      "APPLE",
+      1,
+    );
+    await act(async () =>
+      resolve({
+        ...initial,
+        guesses: [{ guess: "APPLE", statuses: Array(5).fill("absent") }],
+      }),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(dailyGameApi.guess).toHaveBeenCalledTimes(1);
+  });
+
   it("retains the same turn after a lost response and retries without inventing a result", async () => {
     vi.mocked(dailyGameApi.guess).mockRejectedValueOnce(new Error("offline"));
     vi.mocked(dailyGameApi.guess).mockResolvedValueOnce({

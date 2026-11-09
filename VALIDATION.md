@@ -92,3 +92,26 @@ WebKit initially passed three selected cases but could not intercept the injecte
 The first browser environment startup exhausted the workspace disk while Docker copied the runtime layer and Tomcat created its management temp directory. Old task-owned test JARs and a regenerable npm cache were removed; backend/Nginx were restarted and the successful checks above used the rebuilt environment. That unsuccessful startup is not recorded as a passing test.
 
 Frontend unit coverage is now 20.96% of lines and 21.11% of branches; broad UI coverage remains an open task. No migration was needed, and the server's elapsed-time/score calculation is unchanged. Deploy backend endpoint support before matching frontend assets; an older backend causes the new frontend to fail closed. Expanded concurrency and midnight policy acceptance items, successful remote CI, and production preparation remain separate TODOs.
+
+## P0.1 — Concurrent sessions, retries, and committed-response loss, 2026-11-09
+
+Expanded acceptance coverage without changing production code or migrations. Existing PostgreSQL uniqueness, transaction boundaries, and `FOR UPDATE` serialization passed the following new scenarios:
+
+- English/Turkish: four distinct JWTs observe a stale `not_started` state and issue simultaneous Start requests. All get one game ID; mixed concurrent Start, GET Resume, and status reads retain that ID, full elapsed time, and the original `started_at`. Only one puzzle/game and no score exist before completion.
+- English/Turkish, winning and losing final turns: an independent JDBC transaction holds the game row lock. Two HTTP-layer guess requests are confirmed waiting on real PostgreSQL locks via `pg_stat_activity`. A simultaneous Start/Resume and an unlocked read are exercised around that blocked state. Before release, the read sees only the previous committed guesses and no score. After release, both duplicate final requests return the same completed result. Later replay preserves duration/score; a conflicting replay receives 409. Exactly one score and game remain.
+- English/Turkish: competing different valid HTTP guesses from different JWT sessions produce exactly one 200 and one 409. Accepted retries are idempotent and rejected retries cannot overwrite the stored guess.
+- Frontend: a pending Start or guess does not issue a second request; an unconfirmed Start can be retried without displaying an invented game/result.
+- Real browsers: two independently logged-in contexts start from stale Start screens, one loses its already-committed Start response, and retry/reload converges on the same game. Another scenario issues every guess from two contexts concurrently, drops the committed terminal response, then recovers through Retry. The returned completed result is stable and the account's persisted statistics show one game.
+
+| Check rerun for this change | Result |
+| --- | --- |
+| Java 21 / PostgreSQL full `mvn verify` | 76 passed, zero skipped/failures/errors |
+| Full frontend unit suite with V8 coverage | 20 passed, no unhandled errors |
+| TypeScript / production build and built-worker tests | Build passed; 8 tests passed |
+| Production Nginx desktop/mobile Chromium, two new concurrent-session scenarios each | 4 passed |
+| WebKit, the same two concurrent-session scenarios | 2 passed |
+| `git diff --check` | Passed |
+
+The lock tests use explicit gates, bounded waits, and database wait-state observation rather than assuming two quickly submitted requests overlap. They use the existing disposable PostgreSQL fixture only. The browser contexts use fresh login and separate storage/network contexts; they are not physical devices or separate backend deployments. Error-injection browser contexts block service workers for reliable interception, consistent with the existing network-recovery fixtures; production worker behavior is unchanged. The unchanged release backend/Nginx artifacts were reused after the local build checks.
+
+Frontend unit coverage is 21.80% of lines and 22.44% of branches. This is targeted correctness testing, not a capacity benchmark or exhaustive concurrency proof. Other browser scenarios, Firefox, and real devices were not rerun in this step. Midnight policy remains the next acceptance item, and successful remote CI remains a separate release prerequisite.
