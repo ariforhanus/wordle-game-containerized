@@ -29,37 +29,39 @@ Bu maddeler geliştirme sırasında izlenir; production çıkışı tamamı doğ
 
 ## P1.1 — Leaderboard kuralları
 
-Mevcut `weeklyTop` ve `monthlyTop`, günlük sıralamayla aynı tekil skor sorgusunu kullanıyor; toplam puan sıralaması henüz uygulanmadı. Sınır testleri mevcut davranışı doğruluyor, yeni SUM kurallarını değil.
+Tamamlandı: günlük sonuçlar `played_at` gününe göre; hafta/ay sonuçları oyuncu+dil bazında SQL toplamı. Eşit toplamda son galibiyet zamanı, ardından kalıcı kullanıcı ID’si kullanılır. Yerel test kanıtları `VALIDATION.md` içinde.
 
-- [ ] Daily leaderboard her dil için yalnızca ilgili günün en yüksek oyun skorlarını göstersin; puzzle günü/`played_at` ile bitiş zamanı ayrımını P0 gece yarısı kuralına bağla.
-- [ ] Weekly leaderboard her oyuncunun ilgili dilde hafta boyunca topladığı puanı veritabanında `SUM(score)` ile hesaplasın; her oyuncu yalnızca bir kez görünsün.
-- [ ] Monthly leaderboard her oyuncunun ilgili dilde ay boyunca topladığı puanı veritabanında `SUM(score)` ile hesaplasın; her oyuncu yalnızca bir kez görünsün.
-- [ ] Dönemleri uygulama zaman diliminde tanımla: hafta pazartesi başlasın, ay ilk gün başlasın; yarı açık `[başlangıç, bitiş)` aralıkları ve gelecek tarihli kayıtların dışlanmasını test et.
-- [ ] Toplam puan tie-breaker kuralını kesinleştir ve API/UI'de belgele. Öneri: toplam puan azalan, toplama dahil son galibiyet zamanı artan, kalıcı kullanıcı ID'si artan; kayıpsız toplam veri tipi, eşit zaman ve sayfalama kararlılığı test edilsin. Günlük eşitliklerde de son anahtar olarak kalıcı ID kullan.
-- [ ] Kayıp/0 puanlı oyunlar, az maçlı oyuncular, bir oyuncunun çok günlük sonuçları, farklı diller, hafta/ay/yıl değişimi ve zaman dilimi sınırlarını backend testlerine ekle.
-- [ ] Frontend/API yanıtında günlük oyun skoru ile haftalık/aylık toplam puanı açıkça ayır; etiketleri ve dönem bilgisini çevir. Tek oyuncunun tek satır göründüğünü frontend ve E2E testleriyle doğrula.
+- [x] Daily leaderboard her dil için yalnızca ilgili günün en yüksek oyun skorlarını göstersin; puzzle günü/`played_at` ile bitiş zamanı ayrımını P0 gece yarısı kuralına bağla.
+- [x] Weekly leaderboard her oyuncunun ilgili dilde hafta boyunca topladığı puanı veritabanında `SUM(score)` ile hesaplasın; her oyuncu yalnızca bir kez görünsün.
+- [x] Monthly leaderboard her oyuncunun ilgili dilde ay boyunca topladığı puanı veritabanında `SUM(score)` ile hesaplasın; her oyuncu yalnızca bir kez görünsün.
+- [x] Dönemleri uygulama zaman diliminde tanımla: hafta pazartesi başlasın, ay ilk gün başlasın; yarı açık `[başlangıç, bitiş)` aralıkları ve gelecek tarihli kayıtların dışlanmasını test et.
+- [x] Toplam puan tie-breaker kuralını kesinleştir ve API/UI'de belgele. Öneri: toplam puan azalan, toplama dahil son galibiyet zamanı artan, kalıcı kullanıcı ID'si artan; kayıpsız toplam veri tipi, eşit zaman ve sayfalama kararlılığı test edilsin. Günlük eşitliklerde de son anahtar olarak kalıcı ID kullan.
+- [x] Kayıp/0 puanlı oyunlar, az maçlı oyuncular, bir oyuncunun çok günlük sonuçları, farklı diller, hafta/ay/yıl değişimi ve zaman dilimi sınırlarını backend testlerine ekle.
+- [x] Frontend/API yanıtında günlük oyun skoru ile haftalık/aylık toplam puanı açıkça ayır; etiketleri ve dönem bilgisini çevir. Tek oyuncunun tek satır göründüğünü frontend ve E2E testleriyle doğrula.
 
 ## P1.2 — Dil bazlı streak
 
-Mevcut profil istatistikleri ve sıralama streak hesapları dilleri birlikte ele alıyor. İngilizce/Türkçe bağımsızlığı ve gelecekteki diller için genellenmiş hesap gerekiyor.
+Tamamlandı: `played_at` tabanlı SQL streak hesabı dil bazında bağımsızdır. Bugün oynanmamışsa dün biten seri aktiftir; bugünkü kayıp yalnızca aynı dilin serisini sıfırlar. Profil ve oyun sonunda seçili dilin current/best bilgisi; sıralamada seçili dilin current streak’i gösterilir.
 
-- [ ] Her dil için ayrı current streak ve best streak hesapla; sabit iki dil varsayımı kullanma. Veritabanındaki `played_at` tarihini esas al, istemci saatine güvenme.
-- [ ] Bir dilde kaybetmek veya oynamamak yalnızca o dilin serisini etkilesin. Bugün henüz oynanmayan dilde dünün serisinin ne zamana kadar aktif kaldığını açıkça tanımla.
-- [ ] Aynı gün birden fazla dil, bir dilde galibiyet/diğerinde kayıp, gün atlama, eski kayıplar, gece yarısı ve boş geçmiş senaryolarını test et.
-- [ ] Profil, oyun sonu ve leaderboard'da seçili dilin current/best streak bilgisini kullan; API sözleşmesini ve çevirileri birlikte güncelle.
-- [ ] Backend hesaplarını frontend gösterimi ve dil değiştirme E2E testleriyle doğrula; geçmiş sonuçların doğru dil serisine katıldığını kontrol et.
+- [x] Her dil için ayrı current streak ve best streak hesapla; sabit iki dil varsayımı kullanma. Veritabanındaki `played_at` tarihini esas al, istemci saatine güvenme.
+- [x] Bir dilde kaybetmek veya oynamamak yalnızca o dilin serisini etkilesin. Bugün henüz oynanmayan dilde dünün serisinin ne zamana kadar aktif kaldığını açıkça tanımla.
+- [x] Aynı gün birden fazla dil, bir dilde galibiyet/diğerinde kayıp, gün atlama, eski kayıplar, gece yarısı ve boş geçmiş senaryolarını test et.
+- [x] Profil, oyun sonu ve leaderboard'da seçili dilin current/best streak bilgisini kullan; API sözleşmesini ve çevirileri birlikte güncelle.
+- [x] Backend hesaplarını frontend gösterimi ve dil değiştirme E2E testleriyle doğrula; geçmiş sonuçların doğru dil serisine katıldığını kontrol et.
 
 ## P1.3 — Veritabanı doğruluğu, tasarım ve performans
 
 Doğruluk constraint'leri P0/P1 özellikleriyle birlikte teslim edilir; aşağıdaki ölçüm ve optimizasyonlar sorguların yeni biçimi netleştikten sonra yapılır.
 
-- [ ] `daily_games.guesses TEXT` modelini ayrı tahmin tablosu ve JSONB ile karşılaştır; en fazla altı tahmin, sıra/tekillik, atomiklik, kilitleme, sorgu ihtiyacı ve migration maliyetini belgeleyen karar kaydı yaz. Ölçüm/gerekçe olmadan model değiştirme.
-- [ ] Yeni daily/weekly/monthly sorgularını temsilî büyüklükte test verisiyle `EXPLAIN (ANALYZE, BUFFERS)` kullanarak ölç; veri hacmi, plan, buffer ve süre sonuçlarını kaydet. Production üzerinde izinsiz yük çalıştırma.
+- [x] `daily_games.guesses TEXT` modelini ayrı tahmin tablosu ve JSONB ile karşılaştır; en fazla altı tahmin, sıra/tekillik, atomiklik, kilitleme, sorgu ihtiyacı ve migration maliyetini belgeleyen karar kaydı yaz. Ölçüm/gerekçe olmadan model değiştirme.
+- [x] Yeni daily/weekly/monthly sorgularını temsilî büyüklükte test verisiyle `EXPLAIN (ANALYZE, BUFFERS)` kullanarak ölç; veri hacmi, plan, buffer ve süre sonuçlarını kaydet. Production üzerinde izinsiz yük çalıştırma.
 - [ ] Dil, `played_at`, oyuncu, kazanma filtresi ve aggregate sorguları için indeksleri değerlendir; önce/sonra planları, yazma maliyeti ve migration etkisini karşılaştır.
-- [ ] Profil/istatistik ve leaderboard streak sorgularında gereksiz tüm geçmişi uygulama belleğine yüklemeyi kaldır; SQL aggregate/projection veya gerekçelendirilmiş özet yaklaşımı kullan. Kaynak verinin doğruluğunu ve dil izolasyonunu koru.
-- [ ] `scores.username` tekrarını değerlendir: güncel profil adı mı tarihsel snapshot mı gösterileceğini belirle; kullanıcı adı değişimi, JOIN/denormalizasyon, silme ve eski veri tutarlılığı için karar/migration/test hazırla.
+- [x] Profil/istatistik ve leaderboard streak sorgularında gereksiz tüm geçmişi uygulama belleğine yüklemeyi kaldır; SQL aggregate/projection veya gerekçelendirilmiş özet yaklaşımı kullan. Kaynak verinin doğruluğunu ve dil izolasyonunu koru.
+- [x] `scores.username` tekrarını değerlendir: güncel profil adı mı tarihsel snapshot mı gösterileceğini belirle; kullanıcı adı değişimi, JOIN/denormalizasyon, silme ve eski veri tutarlılığı için karar/migration/test hazırla.
 - [ ] Kullanıcı+dil+gün tekilliği, tahmin sıra/limitleri, durum/skor ilişkisi ve referans bütünlüğü constraint'lerini denetle; yeni model gerekirse ileri migration ekle, uygulanmış migration'ları değiştirme.
 - [ ] Migration/preflight, eşzamanlı yazma, skor oluşturma rollback'i ve yinelenen istek testlerini yeni sorgu/model kuralları için tamamla; mevcut testleri koru.
+
+V6 dönem indeksi ve sentetik önce/sonra okuma planları tamamlandı (`docs/performance/`); yazma maliyeti yük testi ve production büyüklüğünde migration provası açık. Mevcut eşzamanlılık/rollback/retry testleri ve V6 içeren izole backup/restore geçti; ek yapısal constraint denetimi sıradaki geliştirme işidir. TEXT/JSONB/tablo kararı `docs/GUESSES_STORAGE_DECISION.md`, kullanıcı adı kararı `docs/SCORE_IDENTITY_DECISION.md` içinde.
 
 ## P1.4 — Günlük oyun UX ve erişilebilirlik
 
@@ -71,6 +73,8 @@ Doğruluk constraint'leri P0/P1 özellikleriyle birlikte teslim edilir; aşağı
 - [ ] Reduced-motion tercihini uygula; sonuç/klavye durumları yalnızca renkle aktarılmasın. Ekran okuyucu duyuruları, klavye erişimi, kontrast ve renk körlüğü seçeneklerini iyileştir.
 - [ ] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %22,20 satır / %24,22 dal kapsamını özellikle UI hata yollarında genişlet.
 - [ ] Firefox'ta başarılı tarayıcı koşusu elde et; yerelde sayfa açılmadan context çöküyor. WebKit testini gerçek Safari/fiziksel cihaz doğrulaması yerine sayma; manuel yardımcı teknoloji testlerini tamamla.
+
+Kısmi ilerleme: seçili dilin oyun sonu istatistikleri ve tahmin dağılımı tamamlandı; sonraki oyuna geri sayım henüz yok. Yeni dönem toplamı/dil geçişi testleri eklendi; frontend kapsamı %34,58 satır / %36,15 dal. Erişilebilirlik, ağ kesintisi ve fiziksel cihaz maddeleri açık.
 
 ## P2.1 — Yeni diller ve kelime rotasyonu
 

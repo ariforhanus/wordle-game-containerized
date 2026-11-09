@@ -164,7 +164,14 @@ public class ScoreController {
     /** Giriş yapmış kullanıcının basic istatistikleri. */
     @GetMapping("/stats/me")
     public ResponseEntity<?> myStats(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(value = "lang", defaultValue = "en") String lang) {
+        String normalizedLang;
+        try {
+            normalizedLang = SupportedLanguage.fromParam(lang).getCode();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid_lang"));
+        }
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(401).build();
@@ -178,7 +185,7 @@ public class ScoreController {
             return ResponseEntity.status(401).build();
         }
 
-        UserStatsResponse stats = service.statsForUser(userId);
+        UserStatsResponse stats = service.statsForUser(userId, normalizedLang);
         return ResponseEntity.ok(stats);
     }
 }

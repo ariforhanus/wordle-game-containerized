@@ -1,5 +1,7 @@
 package com.ariforhanus.wordle.service;
 
+import com.ariforhanus.wordle.dto.LanguageStatsResponse;
+import com.ariforhanus.wordle.dto.LeaderboardTotalResponse;
 import com.ariforhanus.wordle.dto.ScoreResponse;
 import com.ariforhanus.wordle.dto.UserStatsResponse;
 import com.ariforhanus.wordle.entity.Score;
@@ -18,6 +20,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@org.springframework.transaction.annotation.Transactional(
+        readOnly = true,
+        isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
 public class ScoreService {
 
     private final ScoreRepository repo;
@@ -67,8 +72,10 @@ public class ScoreService {
     // ── Leaderboards ──
 
     public List<ScoreResponse> topGlobal(String language) {
-        List<Score> list = repo.findTop10ByLanguageAndWonTrueOrderByScoreDescWonAtAsc(language);
-        return enrichWithStreaks(list);
+        LocalDate today = LocalDate.now(clock.withZone(appZone));
+        List<Score> list =
+                repo.findTop10ByLanguageAndWonTrueOrderByScoreDescWonAtAscIdAsc(language);
+        return enrichWithStreaks(list, today);
     }
 
     public List<ScoreResponse> dailyTop(String language, int limit, ZoneId zone) {
@@ -77,10 +84,10 @@ public class ScoreService {
         LocalDate end = today.plusDays(1);
 
         List<Score> list = repo.findTopByLanguageAndPeriod(language, start, end, limit);
-        return enrichWithStreaks(list);
+        return enrichWithStreaks(list, today);
     }
 
-    public List<ScoreResponse> weeklyTop(String language, int limit, ZoneId zone) {
+    public List<LeaderboardTotalResponse> weeklyTop(String language, int limit, ZoneId zone) {
         LocalDate today = ZonedDateTime.now(clock.withZone(zone)).toLocalDate();
         LocalDate monday = today.with(java.time.DayOfWeek.MONDAY);
         // End of week = next Monday (or end of today if we only want up-to-now)
@@ -88,54 +95,105 @@ public class ScoreService {
         LocalDate start = monday;
         LocalDate end = today.plusDays(1);
 
-        List<Score> list = repo.findTopByLanguageAndPeriod(language, start, end, limit);
-        return enrichWithStreaks(list);
+        return periodTotals(language, start, end, limit, today);
     }
 
-    public List<ScoreResponse> monthlyTop(String language, int limit, ZoneId zone) {
+    public List<LeaderboardTotalResponse> monthlyTop(String language, int limit, ZoneId zone) {
         LocalDate today = ZonedDateTime.now(clock.withZone(zone)).toLocalDate();
         LocalDate firstOfMonth = today.withDayOfMonth(1);
         LocalDate start = firstOfMonth;
         LocalDate end = today.plusDays(1);
 
-        List<Score> list = repo.findTopByLanguageAndPeriod(language, start, end, limit);
-        return enrichWithStreaks(list);
+        return periodTotals(language, start, end, limit, today);
+    }
+
+    private List<LeaderboardTotalResponse> periodTotals(
+            String language, LocalDate start, LocalDate end, int limit, LocalDate today) {
+        var totals = repo.totalByLanguageAndPeriod(language, start, end, limit);
+        if (totals.isEmpty()) return List.of();
+        var ids =
+                totals.stream()
+                        .map(ScoreRepository.PeriodTotal::getUserId)
+                        .collect(Collectors.toSet());
+        var streaks = currentStreaks(ids, language, today);
+        return totals.stream()
+                .map(
+                        row ->
+                                new LeaderboardTotalResponse(
+                                        row.getUserId(),
+                                        row.getUsername(),
+                                        row.getTotalScore(),
+                                        row.getWins(),
+                                        row.getLastWinAt(),
+                                        streaks.getOrDefault(row.getUserId(), 0)))
+                .toList();
     }
 
     // ── User stats ──
 
     public UserStatsResponse statsForUser(Long userId) {
-        List<Score> all = repo.findByUserId(userId);
-        if (all.isEmpty()) {
-            return new UserStatsResponse(0, 0, 0.0, 0.0, Map.of(), 0, 0, Map.of());
+        return statsForUser(userId, "en");
+    }
+
+    public UserStatsResponse statsForUser(Long userId, String language) {
+        LocalDate today = LocalDate.now(clock.withZone(appZone));
+        var summaries = repo.languageSummaries(userId, today);
+        var distributions = new java.util.HashMap<String, Map<Integer, Long>>();
+        var globalDistribution = new java.util.HashMap<Integer, Long>();
+        for (var row : repo.guessCounts(userId, today)) {
+            distributions
+                    .computeIfAbsent(row.getLanguage(), ignored -> new java.util.HashMap<>())
+                    .put(row.getAttempts(), row.getWins());
+            globalDistribution.merge(row.getAttempts(), row.getWins(), Long::sum);
         }
-
-        long totalGames = all.size();
-        int bestScore = all.stream().mapToInt(Score::getScore).max().orElse(0);
-        double avgScore = all.stream().mapToInt(Score::getScore).average().orElse(0.0);
-        double avgDurationSec =
-                all.stream().mapToLong(Score::getDurationMs).average().orElse(0.0) / 1000.0;
-
-        Map<String, Long> perLang =
-                all.stream()
-                        .collect(Collectors.groupingBy(Score::getLanguage, Collectors.counting()));
-
-        StreakResult streak = calculateStreak(all);
-
-        Map<Integer, Long> guessDistribution =
-                all.stream()
-                        .filter(Score::isWon)
-                        .collect(Collectors.groupingBy(Score::getAttempts, Collectors.counting()));
-
+        var streaks =
+                repo.streaksForUsers(Set.of(userId), today).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        ScoreRepository.LanguageStreak::getLanguage, row -> row));
+        var byLanguage = new java.util.TreeMap<String, LanguageStatsResponse>();
+        for (String code : com.ariforhanus.wordle.config.SupportedLanguage.supportedCodes())
+            byLanguage.put(code, emptyLanguageStats());
+        var counts = new java.util.TreeMap<String, Long>();
+        long total = 0, points = 0, duration = 0;
+        int best = 0;
+        for (var summary : summaries) {
+            String code = summary.getLanguage();
+            var streak = streaks.get(code);
+            long games = summary.getGames();
+            counts.put(code, games);
+            total += games;
+            points += summary.getPoints();
+            duration += summary.getDuration();
+            best = Math.max(best, summary.getBestScore());
+            byLanguage.put(
+                    code,
+                    new LanguageStatsResponse(
+                            games,
+                            summary.getWins(),
+                            summary.getBestScore(),
+                            (double) summary.getPoints() / games,
+                            (double) summary.getDuration() / games / 1000,
+                            streak == null ? 0 : streak.getCurrentStreak(),
+                            streak == null ? 0 : streak.getBestStreak(),
+                            Map.copyOf(distributions.getOrDefault(code, Map.of()))));
+        }
+        var selected = byLanguage.getOrDefault(language, emptyLanguageStats());
         return new UserStatsResponse(
-                totalGames,
-                bestScore,
-                avgScore,
-                avgDurationSec,
-                perLang,
-                streak.currentStreak(),
-                streak.bestStreak(),
-                guessDistribution);
+                total,
+                best,
+                total == 0 ? 0 : (double) points / total,
+                total == 0 ? 0 : (double) duration / total / 1000,
+                Map.copyOf(counts),
+                selected.currentStreak(),
+                selected.bestStreak(),
+                Map.copyOf(globalDistribution),
+                language,
+                Map.copyOf(byLanguage));
+    }
+
+    private LanguageStatsResponse emptyLanguageStats() {
+        return new LanguageStatsResponse(0, 0, 0, 0, 0, 0, 0, Map.of());
     }
 
     // ── Score calculation ──
@@ -150,109 +208,23 @@ public class ScoreService {
         return base + timeBonus;
     }
 
-    // ── Streak calculation ──
-
-    private StreakResult calculateStreak(List<Score> scores) {
-        if (scores == null || scores.isEmpty()) {
-            return new StreakResult(0, 0);
-        }
-
-        var result =
-                calculateStreakDays(
-                        scores.stream().filter(Score::isWon).map(Score::getPlayedAt).toList());
-        LocalDate today = LocalDate.now(clock.withZone(appZone));
-        boolean playedToday = scores.stream().anyMatch(s -> s.getPlayedAt().equals(today));
-        boolean wonToday =
-                scores.stream().anyMatch(s -> s.isWon() && s.getPlayedAt().equals(today));
-        return playedToday && !wonToday ? new StreakResult(0, result.bestStreak()) : result;
-    }
-
-    private StreakResult calculateStreakDays(List<LocalDate> playedDays) {
-        List<LocalDate> days = playedDays.stream().distinct().sorted().toList();
-        if (days.isEmpty()) {
-            return new StreakResult(0, 0);
-        }
-
-        int best = 1;
-        int currentSeq = 1;
-
-        for (int i = 1; i < days.size(); i++) {
-            LocalDate prev = days.get(i - 1);
-            LocalDate cur = days.get(i);
-            if (cur.minusDays(1).equals(prev)) {
-                currentSeq++;
-            } else {
-                currentSeq = 1;
-            }
-            if (currentSeq > best) {
-                best = currentSeq;
-            }
-        }
-
-        // Current streak: count backwards from the last played day
-        int current = 1;
-        LocalDate cursor = days.get(days.size() - 1);
-        for (int i = days.size() - 2; i >= 0; i--) {
-            LocalDate prev = days.get(i);
-            if (cursor.minusDays(1).equals(prev)) {
-                current++;
-                cursor = prev;
-            } else {
-                break;
-            }
-        }
-
-        if (days.getLast().isBefore(LocalDate.now(clock.withZone(appZone)).minusDays(1)))
-            current = 0;
-        return new StreakResult(current, best);
-    }
-
     // ── Batch streak enrichment (avoids N+1 queries) ──
 
-    private List<ScoreResponse> enrichWithStreaks(List<Score> scores) {
+    private List<ScoreResponse> enrichWithStreaks(List<Score> scores, LocalDate today) {
         if (scores.isEmpty()) return List.of();
 
         // Collect unique user IDs from leaderboard results
         Set<Long> userIds = scores.stream().map(Score::getUserId).collect(Collectors.toSet());
 
-        var history = repo.playedDays(userIds);
-        Map<Long, List<LocalDate>> daysByUser =
-                history.stream()
-                        .filter(ScoreRepository.PlayedDay::getWon)
-                        .collect(
-                                Collectors.groupingBy(
-                                        ScoreRepository.PlayedDay::getUserId,
-                                        Collectors.mapping(
-                                                ScoreRepository.PlayedDay::getPlayedAt,
-                                                Collectors.toList())));
-        LocalDate today = LocalDate.now(clock.withZone(appZone));
-        Set<Long> playedToday =
-                history.stream()
-                        .filter(d -> d.getPlayedAt().equals(today))
-                        .map(ScoreRepository.PlayedDay::getUserId)
-                        .collect(Collectors.toSet());
-        Map<Long, Integer> streakMap =
-                userIds.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        uid -> uid,
-                                        uid -> {
-                                            var winningDays =
-                                                    daysByUser.getOrDefault(uid, List.of());
-                                            return playedToday.contains(uid)
-                                                            && !winningDays.contains(today)
-                                                    ? 0
-                                                    : calculateStreakDays(winningDays)
-                                                            .currentStreak();
-                                        }));
-
+        var streakMap = currentStreaks(userIds, scores.getFirst().getLanguage(), today);
+        var names = currentNames(userIds);
         return scores.stream()
                 .map(
                         s ->
                                 new ScoreResponse(
                                         s.getScore(),
                                         s.getAttempts(),
-                                        s.getUsername(),
+                                        names.getOrDefault(s.getUserId(), s.getUsername()),
                                         s.getId(),
                                         s.getDurationMs(),
                                         null,
@@ -261,18 +233,34 @@ public class ScoreService {
                 .collect(Collectors.toList());
     }
 
+    private Map<Long, Integer> currentStreaks(Set<Long> ids, String language, LocalDate today) {
+        return repo.streaksForUsers(ids, today).stream()
+                .filter(row -> language.equals(row.getLanguage()))
+                .collect(
+                        Collectors.toMap(
+                                ScoreRepository.LanguageStreak::getUserId,
+                                ScoreRepository.LanguageStreak::getCurrentStreak));
+    }
+
+    private Map<Long, String> currentNames(Set<Long> ids) {
+        return repo.currentNames(ids).stream()
+                .collect(
+                        Collectors.toMap(
+                                ScoreRepository.CurrentName::getUserId,
+                                ScoreRepository.CurrentName::getUsername));
+    }
+
     /** Simple response without streak (for status checks, score submission) */
     private ScoreResponse toRespSimple(Score s) {
+        var names = currentNames(Set.of(s.getUserId()));
         return new ScoreResponse(
                 s.getScore(),
                 s.getAttempts(),
-                s.getUsername(),
+                names.getOrDefault(s.getUserId(), s.getUsername()),
                 s.getId(),
                 s.getDurationMs(),
                 null,
                 s.getWonAt(),
                 0);
     }
-
-    private record StreakResult(int currentStreak, int bestStreak) {}
 }

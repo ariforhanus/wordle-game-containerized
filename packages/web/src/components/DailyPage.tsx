@@ -14,6 +14,7 @@ import { usePageTitleKey } from "../hooks/usePageTitle";
 import Board from "./Board";
 import Keyboard from "./Keyboard";
 import Confetti from "./Confetti";
+import DailyResultStats from "./DailyResultStats";
 import { buildShareText, copyToClipboard } from "../utils/shareResult";
 import "./GamePage.css";
 import "./DailyPage.css";
@@ -326,6 +327,7 @@ export default function DailyPage() {
             {t("game.word")}: {game.answer}
           </p>
           <p>{t("daily.confirmedScore", { score: game.score })}</p>
+          <DailyResultStats language={game.language} gameId={game.id} />
           <button
             className="btn-share"
             onClick={async () => {

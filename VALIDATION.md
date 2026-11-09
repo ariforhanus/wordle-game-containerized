@@ -170,3 +170,22 @@ Validation: 4 Node tests passed (key parity with `.env.example`, credential stre
 This is configuration validation, not a successful full Docker build/start or deployment. The workspace still lacks disk capacity for a full release-image build; earlier application test results remain separate. Existing PostgreSQL volumes keep their old passwords, and no volume/data was removed or password rotated. Mail reset/verification remains unavailable until SMTP is configured. Remote CI and production prerequisites remain open.
 
 The branch acquired separate Codespaces preview commits while this setup change was in progress. They were retained by rebasing this change onto the new head; Node generator tests and all three Compose config checks were rerun after integration. The isolated preview manages its own `.preview` env files, so the root local `.env` does not replace that preview's secrets/runtime configuration.
+
+## Period totals, language streaks and bounded statistics — 2026-11-10
+
+Daily rankings use canonical played_at. Weekly/monthly rankings now SUM winning scores by user and language before LIMIT, with last winning completion then user ID as deterministic ties. Totals use long values; compatibility score/id properties remain for cached clients. Current usernames come from users while persisted score snapshots remain intact. Profile counters retain overall semantics; current/best streak and the explicit language summaries/distributions are selected by language. SQL aggregates/window queries replace loading all historical Score entities. REPEATABLE READ keeps multi-query summaries coherent; each operation captures its calendar day once.
+
+| Verification | Result |
+| --- | --- |
+| Java 21 / real PostgreSQL full verify | 107 passed; no skipped/failures/errors |
+| Frontend unit suite / V8 coverage | 35 passed; 34.58% lines / 36.15% branches |
+| TypeScript / release build / built service worker | Build passed; 8 worker tests passed |
+| Full Chromium desktop/mobile and WebKit E2E | 45 passed, 6 skipped |
+| Final targeted three-engine E2E after final backend changes | 15 passed (subset recheck, not additional distinct cases) |
+| Backup/restore fault tests / preview tests / env generator | 11 / 6 / 4 passed |
+| Real checksum backup / isolated restore including V6 | Passed; temporary restore database removed |
+| Native query EXPLAIN ANALYZE BUFFERS | Baseline/candidate plans for 20,000 synthetic scores recorded in docs/performance |
+
+Tests cover totals beyond one-game bounds, month/week/language isolation, single-row players, LIMIT after aggregation, canonical date and deterministic ties; current-name changes; independent losses/gaps/future dates; selected-language profile/result and stale request handling. A 2,000-score fixture exercises bounded summaries and thousand-day streaks. E2E uses an explicitly isolated bootstrap admin/known-answer fixture, real saved wins and a different-language loss; CI defines these public test-only credentials and disables external dictionary calls for that job.
+
+The E2E release assets were served by Vite Preview because local disk capacity prevented a full image build. Six production-Nginx-header/offline cases were intentionally skipped (two per engine); Nginx was not revalidated for this batch. Firefox, physical devices and assistive technologies remain unverified. V6 is a regular transactional index build and requires a production write window/rehearsal. The synthetic read benchmark is not API p95/capacity or write-overhead validation; streak query timing did not improve. No production data, migration, deployment, main merge or microservice migration occurred. Remote CI remains a separate release gate.

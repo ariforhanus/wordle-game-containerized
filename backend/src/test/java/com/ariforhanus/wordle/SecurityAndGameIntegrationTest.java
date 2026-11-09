@@ -888,10 +888,8 @@ class SecurityAndGameIntegrationTest {
             org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
             String session)
             throws Exception {
-        var result =
-                http.perform(request.header("Authorization", "Bearer " + session))
-                        .andExpect(status().isOk())
-                        .andReturn();
+        if (session != null) request.header("Authorization", "Bearer " + session);
+        var result = http.perform(request).andExpect(status().isOk()).andReturn();
         return json.readTree(result.getResponse().getContentAsString());
     }
 
@@ -1240,6 +1238,11 @@ class SecurityAndGameIntegrationTest {
     }
 
     private Long fixtureScore(Instant at, int points, boolean won, String username) {
+        return fixtureScoreInLanguage(at, points, won, username, "en");
+    }
+
+    private Long fixtureScoreInLanguage(
+            Instant at, int points, boolean won, String username, String language) {
         User owner =
                 users.findByUsername(username)
                         .orElseGet(
@@ -1258,12 +1261,279 @@ class SecurityAndGameIntegrationTest {
                 Long.class,
                 owner.getId(),
                 username,
-                "en",
+                language,
                 java.sql.Timestamp.from(at),
                 at.atZone(APP_ZONE).toLocalDate(),
                 points,
                 "APPLE",
                 won);
+    }
+
+    @Test
+    void lossTodayBreaksCurrentStreakButNotBestStreak() {
+        clock.set(PERIOD_TIME);
+        fixtureScore(clock.instant().minus(Duration.ofDays(1)), 1000, true, "player");
+        fixtureScore(clock.instant(), 0, false, "player");
+        db.update("UPDATE scores SET attempts=6 WHERE won=false");
+        var stats = scores.statsForUser(user.getId(), "en");
+        assertEquals(0, stats.currentStreak());
+        assertEquals(1, stats.bestStreak());
+        assertFalse(stats.guessDistribution().containsKey(6));
+    }
+
+    @Test
+    void aLossInTurkishNeverBreaksTheEnglishStreakOrMixesItsDistribution() throws Exception {
+        clock.set(PERIOD_TIME);
+        for (int day = 0; day < 3; day++)
+            fixtureScoreInLanguage(
+                    clock.instant().minus(Duration.ofDays(day)), 1000, true, "player", "en");
+        for (int day = 1; day < 3; day++)
+            fixtureScoreInLanguage(
+                    clock.instant().minus(Duration.ofDays(day)), 1000, true, "player", "tr");
+        fixtureScoreInLanguage(clock.instant(), 0, false, "player", "tr");
+        var en = scores.statsForUser(user.getId(), "en");
+        var tr = scores.statsForUser(user.getId(), "tr");
+        assertEquals(6, en.totalGames());
+        assertEquals(3, en.currentStreak());
+        assertEquals(3, en.bestStreak());
+        assertEquals(0, tr.currentStreak());
+        assertEquals(2, tr.bestStreak());
+        assertEquals(3, en.byLanguage().get("en").guessDistribution().get(1));
+        assertEquals(2, en.byLanguage().get("tr").guessDistribution().get(1));
+        assertEquals(3, scores.weeklyTop("en", 10, APP_ZONE).getFirst().currentStreak());
+        assertEquals(0, scores.weeklyTop("tr", 10, APP_ZONE).getFirst().currentStreak());
+        String session = jwt.generateToken(user.getId(), user.getUsername(), "USER");
+        var api = gameRequest(get("/api/v1/stats/me").param("lang", "tr"), session);
+        assertEquals("tr", api.get("language").asText());
+        assertEquals(0, api.get("currentStreak").asInt());
+        assertEquals(3, api.get("byLanguage").get("en").get("currentStreak").asInt());
+        http.perform(
+                        get("/api/v1/stats/me")
+                                .param("lang", "invalid")
+                                .header("Authorization", "Bearer " + session))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void skippingOneLanguageExpiresOnlyThatLanguagesCurrentStreak() {
+        clock.set(PERIOD_TIME);
+        for (int day = 1; day <= 2; day++)
+            fixtureScoreInLanguage(
+                    clock.instant().minus(Duration.ofDays(day)), 1000, true, "player", "en");
+        for (int day = 0; day <= 2; day++)
+            fixtureScoreInLanguage(
+                    clock.instant().minus(Duration.ofDays(day)), 1000, true, "player", "tr");
+        assertEquals(2, scores.statsForUser(user.getId(), "en").currentStreak());
+        for (int day = 0; day < 2; day++) {
+            clock.advance(Duration.ofDays(1));
+            fixtureScoreInLanguage(clock.instant(), 1000, true, "player", "tr");
+        }
+        var stats = scores.statsForUser(user.getId(), "tr");
+        assertEquals(5, stats.currentStreak());
+        assertEquals(0, stats.byLanguage().get("en").currentStreak());
+        assertEquals(2, stats.byLanguage().get("en").bestStreak());
+    }
+
+    @Test
+    void streaksUsePuzzleDatesAndIgnoreFutureDatedRecords() {
+        clock.set(PERIOD_TIME);
+        for (int day = 0; day < 3; day++)
+            fixtureScore(clock.instant().minus(Duration.ofDays(day)), 1000, true, "player");
+        db.update("UPDATE scores SET won_at=?", java.sql.Timestamp.from(clock.instant()));
+        fixtureScore(clock.instant().plus(Duration.ofDays(1)), 9999, true, "player");
+        var stats = scores.statsForUser(user.getId());
+        assertEquals(3, stats.totalGames());
+        assertEquals(1000, stats.bestScore());
+        assertEquals(3, stats.currentStreak());
+        assertEquals(3, stats.bestStreak());
+    }
+
+    @Test
+    void emptyAndLossOnlyHistoriesHaveZeroStreaksAndFutureLanguageKeysStayIndependent() {
+        clock.set(PERIOD_TIME);
+        var empty = scores.statsForUser(user.getId(), "tr");
+        assertEquals(0, empty.totalGames());
+        assertEquals(0, empty.byLanguage().get("tr").bestStreak());
+        fixtureScore(clock.instant(), 0, false, "player");
+        fixtureScoreInLanguage(clock.instant(), 1000, true, "player", "de");
+        var stats = scores.statsForUser(user.getId(), "en");
+        assertEquals(0, stats.currentStreak());
+        assertEquals(0, stats.bestStreak());
+        assertEquals(1, stats.byLanguage().get("de").currentStreak());
+        assertTrue(stats.byLanguage().get("en").guessDistribution().isEmpty());
+    }
+
+    @Test
+    void longHistoriesReturnBoundedLanguageSummariesWithWeightedOverallMetrics() {
+        clock.set(PERIOD_TIME);
+        db.update(
+                """
+                INSERT INTO scores(user_id,username,language,attempts,duration_ms,won_at,played_at,score,word,won)
+                SELECT ?, 'player', lang,1,1000,?::timestamptz,CAST(? AS date)-day,1000,'APPLE',true
+                FROM generate_series(0,999) AS day CROSS JOIN (VALUES ('en'),('tr')) AS languages(lang)
+                """,
+                user.getId(),
+                java.sql.Timestamp.from(clock.instant()),
+                PERIOD_DAY);
+        var stats = scores.statsForUser(user.getId(), "tr");
+        assertEquals(2000, stats.totalGames());
+        assertEquals(2, stats.byLanguage().size());
+        assertEquals(1000, stats.currentStreak());
+        assertEquals(1000, stats.bestStreak());
+        assertEquals(1000, stats.averageScore());
+        assertEquals(1, stats.averageDurationSeconds());
+        assertEquals(1000, stats.byLanguage().get("en").guessDistribution().get(1));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"en", "tr"})
+    void dailyRanksOnlyTenWinningGamesForTheSelectedPuzzleDayAndLanguage(String language)
+            throws Exception {
+        clock.set(PERIOD_TIME);
+        for (int index = 0; index < 14; index++)
+            fixtureScoreInLanguage(
+                    clock.instant(), 9000 - index * 100, true, "rank" + index, language);
+        fixtureScoreInLanguage(clock.instant(), 9999, false, "loss", language);
+        fixtureScoreInLanguage(
+                clock.instant().minus(Duration.ofDays(1)), 9999, true, "yesterday", language);
+        fixtureScoreInLanguage(
+                clock.instant().plus(Duration.ofDays(1)), 9999, true, "tomorrow", language);
+        fixtureScoreInLanguage(
+                clock.instant(), 9999, true, "other_language", language.equals("en") ? "tr" : "en");
+        var board = gameRequest(get("/api/v1/leaderboard/daily").param("lang", language), null);
+        assertEquals(10, board.size());
+        for (int index = 0; index < 10; index++) {
+            assertEquals("rank" + index, board.get(index).get("username").asText());
+            assertEquals(9000 - index * 100, board.get(index).get("score").asInt());
+            assertTrue(board.get(index).get("word").isNull());
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"en", "tr"})
+    void periodBoardsSumWinsOncePerPlayerWithoutMixingLanguagesOrDates(String language)
+            throws Exception {
+        clock.set(PERIOD_TIME);
+        for (int day = 0; day < 3; day++)
+            fixtureScoreInLanguage(
+                    clock.instant().minus(Duration.ofDays(day)), 9000, true, "collector", language);
+        fixtureScoreInLanguage(clock.instant(), 9999, true, "single", language);
+        fixtureScoreInLanguage(clock.instant(), 9999, false, "loss", language);
+        fixtureScoreInLanguage(
+                clock.instant(), 9999, true, "other", language.equals("en") ? "tr" : "en");
+        fixtureScoreInLanguage(
+                PERIOD_DAY.withDayOfMonth(1).minusDays(1).atStartOfDay(APP_ZONE).toInstant(),
+                9999,
+                true,
+                "outside",
+                language);
+        fixtureScoreInLanguage(
+                clock.instant().plus(Duration.ofDays(1)), 9999, true, "future", language);
+        db.update("UPDATE users SET username='collector_current' WHERE username='collector'");
+        assertTrue(
+                scores.dailyTop(language, 10, APP_ZONE).stream()
+                        .anyMatch(row -> row.getUsername().equals("collector_current")));
+        assertFalse(
+                scores.topGlobal(language).stream()
+                        .anyMatch(row -> row.getUsername().equals("collector")));
+        Long collector = users.findByUsername("collector_current").orElseThrow().getId();
+        assertEquals(
+                "collector_current",
+                scores.getDailyStatus(collector, language).orElseThrow().getUsername());
+        assertEquals(
+                "collector",
+                db.queryForObject(
+                        "SELECT username FROM scores WHERE user_id=? LIMIT 1",
+                        String.class,
+                        collector));
+        for (String period : java.util.List.of("weekly", "monthly")) {
+            var response =
+                    gameRequest(get("/api/v1/leaderboard/" + period).param("lang", language), null);
+            assertEquals(27000L, response.get(0).get("totalScore").asLong());
+            assertEquals(27000L, response.get(0).get("score").asLong());
+            assertEquals(response.get(0).get("userId"), response.get(0).get("id"));
+            assertEquals(3, response.get(0).get("wins").asInt());
+            assertTrue(response.get(0).hasNonNull("userId"));
+            assertTrue(response.get(0).hasNonNull("lastWinAt"));
+        }
+        for (var board :
+                java.util.List.of(
+                        scores.weeklyTop(language, 10, APP_ZONE),
+                        scores.monthlyTop(language, 10, APP_ZONE))) {
+            assertEquals(2, board.size());
+            assertEquals("collector_current", board.getFirst().username());
+            assertEquals(27000L, board.getFirst().totalScore());
+            assertEquals(3L, board.getFirst().wins());
+            assertEquals(clock.instant(), board.getFirst().lastWinAt());
+            assertEquals("single", board.get(1).username());
+            assertEquals(9999L, board.get(1).totalScore());
+            assertEquals(
+                    2,
+                    board.stream()
+                            .map(com.ariforhanus.wordle.dto.LeaderboardTotalResponse::userId)
+                            .distinct()
+                            .count());
+        }
+    }
+
+    @Test
+    void periodLimitIsAppliedAfterGroupingAndSumming() {
+        clock.set(PERIOD_TIME);
+        for (int index = 0; index < 11; index++)
+            fixtureScore(clock.instant(), 9999, true, "single" + index);
+        fixtureScore(clock.instant(), 6000, true, "collector");
+        fixtureScore(clock.instant().minus(Duration.ofDays(1)), 6000, true, "collector");
+        var result = scores.weeklyTop("en", 10, APP_ZONE);
+        assertEquals(10, result.size());
+        assertEquals("collector", result.getFirst().username());
+        assertEquals(12000, result.getFirst().totalScore());
+    }
+
+    @Test
+    void tiedTotalsAndDailyScoresUseCompletionTimeThenStableIdentity() {
+        clock.set(PERIOD_TIME);
+        fixtureScore(
+                PERIOD_DAY.withDayOfMonth(1).minusDays(1).atStartOfDay(APP_ZONE).toInstant(),
+                1,
+                true,
+                "older_id");
+        fixtureScore(clock.instant(), 5000, true, "newer_id");
+        fixtureScore(clock.instant(), 5000, true, "older_id");
+        fixtureScore(clock.instant().minusSeconds(1), 5000, true, "earlier_win");
+        var expected = java.util.List.of("earlier_win", "older_id", "newer_id");
+        for (int repeat = 0; repeat < 2; repeat++) {
+            assertEquals(
+                    expected,
+                    scores.dailyTop("en", 10, APP_ZONE).stream()
+                            .map(com.ariforhanus.wordle.dto.ScoreResponse::getUsername)
+                            .toList());
+            assertEquals(
+                    expected,
+                    scores.weeklyTop("en", 10, APP_ZONE).stream()
+                            .map(com.ariforhanus.wordle.dto.LeaderboardTotalResponse::username)
+                            .toList());
+            assertEquals(
+                    expected,
+                    scores.monthlyTop("en", 10, APP_ZONE).stream()
+                            .map(com.ariforhanus.wordle.dto.LeaderboardTotalResponse::username)
+                            .toList());
+        }
+    }
+
+    @Test
+    void monthlyTotalsKeepAllThirtyOneDaysAndDailyScoresKeepTheirOwnRange() {
+        var lastDay = REFERENCE_DAY.with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+        clock.set(lastDay.atTime(12, 0).atZone(APP_ZONE).toInstant());
+        for (int day = 1; day <= lastDay.lengthOfMonth(); day++)
+            fixtureScore(
+                    lastDay.withDayOfMonth(day).atTime(10, 0).atZone(APP_ZONE).toInstant(),
+                    9999,
+                    true,
+                    "monthly");
+        var result = scores.monthlyTop("en", 10, APP_ZONE).getFirst();
+        assertEquals(31L * 9999, result.totalScore());
+        assertEquals(31, result.wins());
+        assertEquals(9999, scores.dailyTop("en", 10, APP_ZONE).getFirst().getScore());
     }
 
     @Test
@@ -1295,14 +1565,14 @@ class SecurityAndGameIntegrationTest {
         var tomorrow = PERIOD_DAY.plusDays(1).atStartOfDay(zone).toInstant();
         fixtureScore(tomorrow, 9999, true, "tomorrow");
         assertEquals(
-                java.util.List.of(weekFirst),
+                java.util.List.of("weekfirst"),
                 scores.weeklyTop("en", 10, zone).stream()
-                        .map(com.ariforhanus.wordle.dto.ScoreResponse::getId)
+                        .map(com.ariforhanus.wordle.dto.LeaderboardTotalResponse::username)
                         .toList());
         assertEquals(
-                java.util.List.of(weekFirst, beforeWeek, monthFirst),
+                java.util.List.of("weekfirst", "beforeweek", "monthfirst"),
                 scores.monthlyTop("en", 10, zone).stream()
-                        .map(com.ariforhanus.wordle.dto.ScoreResponse::getId)
+                        .map(com.ariforhanus.wordle.dto.LeaderboardTotalResponse::username)
                         .toList());
     }
 

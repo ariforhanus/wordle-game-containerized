@@ -84,6 +84,12 @@ jobs:
       PUBLIC_URL: http://localhost:18080
       E2E_BASE_URL: http://localhost:18080
       E2E_PRODUCTION: 'true'
+      ADMIN_USERNAME: e2e_fixture_admin
+      ADMIN_PASSWORD: isolated-e2e-bootstrap-password
+      ADMIN_EMAIL: e2e_admin@example.test
+      E2E_ADMIN_USERNAME: e2e_fixture_admin
+      E2E_ADMIN_PASSWORD: isolated-e2e-bootstrap-password
+      APP_DEFINITION_API_URL: http://localhost:9/ # No external dictionary dependency in E2E.
       APP_AUTH_RATE_LIMIT_ENABLED: 'false' # Account limits have separate PostgreSQL-backed tests.
       E2E_SMTP_CAPTURE_URL: http://localhost:8025
     steps:

@@ -66,6 +66,9 @@
     "loadError": "Could not load word. Check your connection."
   },
   "daily": {
+    "languageStats": "{{lang}} statistics",
+    "statsUnavailable": "Statistics are temporarily unavailable. Your game result is saved.",
+    "statsLoading": "Loading statistics…",
     "title": "Daily Challenge",
     "desc": "A new word every day. Everyone gets the same word — guess it in 6 tries and compete on the leaderboard!",
     "startGame": "Start Game",
@@ -96,6 +99,13 @@
     "confirmedScore": "Saved score: {{score}}"
   },
   "leaderboard": {
+    "dailyScore": "Daily game score",
+    "totalPoints": "Total points",
+    "wins": "Wins",
+    "dailyExplanation": "Today's highest game scores in the selected language.",
+    "weeklyExplanation": "Points from all your wins in the selected language since Monday. Each player appears once.",
+    "monthlyExplanation": "Points from all your wins in the selected language this month. Each player appears once.",
+    "totalTieRule": "Equal totals are ranked by the earlier final win in the period; remaining ties keep a stable order.",
     "title": "Daily Leaderboard",
     "rank": "#",
     "player": "Player",
@@ -137,6 +147,7 @@
     "countryRequired": "Please select a country."
   },
   "profile": {
+    "statisticsScope": "Score/time cards cover all languages. Streak and guess distribution: {{lang}}.",
     "title": "Profile",
     "stats": "Statistics",
     "achievements": "Achievements",

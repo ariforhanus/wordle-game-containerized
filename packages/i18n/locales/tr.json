@@ -66,6 +66,9 @@
     "loadError": "Kelime yüklenemedi. Bağlantınızı kontrol edin."
   },
   "daily": {
+    "languageStats": "{{lang}} istatistikleri",
+    "statsUnavailable": "İstatistikler şu anda alınamıyor. Oyun sonucun kaydedildi.",
+    "statsLoading": "İstatistikler yükleniyor…",
     "title": "Günlük Meydan Okuma",
     "desc": "Her gün yeni bir kelime. Herkes aynı kelimeyi tahmin eder — 6 denemede bul ve sıralamada yarış!",
     "startGame": "Oyunu Başlat",
@@ -96,6 +99,13 @@
     "confirmedScore": "Kaydedilen puan: {{score}}"
   },
   "leaderboard": {
+    "dailyScore": "Günlük oyun skoru",
+    "totalPoints": "Toplam puan",
+    "wins": "Galibiyet",
+    "dailyExplanation": "Seçili dilde bugünün en yüksek oyun skorları.",
+    "weeklyExplanation": "Seçili dilde pazartesiden bugüne kazandığın oyunların toplam puanı. Her oyuncu bir kez listelenir.",
+    "monthlyExplanation": "Seçili dilde bu ay kazandığın oyunların toplam puanı. Her oyuncu bir kez listelenir.",
+    "totalTieRule": "Toplam puan eşitse dönemdeki son galibiyetini daha erken tamamlayan öne geçer; kalan eşitliklerde sıra sabittir.",
     "title": "Günlük Sıralama",
     "rank": "#",
     "player": "Oyuncu",
@@ -137,6 +147,7 @@
     "countryRequired": "Lütfen bir ülke seçin."
   },
   "profile": {
+    "statisticsScope": "Puan ve süre kartları tüm dilleri kapsar. Seri ve tahmin dağılımı: {{lang}}.",
     "title": "Profil",
     "stats": "İstatistikler",
     "achievements": "Başarılar",

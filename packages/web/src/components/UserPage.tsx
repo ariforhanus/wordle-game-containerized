@@ -26,16 +26,52 @@ interface AchievementDef {
 }
 
 const ACHIEVEMENTS: AchievementDef[] = [
-  { id: "first_game", icon: "fa-flag-checkered", isUnlocked: (s) => s.totalGames >= 1 },
+  {
+    id: "first_game",
+    icon: "fa-flag-checkered",
+    isUnlocked: (s) => s.totalGames >= 1,
+  },
   { id: "ten_games", icon: "fa-dice", isUnlocked: (s) => s.totalGames >= 10 },
-  { id: "thirty_games", icon: "fa-gamepad", isUnlocked: (s) => s.totalGames >= 30 },
-  { id: "hundred_games", icon: "fa-infinity", isUnlocked: (s) => s.totalGames >= 100 },
-  { id: "streak_2", icon: "fa-fire", isUnlocked: (s) => s.currentStreak >= 2 || s.bestStreak >= 2 },
-  { id: "streak_5", icon: "fa-fire-flame-curved", isUnlocked: (s) => s.currentStreak >= 5 || s.bestStreak >= 5 },
-  { id: "best_score_high", icon: "fa-trophy", isUnlocked: (s) => s.bestScore >= 5000 },
-  { id: "fast_player", icon: "fa-bolt", isUnlocked: (s) => s.totalGames >= 5 && s.averageDurationSeconds <= 90 },
-  { id: "multi_language", icon: "fa-language", isUnlocked: (s) => Object.keys(s.gamesPerLanguage || {}).length >= 2 },
-  { id: "lang_games_10", icon: "fa-globe", isUnlocked: (s, lang) => (s.gamesPerLanguage?.[lang] ?? 0) >= 10 },
+  {
+    id: "thirty_games",
+    icon: "fa-gamepad",
+    isUnlocked: (s) => s.totalGames >= 30,
+  },
+  {
+    id: "hundred_games",
+    icon: "fa-infinity",
+    isUnlocked: (s) => s.totalGames >= 100,
+  },
+  {
+    id: "streak_2",
+    icon: "fa-fire",
+    isUnlocked: (s) => s.currentStreak >= 2 || s.bestStreak >= 2,
+  },
+  {
+    id: "streak_5",
+    icon: "fa-fire-flame-curved",
+    isUnlocked: (s) => s.currentStreak >= 5 || s.bestStreak >= 5,
+  },
+  {
+    id: "best_score_high",
+    icon: "fa-trophy",
+    isUnlocked: (s) => s.bestScore >= 5000,
+  },
+  {
+    id: "fast_player",
+    icon: "fa-bolt",
+    isUnlocked: (s) => s.totalGames >= 5 && s.averageDurationSeconds <= 90,
+  },
+  {
+    id: "multi_language",
+    icon: "fa-language",
+    isUnlocked: (s) => Object.keys(s.gamesPerLanguage || {}).length >= 2,
+  },
+  {
+    id: "lang_games_10",
+    icon: "fa-globe",
+    isUnlocked: (s, lang) => (s.gamesPerLanguage?.[lang] ?? 0) >= 10,
+  },
 ];
 
 const STAT_GRADIENTS = [
@@ -61,19 +97,30 @@ export default function UserPage() {
   const [showAchievements, setShowAchievements] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
 
+  const dataVersion = useRef(0);
+  const selectedLanguage = useRef(lang);
+  selectedLanguage.current = lang;
   async function loadData() {
+    const version = ++dataVersion.current;
+    const requestedLanguage = selectedLanguage.current;
+    setStats(null);
     setLoading(true);
     try {
       const [profile, userStats] = await Promise.all([
         authApi.getMe(),
-        scoreApi.getMyStats(),
+        scoreApi.getMyStats(requestedLanguage),
       ]);
-      setUser(profile);
-      setStats(userStats);
+      if (
+        version === dataVersion.current &&
+        requestedLanguage === selectedLanguage.current
+      ) {
+        setUser(profile);
+        setStats(userStats);
+      }
     } catch (err) {
       console.error("Failed to load profile:", err);
     } finally {
-      setLoading(false);
+      if (version === dataVersion.current) setLoading(false);
     }
   }
 
@@ -82,8 +129,11 @@ export default function UserPage() {
       navigate("/login");
       return;
     }
-    loadData();
-  }, [navigate]);
+    void loadData();
+    return () => {
+      dataVersion.current++;
+    };
+  }, [navigate, lang]);
 
   if (loading) {
     return (
@@ -104,10 +154,17 @@ export default function UserPage() {
   // Build achievement data
   const achievementItems = ACHIEVEMENTS.map((a) => {
     const unlocked = a.isUnlocked(stats, lang);
-    return { ...a, unlocked, title: t(`achievements.${a.id}.title`), desc: t(`achievements.${a.id}.desc`) };
+    return {
+      ...a,
+      unlocked,
+      title: t(`achievements.${a.id}.title`),
+      desc: t(`achievements.${a.id}.desc`),
+    };
   });
   // Sort: unlocked first
-  achievementItems.sort((a, b) => (a.unlocked === b.unlocked ? 0 : a.unlocked ? -1 : 1));
+  achievementItems.sort((a, b) =>
+    a.unlocked === b.unlocked ? 0 : a.unlocked ? -1 : 1,
+  );
   const unlockedCount = achievementItems.filter((a) => a.unlocked).length;
 
   const langGames = stats.gamesPerLanguage?.[lang] ?? 0;
@@ -116,12 +173,42 @@ export default function UserPage() {
 
   // 6 stat cards (achievements is first, clickable)
   const statCards = [
-    { icon: "fa-medal", label: t("profile.achievements"), value: `${unlockedCount}/${achievementItems.length}`, clickable: true },
-    { icon: "fa-trophy", label: t("profile.bestScore"), value: formatScore(stats.bestScore) },
-    { icon: "fa-chart-line", label: t("profile.avgScore"), value: formatScore(Math.round(stats.averageScore)) },
-    { icon: "fa-clock", label: t("profile.avgTime"), value: `${Math.round(stats.averageDurationSeconds)}${t("profile.seconds")}` },
-    { icon: "fa-fire", label: t("profile.currentStreak"), value: String(stats.currentStreak ?? 0) },
-    { icon: "fa-globe", label: t("profile.gamesInLang", { lang: lang.toUpperCase() }), value: String(langGames) },
+    {
+      icon: "fa-medal",
+      label: t("profile.achievements"),
+      value: `${unlockedCount}/${achievementItems.length}`,
+      clickable: true,
+    },
+    {
+      icon: "fa-trophy",
+      label: t("profile.bestScore"),
+      value: formatScore(stats.bestScore),
+    },
+    {
+      icon: "fa-chart-line",
+      label: t("profile.avgScore"),
+      value: formatScore(Math.round(stats.averageScore)),
+    },
+    {
+      icon: "fa-clock",
+      label: t("profile.avgTime"),
+      value: `${Math.round(stats.averageDurationSeconds)}${t("profile.seconds")}`,
+    },
+    {
+      icon: "fa-fire",
+      label: t("profile.currentStreak"),
+      value: String(stats.currentStreak ?? 0),
+    },
+    {
+      icon: "fa-fire",
+      label: t("profile.bestStreak"),
+      value: String(stats.bestStreak ?? 0),
+    },
+    {
+      icon: "fa-globe",
+      label: t("profile.gamesInLang", { lang: lang.toUpperCase() }),
+      value: String(langGames),
+    },
   ];
 
   return (
@@ -136,21 +223,31 @@ export default function UserPage() {
           </div>
         )}
         <h1>{user.username}</h1>
-        {user.nationality && <span className="nationality">{user.nationality}</span>}
-        <button className="edit-profile-btn" onClick={() => setShowEditProfile(true)}>
+        {user.nationality && (
+          <span className="nationality">{user.nationality}</span>
+        )}
+        <button
+          className="edit-profile-btn"
+          onClick={() => setShowEditProfile(true)}
+        >
           <i className="fas fa-pencil" /> {t("profile.editProfile")}
         </button>
       </div>
 
-      <Link className="btn-primary" to="/account">{t("account.title")}</Link>
-      {/* Stats grid -- 6 gradient cards */}
+      <Link className="btn-primary" to="/account">
+        {t("account.title")}
+      </Link>
+      <p>{t("profile.statisticsScope", { lang: lang.toUpperCase() })}</p>
+      {/* Overall score cards and selected-language streaks. */}
       <div className="stats-grid">
         {statCards.map((card, i) => (
           <div
             key={i}
             className={`stat-card-gradient ${card.clickable ? "stat-card-clickable" : ""}`}
-            style={{ background: STAT_GRADIENTS[i] }}
-            onClick={card.clickable ? () => setShowAchievements(true) : undefined}
+            style={{ background: STAT_GRADIENTS[i % STAT_GRADIENTS.length] }}
+            onClick={
+              card.clickable ? () => setShowAchievements(true) : undefined
+            }
           >
             <div className="stat-icon">
               <i className={`fas ${card.icon}`} />
@@ -165,16 +262,29 @@ export default function UserPage() {
 
       {/* Guess distribution chart */}
       {stats && (
-        <GuessDistribution distribution={stats.guessDistribution ?? {}} />
+        <GuessDistribution
+          distribution={stats.byLanguage?.[lang]?.guessDistribution ?? {}}
+        />
       )}
 
       {/* Achievements popup */}
       {showAchievements && (
-        <div className="modal-overlay" onClick={() => setShowAchievements(false)}>
-          <div className="modal-card achievements-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowAchievements(false)}
+        >
+          <div
+            className="modal-card achievements-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
-              <h2><i className="fas fa-medal" /> {t("profile.achievements")}</h2>
-              <button className="modal-close" onClick={() => setShowAchievements(false)}>
+              <h2>
+                <i className="fas fa-medal" /> {t("profile.achievements")}
+              </h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowAchievements(false)}
+              >
                 <i className="fas fa-xmark" />
               </button>
             </div>
@@ -183,7 +293,10 @@ export default function UserPage() {
             </p>
             <ul className="achievements-list">
               {achievementItems.map((a) => (
-                <li key={a.id} className={`achievement-item ${a.unlocked ? "achievement-unlocked" : "achievement-locked"}`}>
+                <li
+                  key={a.id}
+                  className={`achievement-item ${a.unlocked ? "achievement-unlocked" : "achievement-locked"}`}
+                >
                   <div className="achievement-icon-wrap">
                     <i className={`fas ${a.icon}`} />
                   </div>
@@ -239,10 +352,8 @@ function EditProfileModal({
   const [saving, setSaving] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    getAvatarDataUrl(user)
+    getAvatarDataUrl(user),
   );
-
-
 
   function update(field: string, value: string) {
     setForm((p) => ({ ...p, [field]: value }));
@@ -314,9 +425,14 @@ function EditProfileModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card edit-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-card edit-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h2><i className="fas fa-pencil" /> {t("profile.editProfile")}</h2>
+          <h2>
+            <i className="fas fa-pencil" /> {t("profile.editProfile")}
+          </h2>
           <button className="modal-close" onClick={onClose}>
             <i className="fas fa-xmark" />
           </button>
@@ -326,7 +442,11 @@ function EditProfileModal({
           {/* Avatar */}
           <div className="edit-avatar-section">
             {avatarPreview ? (
-              <img className="edit-avatar-img" src={avatarPreview} alt="Avatar" />
+              <img
+                className="edit-avatar-img"
+                src={avatarPreview}
+                alt="Avatar"
+              />
             ) : (
               <div className="edit-avatar-placeholder">
                 <i className="fas fa-user" />
@@ -377,13 +497,23 @@ function EditProfileModal({
           </div>
 
           <label>{t("auth.email")}</label>
-          <input type="email" value={user.email ?? ""} readOnly className="input-readonly" />
+          <input
+            type="email"
+            value={user.email ?? ""}
+            readOnly
+            className="input-readonly"
+          />
 
           <label>{t("auth.country")}</label>
-          <select value={form.nationality} onChange={(e) => update("nationality", e.target.value)}>
+          <select
+            value={form.nationality}
+            onChange={(e) => update("nationality", e.target.value)}
+          >
             <option value="">{t("auth.selectCountry")}</option>
             {countries.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
           </select>
 

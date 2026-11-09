@@ -816,3 +816,152 @@ test("changing the browser clock cannot move an active game to another puzzle da
     ),
   ).toBeVisible();
 });
+
+async function fixtureDailyWords(
+  context: import("@playwright/test").BrowserContext,
+) {
+  const login = await context.request.post("/api/v1/auth/login", {
+    data: {
+      username: process.env.E2E_ADMIN_USERNAME,
+      password: process.env.E2E_ADMIN_PASSWORD,
+    },
+  });
+  expect(login.status()).toBe(200);
+  const words = await context.request.get("/api/v1/admin/daily-word", {
+    headers: { Authorization: "Bearer " + (await login.json()).token },
+  });
+  expect(words.status()).toBe(200);
+  return words.json();
+}
+
+test("leaderboard distinguishes real daily scores from one-row period totals", async ({
+  page,
+  context,
+}) => {
+  test.skip(
+    !process.env.E2E_ADMIN_USERNAME || !process.env.E2E_ADMIN_PASSWORD,
+    "Requires the isolated E2E bootstrap administrator",
+  );
+  const answer = (await fixtureDailyWords(context)).en.word;
+  expect(answer).toMatch(/^[A-Z]{5}$/);
+  await register(page);
+  await page.goto("/daily");
+  await page.locator(".daily-start-card button").click();
+  await expect(page.locator(".board")).toBeVisible();
+  await page.keyboard.type(answer);
+  await page
+    .locator(".keyboard")
+    .getByRole("button", { name: "ENTER", exact: true })
+    .click();
+  await expect(page.locator(".result-card")).toBeVisible();
+  await page.goto("/leaderboard");
+  await expect(
+    page.getByRole("columnheader", { name: "Daily game score", exact: true }),
+  ).toBeVisible();
+  for (const [period, label] of [
+    ["weekly", "Weekly"],
+    ["monthly", "Monthly"],
+  ]) {
+    const loaded = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/v1/leaderboard/" + period,
+    );
+    await page.getByRole("button", { name: label, exact: true }).click();
+    const response = await loaded;
+    expect(response.status()).toBe(200);
+    const totals = await response.json();
+    expect(totals.length).toBeGreaterThan(0);
+    expect(
+      new Set(totals.map((row: { userId: number }) => row.userId)).size,
+    ).toBe(totals.length);
+    await expect(
+      page.getByRole("columnheader", { name: "Total points", exact: true }),
+    ).toBeVisible();
+    await expect(page.locator("tbody tr")).toHaveCount(totals.length);
+    expect(await page.locator(".lb-score").allTextContents()).toEqual(
+      totals.map((row: { totalScore: number }) => String(row.totalScore)),
+    );
+  }
+});
+
+test("language streaks stay independent in daily results and the profile", async ({
+  page,
+  context,
+}) => {
+  test.skip(
+    !process.env.E2E_ADMIN_USERNAME || !process.env.E2E_ADMIN_PASSWORD,
+    "Requires the isolated E2E bootstrap administrator",
+  );
+  const answers = await fixtureDailyWords(context);
+  await register(page);
+  await page.goto("/daily");
+  await page.locator(".daily-start-card button").click();
+  await expect(page.locator(".board")).toBeVisible();
+  await page.keyboard.type(answers.en.word);
+  await page
+    .locator(".keyboard")
+    .getByRole("button", { name: "ENTER", exact: true })
+    .click();
+  const english = page.getByRole("region", {
+    name: "EN statistics",
+    exact: true,
+  });
+  await expect(english).toContainText("Current Streak: 1");
+  await expect(english).toContainText("Best Streak: 1");
+  await page.evaluate(() => localStorage.setItem("wordle_lang", "tr"));
+  await page.goto("/daily");
+  const started = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/v1/daily/games",
+  );
+  await page.locator(".daily-start-card button").click();
+  const game = await (await started).json();
+  const token = await page.evaluate(() => localStorage.getItem("jwtToken"));
+  const wrong = answers.tr.word === "İNCİR" ? "ELMAS" : "İNCİR";
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    const response = await context.request.post(
+      `/api/v1/daily/games/${game.id}/guesses`,
+      {
+        headers: { Authorization: "Bearer " + token },
+        data: { guess: wrong, attempt },
+      },
+    );
+    expect(response.status()).toBe(200);
+  }
+  await page.reload();
+  await page.locator(".daily-start-card button").click();
+  await expect(page.locator(".board")).toBeVisible();
+  await page.keyboard.type(wrong === "İNCİR" ? "incir" : "elmas");
+  await page
+    .locator(".keyboard")
+    .getByRole("button", { name: "ENTER", exact: true })
+    .click();
+  const turkish = page.getByRole("region", {
+    name: "TR istatistikleri",
+    exact: true,
+  });
+  await expect(turkish).toContainText("Mevcut Seri: 0");
+  await expect(turkish).toContainText("En İyi Seri: 0");
+  await page.goto("/profile");
+  await expect(
+    page
+      .getByText("Mevcut Seri", { exact: true })
+      .locator("..")
+      .locator(".stat-value-g"),
+  ).toHaveText("0");
+  await page.evaluate(() => localStorage.setItem("wordle_lang", "en"));
+  await page.goto("/profile");
+  await expect(
+    page
+      .getByText("Current Streak", { exact: true })
+      .locator("..")
+      .locator(".stat-value-g"),
+  ).toHaveText("1");
+  await expect(
+    page
+      .getByText("Best Streak", { exact: true })
+      .locator("..")
+      .locator(".stat-value-g"),
+  ).toHaveText("1");
+});

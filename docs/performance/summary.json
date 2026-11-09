@@ -1,0 +1,81 @@
+{
+  "fixtureDay": "2024-01-31",
+  "players": 50,
+  "days": 200,
+  "languages": 2,
+  "scoreRows": 20000,
+  "measurements": [
+    {
+      "query": "daily",
+      "index": "baseline",
+      "executionMs": 1.012,
+      "rowsReturned": 10,
+      "bufferHits": 2622,
+      "bufferReads": 7,
+      "tempWrittenBlocks": 0
+    },
+    {
+      "query": "daily",
+      "index": "candidate",
+      "executionMs": 0.111,
+      "rowsReturned": 10,
+      "bufferHits": 40,
+      "bufferReads": 3,
+      "tempWrittenBlocks": 0
+    },
+    {
+      "query": "weekly",
+      "index": "baseline",
+      "executionMs": 1.782,
+      "rowsReturned": 10,
+      "bufferHits": 229,
+      "bufferReads": 9,
+      "tempWrittenBlocks": 0
+    },
+    {
+      "query": "weekly",
+      "index": "candidate",
+      "executionMs": 0.27,
+      "rowsReturned": 10,
+      "bufferHits": 2,
+      "bufferReads": 3,
+      "tempWrittenBlocks": 0
+    },
+    {
+      "query": "monthly",
+      "index": "baseline",
+      "executionMs": 2.075,
+      "rowsReturned": 10,
+      "bufferHits": 229,
+      "bufferReads": 9,
+      "tempWrittenBlocks": 0
+    },
+    {
+      "query": "monthly",
+      "index": "candidate",
+      "executionMs": 0.551,
+      "rowsReturned": 10,
+      "bufferHits": 2,
+      "bufferReads": 10,
+      "tempWrittenBlocks": 0
+    },
+    {
+      "query": "streaks",
+      "index": "baseline",
+      "executionMs": 5.762,
+      "rowsReturned": 20,
+      "bufferHits": 274,
+      "bufferReads": 17,
+      "tempWrittenBlocks": 0
+    },
+    {
+      "query": "streaks",
+      "index": "candidate",
+      "executionMs": 6.107,
+      "rowsReturned": 20,
+      "bufferHits": 274,
+      "bufferReads": 17,
+      "tempWrittenBlocks": 0
+    }
+  ]
+}

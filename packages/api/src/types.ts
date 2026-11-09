@@ -16,9 +16,18 @@ export interface ScoreResponse {
   score: number;
   attempts: number;
   durationMs: number;
-  language: string;
-  playedAt: string;
+  wonAt: string;
+  word: null;
   currentStreak?: number;
+}
+
+export interface LeaderboardTotal {
+  userId: number;
+  username: string;
+  totalScore: number;
+  wins: number;
+  lastWinAt: string;
+  currentStreak: number;
 }
 
 export interface DailyStatus {
@@ -48,7 +57,20 @@ export function getAvatarDataUrl(profile: UserProfile): string | null {
   return null;
 }
 
+export interface LanguageStats {
+  totalGames: number;
+  wins: number;
+  bestScore: number;
+  averageScore: number;
+  averageDurationSeconds: number;
+  currentStreak: number;
+  bestStreak: number;
+  guessDistribution: Record<string, number>;
+}
+
 export interface UserStats {
+  language: string;
+  byLanguage: Record<string, LanguageStats>;
   totalGames: number;
   bestScore: number;
   averageScore: number;

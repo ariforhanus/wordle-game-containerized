@@ -10,8 +10,9 @@ import {
 import { MemoryRouter } from "react-router-dom";
 import DailyPage from "./DailyPage";
 import { ToastProvider } from "./Toast";
-import { dailyGameApi } from "@wordle/api";
+import { dailyGameApi, scoreApi } from "@wordle/api";
 import type { DailyGame, DailyGameStatus } from "@wordle/api";
+import { statsFixture } from "../../tests/fixtures/stats";
 
 const locale = vi.hoisted(() => ({ language: "en" }));
 vi.mock("react-i18next", () => ({
@@ -20,6 +21,7 @@ vi.mock("react-i18next", () => ({
 vi.mock("@wordle/api", async (original) => ({
   ...(await original<typeof import("@wordle/api")>()),
   isAuthenticated: () => true,
+  scoreApi: { getMyStats: vi.fn() },
   dailyGameApi: {
     status: vi.fn(),
     start: vi.fn(),
@@ -59,6 +61,7 @@ afterEach(cleanup);
 beforeEach(() => {
   locale.language = "en";
   vi.resetAllMocks();
+  vi.mocked(scoreApi.getMyStats).mockResolvedValue(statsFixture());
   vi.mocked(dailyGameApi.status).mockResolvedValue({
     ...dayMetadata,
     state: "not_started",
