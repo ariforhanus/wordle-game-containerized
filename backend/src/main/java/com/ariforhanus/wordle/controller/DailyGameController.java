@@ -15,13 +15,20 @@ public class DailyGameController {
     private final DailyGameService games;
     private final UserRepository users;
 
+    @org.springframework.beans.factory.annotation.Value("${app.require-verified-email:false}")
+    private boolean requireVerification;
+
     public DailyGameController(DailyGameService games, UserRepository users) {
         this.games = games;
         this.users = users;
     }
 
     private long userId(Authentication auth) {
-        return users.findByUsername(auth.getName()).orElseThrow().getId();
+        var user = users.findByUsername(auth.getName()).orElseThrow();
+        if (requireVerification && !user.isEmailVerified())
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "verify_email_first");
+        return user.getId();
     }
 
     @PostMapping

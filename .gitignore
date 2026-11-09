@@ -28,3 +28,8 @@ packages/web/vite.config.d.ts
 
 # Environment
 .env
+
+packages/web/test-results/
+packages/web/playwright-report/
+*.dump
+*.dump.sha256

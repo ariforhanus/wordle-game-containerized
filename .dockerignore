@@ -8,3 +8,6 @@
 .docker
 .idea
 work
+
+**/test-results
+**/playwright-report

@@ -27,6 +27,7 @@ export interface DailyStatus {
 }
 
 export interface UserProfile {
+  emailVerified: boolean;
   username: string;
   email: string;
   firstName?: string;

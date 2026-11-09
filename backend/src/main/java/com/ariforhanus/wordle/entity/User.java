@@ -22,6 +22,28 @@ import java.time.Instant;
 public class User {
     @jakarta.persistence.Version private long version;
 
+    @Column(nullable = false)
+    private long authVersion;
+
+    @Column(nullable = false)
+    private boolean emailVerified;
+
+    public long getAuthVersion() {
+        return authVersion;
+    }
+
+    public void setAuthVersion(long value) {
+        authVersion = value;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean value) {
+        emailVerified = value;
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

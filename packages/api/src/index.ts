@@ -44,3 +44,4 @@ export type {
 
 export * as dailyGameApi from "./dailyGameApi.js";
 export type { DailyGame } from "./dailyGameApi.js";
+export type { AuditEntry } from "./adminApi.js";

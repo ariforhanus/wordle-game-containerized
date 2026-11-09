@@ -45,8 +45,8 @@ class SecurityAndGameIntegrationTest {
     @BeforeEach
     void reset() {
         db.execute(
-                "TRUNCATE TABLE daily_games, daily_puzzles, scores, users RESTART IDENTITY"
-                        + " CASCADE");
+                "TRUNCATE TABLE auth_rate_limits, security_audit, daily_games, daily_puzzles,"
+                        + " scores, users RESTART IDENTITY CASCADE");
         clock.now.set(Instant.parse("2026-11-09T20:59:00Z"));
         user = new User();
         user.setUsername("player");
@@ -333,6 +333,23 @@ class SecurityAndGameIntegrationTest {
         } finally {
             db.execute("DROP SCHEMA legacy_test CASCADE");
         }
+    }
+
+    @Test
+    void unavailableEmailProviderReturnsAnExplicitServiceError() throws Exception {
+        http.perform(
+                        post("/api/v1/account/forgot-password")
+                                .contentType("application/json")
+                                .content("{\"email\":\"player@example.com\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("mail_unavailable"));
+    }
+
+    @Test
+    void malformedJsonReturnsControlledValidationError() throws Exception {
+        http.perform(post("/api/v1/auth/login").contentType("application/json").content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("invalid_input"));
     }
 
     private DailyGameService.GameView startApple() {

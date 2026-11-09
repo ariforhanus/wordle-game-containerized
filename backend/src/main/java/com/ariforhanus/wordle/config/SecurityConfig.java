@@ -65,7 +65,10 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 org.springframework.http.HttpMethod.POST,
                                                 "/api/v1/auth/login",
-                                                "/api/v1/auth/register")
+                                                "/api/v1/auth/register",
+                                                "/api/v1/account/forgot-password",
+                                                "/api/v1/account/reset-password",
+                                                "/api/v1/account/verify-email")
                                         .permitAll()
                                         .requestMatchers(
                                                 org.springframework.http.HttpMethod.GET,
@@ -109,7 +112,8 @@ public class SecurityConfig {
                             String username = user == null ? null : user.getUsername();
                             String role = user == null ? null : user.getRole();
 
-                            if (user != null) {
+                            if (user != null
+                                    && jwtUtil.extractAuthVersion(token) == user.getAuthVersion()) {
                                 // Spring Security expects ROLE_ prefix
                                 var authorities =
                                         List.of(new SimpleGrantedAuthority("ROLE_" + role));

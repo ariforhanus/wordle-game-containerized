@@ -25,17 +25,25 @@ public class AdminController {
     private final ScoreRepository scoreRepo;
     private final WordService wordService;
     private final ZoneId appZone;
+    private final com.ariforhanus.wordle.service.AuditService audit;
 
     public AdminController(
             UserRepository userRepo,
             ScoreRepository scoreRepo,
             WordService wordService,
+            com.ariforhanus.wordle.service.AuditService audit,
             @org.springframework.beans.factory.annotation.Value("${app.timezone:Europe/Istanbul}")
                     String timezone) {
+        this.audit = audit;
         this.userRepo = userRepo;
         this.scoreRepo = scoreRepo;
         this.wordService = wordService;
         this.appZone = ZoneId.of(timezone);
+    }
+
+    @GetMapping("/audit")
+    public Object audit(@RequestParam(defaultValue = "0") int page) {
+        return audit.recent(page);
     }
 
     // ── Dashboard stats ─────────────────────────────────────
@@ -122,9 +130,12 @@ public class AdminController {
         return ResponseEntity.ok(m);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     @PutMapping("/users/{id}/role")
     public ResponseEntity<?> changeRole(
-            @PathVariable Long id, @RequestBody Map<String, String> body) {
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body,
+            org.springframework.security.core.Authentication actor) {
         String newRole = body.get("role");
         if (newRole == null || (!newRole.equals("USER") && !newRole.equals("ADMIN"))) {
             return ResponseEntity.badRequest().body(Map.of("error", "invalid_role"));
@@ -137,7 +148,12 @@ public class AdminController {
 
         User user = opt.get();
         user.setRole(newRole);
+        user.setAuthVersion(user.getAuthVersion() + 1);
         userRepo.save(user);
+        audit.record(
+                userRepo.findByUsername(actor.getName()).orElseThrow().getId(),
+                "ADMIN_ROLE_" + newRole,
+                id);
 
         return ResponseEntity.ok(
                 Map.of(
@@ -146,12 +162,18 @@ public class AdminController {
                         "role", user.getRole()));
     }
 
+    @org.springframework.transaction.annotation.Transactional
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<?> deleteUser(
+            @PathVariable Long id, org.springframework.security.core.Authentication actor) {
         var opt = userRepo.findById(id);
         if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        audit.record(
+                userRepo.findByUsername(actor.getName()).orElseThrow().getId(),
+                "ADMIN_USER_DELETED",
+                id);
         userRepo.deleteById(id);
         return ResponseEntity.ok(Map.of("deleted", true, "id", id));
     }

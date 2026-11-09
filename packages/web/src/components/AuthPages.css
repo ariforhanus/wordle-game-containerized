@@ -92,3 +92,9 @@
   animation: spin 0.7s linear infinite;
   vertical-align: middle;
 }
+
+.auth-card-section { display:flex; flex-direction:column; gap:10px; }
+.auth-card details form { display:flex; flex-direction:column; gap:10px; }
+
+.auth-switch a { color: var(--auth-link, #1d4ed8); }
+[data-theme="dark"] .auth-switch a { --auth-link: #93c5fd; }

@@ -36,6 +36,10 @@ public class JwtUtil {
     }
 
     public String generateToken(Long userId, String username, String role) {
+        return generateToken(userId, username, role, 0);
+    }
+
+    public String generateToken(Long userId, String username, String role, long authVersion) {
         Date now = new Date();
         long expirationMs = Long.parseLong(expirationTime);
         Date exp = new Date(now.getTime() + expirationMs);
@@ -44,6 +48,7 @@ public class JwtUtil {
                 .subject(String.valueOf(userId))
                 .claim("username", username)
                 .claim("role", role)
+                .claim("authVersion", authVersion)
                 .issuedAt(now)
                 .expiration(exp)
                 .signWith(signingKey())
@@ -71,6 +76,11 @@ public class JwtUtil {
     public String extractRole(String token) {
         String role = claims(token).get("role", String.class);
         return role != null ? role : "USER";
+    }
+
+    public long extractAuthVersion(String token) {
+        Number version = claims(token).get("authVersion", Number.class);
+        return version == null ? 0 : version.longValue();
     }
 
     public boolean isValid(String token) {

@@ -65,6 +65,7 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
           const statusClass = hasRevealed ? `cell-${statuses[c]}` : "";
           cells.push(
             <div
+              role="gridcell"
               key={c}
               className={`cell cell-filled cell-reveal ${statusClass}`}
               style={{ animationDelay: `${c * 300}ms` }}
@@ -75,14 +76,14 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
         } else if (hideColors) {
           // Blind mode: show letter but no color feedback
           cells.push(
-            <div key={c} className="cell cell-filled cell-blind">
+            <div role="gridcell" key={c} className="cell cell-filled cell-blind">
               {guess[c]}
             </div>
           );
         } else {
           // Already revealed (previous rows) — show final state
           cells.push(
-            <div key={c} className={`cell cell-${statuses[c]}`}>
+            <div role="gridcell" key={c} className={`cell cell-${statuses[c]}`}>
               {guess[c]}
             </div>
           );
@@ -95,6 +96,7 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
         const popClass = letter ? "cell-pop" : "";
         cells.push(
           <div
+              role="gridcell"
             key={c}
             className={`cell ${letter ? "cell-filled" : ""} ${popClass} ${
               shakeRow ? "shake" : ""
@@ -107,12 +109,12 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
     } else {
       // Empty future row
       for (let c = 0; c < wordLength; c++) {
-        cells.push(<div key={c} className="cell" />);
+        cells.push(<div role="gridcell" key={c} className="cell" />);
       }
     }
 
     rows.push(
-      <div key={r} className="board-row">
+      <div role="row" key={r} className="board-row">
         {cells}
       </div>
     );

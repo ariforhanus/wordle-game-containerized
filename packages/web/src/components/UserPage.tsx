@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   scoreApi,
   isAuthenticated,
@@ -142,6 +142,7 @@ export default function UserPage() {
         </button>
       </div>
 
+      <Link className="btn-primary" to="/account">{t("account.title")}</Link>
       {/* Stats grid -- 6 gradient cards */}
       <div className="stats-grid">
         {statCards.map((card, i) => (

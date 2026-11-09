@@ -21,7 +21,7 @@ PostgreSQL creates a separate `wordle` login without superuser, role-creation, o
 
 Set `WORDLE_DOMAIN` to a public DNS name pointing at the host and `CORS_ORIGINS=https://that-name`. Run `docker compose --profile production up --build -d`. Caddy terminates TLS and redirects HTTP to HTTPS. Only the ingress publishes public ports; the frontend's development port remains loopback-only. Persist Caddy and PostgreSQL volumes. Firewall all other host ports. Nginx rate limits API traffic and authentication requests; account-aware distributed throttling is a further improvement for larger deployments. With an ingress proxy, tune client-IP trust and rate limits for your network before load testing.
 
-Backend/frontend containers run as non-root with read-only root filesystems, temporary storage, memory limits, dropped capabilities, and health checks. `/actuator/health/readiness` reveals no component details. No admin GUI is deployed. Do not activate the `dev` profile in production.
+Backend/frontend containers run as non-root with read-only root filesystems, temporary storage, memory limits, dropped capabilities, and health checks. `/actuator/health/readiness` on internal management port 9091 reveals no component details. No admin GUI is deployed. Do not activate the `dev` profile in production.
 
 ## Existing database upgrade — back up and rehearse first
 
@@ -44,7 +44,7 @@ V2 adds optimistic locking, daily uniqueness, value checks, and user foreign key
 - The server validates dictionary membership and duplicate-letter feedback, permits six attempts, and commits the final score with the game in one transaction. The answer is returned only when the game ends.
 - Duration is server wall-clock time from start to finish, including hidden tabs and time away. Puzzle date is assigned by the server in Europe/Istanbul and remains fixed across midnight.
 
-Authenticated API responses use `no-store`; the service worker no longer caches APIs and the app deletes the old `api-cache`. Existing bearer tokens are accepted for at most 15 minutes; role and account existence are checked from the database on every request. Logout removes the local token; it does not revoke an already copied user token before expiry.
+Authenticated API responses use `no-store`; the service worker no longer caches APIs and the app deletes the old `api-cache`. Existing bearer tokens are accepted for at most 15 minutes; role and account existence are checked from the database on every request. Normal logout removes the local token. The account-security page also provides immediate logout-all and password-driven session revocation.
 
 ## Validation
 
@@ -65,8 +65,6 @@ Use a dedicated test database: integration tests truncate their test tables. CI 
 
 Configure centralized logs, alerts for authentication failures/5xx/latency, backup schedules, and retention. Test a `pg_dump`/`pg_restore` recovery in isolation and measure recovery time. Pin reviewed base-image digests in your release process and scan application dependencies and final images before publication. The branch does not rotate live credentials, rewrite Git history, run production migrations, deploy services, or establish a backup service.
 
-## Validation recorded for this branch
+## Further production-readiness work
 
-The production npm dependency audit reports zero known advisories. The full audit still reports six low/moderate findings in the build-only PWA dependency chain (`deepmerge`, `@rollup/plugin-node-resolve`, `glob`, `minimatch`, `workbox-build`, and `vite-plugin-pwa`). These tools are not shipped in the static runtime image. Avoid running builds with untrusted plugin configuration or inputs; track upstream fixes. Do not use incompatible transitive major-version overrides merely to suppress the report.
-
-Real Chromium testing through the read-only, non-root Nginx container covered registration, hidden answers, a response lost after server-side completion, idempotent retry, reload/resume, private cache headers, and security headers. CI also runs the Java/PostgreSQL and frontend regression suites. Live TLS certificate issuance, production backup recovery, and final image vulnerability scanning remain release-environment checks.
+See `OPERATIONS.md` for account-security configuration, backup/restore, monitoring, CI gates, and rollback. See `TODO.md` for the distinction between implemented work and deployment-specific activation. The legacy frontend has been removed. Offline support now uses an explicit static-asset allowlist; it does not use the former vulnerable PWA dependency chain or cache API responses. The latest complete npm audit reports zero known advisories.

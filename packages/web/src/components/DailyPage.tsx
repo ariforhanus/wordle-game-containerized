@@ -22,6 +22,7 @@ export default function DailyPage() {
  const [guess, setGuess] = useState("");
  const [busy, setBusy] = useState(false);
  const [error, setError] = useState(false);
+ const [verificationNeeded, setVerificationNeeded] = useState(false);
  const [alreadyPlayed, setAlreadyPlayed] = useState(false);
  const [elapsed, setElapsed] = useState(0);
  const inFlight = useRef(false);
@@ -45,7 +46,7 @@ export default function DailyPage() {
   if (inFlight.current) return;
   inFlight.current = true; setBusy(true); setError(false);
   try { const result = await dailyGameApi.start(i18n.language); if (result.language === selectedLang.current) setGame(result); }
-  catch (err) { if (err instanceof ApiError && err.status === 409) setAlreadyPlayed(true); else setError(true); }
+  catch (err) { if (err instanceof ApiError && err.status === 409) setAlreadyPlayed(true); else if(err instanceof ApiError && err.status === 403) setVerificationNeeded(true); else setError(true); }
   finally { inFlight.current = false; setBusy(false); }
  }
  const addLetter = useCallback((letter: string) => {
@@ -66,7 +67,7 @@ export default function DailyPage() {
    if (err instanceof ApiError && err.status === 400) toast.warning(t("game.invalidWord"));
    else if (err instanceof ApiError && err.status === 409) {
     try { const result = await dailyGameApi.load(game.id); if (result.language === selectedLang.current) { setGame(result); setGuess(""); } }
-    catch (err) { if (err instanceof ApiError && err.status === 409) setAlreadyPlayed(true); else setError(true); }
+    catch (err) { if (err instanceof ApiError && err.status === 409) setAlreadyPlayed(true); else if(err instanceof ApiError && err.status === 403) setVerificationNeeded(true); else setError(true); }
    } else setError(true);
    // Keep the same guess and turn on network failure. Retrying is idempotent on the server.
   } finally { inFlight.current = false; setBusy(false); }
@@ -85,6 +86,7 @@ export default function DailyPage() {
  if (!game) return <div className="page-center"><div className="result-card daily-start-card">
   <h1>{t("daily.title")}</h1><p>{t("daily.desc")}</p>
   <button className="btn-primary" onClick={start} disabled={busy || alreadyPlayed}>{t("daily.startResume")}</button>
+  {verificationNeeded && <Link to="/account">{t("account.verifyToPlay")}</Link>}
   {alreadyPlayed && <p>{t("daily.alreadyPlayed")}</p>}
   {error && <p role="alert">{t("daily.saveError")}</p>}
  </div></div>;

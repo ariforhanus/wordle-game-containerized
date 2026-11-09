@@ -25,6 +25,16 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?Set application database password}
       JWT_SECRET: ${JWT_SECRET:?Set at least 32 bytes of random signing material}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_FROM: ${MAIL_FROM:-wordle@localhost}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-true}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-false}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
@@ -32,7 +42,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: [CMD, curl, -fsS, http://localhost:8091/actuator/health/readiness]
+      test: [CMD, curl, -fsS, http://localhost:9091/actuator/health/readiness]
       interval: 10s
       timeout: 3s
       retries: 12

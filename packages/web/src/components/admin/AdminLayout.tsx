@@ -75,6 +75,7 @@ export default function AdminLayout() {
             <i className="fas fa-book" />
             <span>{t("admin.words")}</span>
           </Link>
+        <Link className="admin-nav-link" to="/admin/audit">{t("account.auditTitle")}</Link>
         </nav>
 
         <div className="admin-sidebar-footer">

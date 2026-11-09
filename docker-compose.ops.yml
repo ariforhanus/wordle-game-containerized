@@ -1,0 +1,40 @@
+# Opt-in operations services. Use with -f docker-compose.yml -f docker-compose.ops.yml.
+services:
+  backup:
+    image: postgres:17.4
+    profiles: [operations]
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGDATABASE: PGDatabase
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set database administrator password}
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    entrypoint: [/bin/sh, /ops/backup-loop.sh]
+    volumes:
+      - ./deploy:/ops:ro
+      - backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'test -f /backups/last-success && test "$$(($$(date +%s)-$$(cat /backups/last-success)))" -lt 90000']
+      interval: 5m
+      timeout: 5s
+      retries: 1
+    mem_limit: 256m
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    profiles: [operations]
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=15d]
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    ports: ["127.0.0.1:9090:9090"]
+    restart: unless-stopped
+    mem_limit: 256m
+volumes:
+  backups:
+  prometheus-data:

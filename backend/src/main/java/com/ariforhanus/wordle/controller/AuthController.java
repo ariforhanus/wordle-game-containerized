@@ -10,9 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,17 +31,13 @@ public class AuthController {
     private final UserRepository users;
     private final PasswordEncoder encoder;
 
-    private final AuthenticationManager authManager;
+    private final String dummyPasswordHash;
     private final JwtUtil jwt;
 
-    public AuthController(
-            UserRepository users,
-            PasswordEncoder encoder,
-            AuthenticationManager authManager,
-            JwtUtil jwt) {
+    public AuthController(UserRepository users, PasswordEncoder encoder, JwtUtil jwt) {
         this.users = users;
         this.encoder = encoder;
-        this.authManager = authManager;
+        this.dummyPasswordHash = encoder.encode(java.util.UUID.randomUUID().toString());
         this.jwt = jwt;
     }
 
@@ -110,7 +103,8 @@ public class AuthController {
 
         try {
             users.save(u);
-            String token = jwt.generateToken(u.getId(), u.getUsername(), u.getRole());
+            String token =
+                    jwt.generateToken(u.getId(), u.getUsername(), u.getRole(), u.getAuthVersion());
             response.put("success", true);
             response.put("token", token);
             response.put("expiresIn", jwtExpMs);
@@ -128,20 +122,18 @@ public class AuthController {
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<JwtResponse> apiLogin(
             @jakarta.validation.Valid @RequestBody LoginRequest req) {
-        try {
-            UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword());
-            authManager.authenticate(authToken);
-
-            var user =
-                    users.findByUsername(req.getUsername())
-                            .orElseThrow(() -> new UsernameNotFoundException("user_not_found"));
-            String token = jwt.generateToken(user.getId(), user.getUsername(), user.getRole());
-            return ResponseEntity.ok(new JwtResponse(token, jwtExpMs));
-
-        } catch (BadCredentialsException ex) {
-            return ResponseEntity.status(401).build();
-        }
+        // Authenticate and mint the token from the same user snapshot. A concurrent password
+        // reset must not let an old password acquire the new authentication version.
+        var user = users.findByUsername(req.getUsername()).orElse(null);
+        boolean matches =
+                encoder.matches(
+                        req.getPassword(),
+                        user == null ? dummyPasswordHash : user.getPasswordHash());
+        if (user == null || !matches) return ResponseEntity.status(401).build();
+        String token =
+                jwt.generateToken(
+                        user.getId(), user.getUsername(), user.getRole(), user.getAuthVersion());
+        return ResponseEntity.ok(new JwtResponse(token, jwtExpMs));
     }
 
     @GetMapping("/me")
@@ -164,6 +156,7 @@ public class AuthController {
             body.put("username", user.getUsername());
             body.put("email", user.getEmail());
             body.put("role", user.getRole());
+            body.put("emailVerified", user.isEmailVerified());
             body.put("firstName", user.getFirstName());
             body.put("lastName", user.getLastName());
             body.put("nationality", user.getNationality());
@@ -240,6 +233,7 @@ public class AuthController {
             body.put("username", user.getUsername());
             body.put("email", user.getEmail());
             body.put("role", user.getRole());
+            body.put("emailVerified", user.isEmailVerified());
             body.put("firstName", user.getFirstName());
             body.put("lastName", user.getLastName());
             body.put("nationality", user.getNationality());
