@@ -50,3 +50,21 @@ The frontend run initially exposed uncancelled `Board` reveal callbacks after un
 | `git diff --check` | Passed |
 
 Latest frontend unit coverage is 17.53% lines and 16.28% branches. This remains a low, measured baseline; browser tests do not contribute to it. Only the two named E2E scenarios were rerun in desktop/mobile Chromium in this step; earlier WebKit results and the Firefox/remote-runner blockers remain recorded above. Continuous elapsed time after closing the page, dedicated Start/Resume screens, and midnight policy are separate open TODO items, not completed by this step. No production data or secrets were used.
+
+## P0.1 — Closed-page and Resume timing regression, 2026-11-09
+
+The second daily fairness TODO is now verified with the existing production implementation unchanged. The parameterized PostgreSQL test `disconnectedTimeCountsAndResumeFromAnotherSessionKeepsTheOriginalStart` runs for English and Turkish. It advances the injected server clock by 120 seconds with no intervening game requests, issues a fresh session token, and resumes three times through HTTP. Every response uses the original game ID and full elapsed time; the persisted `started_at` is unchanged. Completion at 180 seconds persists that entire duration and the corresponding server-calculated score. Reopening the completed game later freezes duration and preserves exactly one score.
+
+The first test draft inherited the suite's 23:59 Istanbul fixture and crossed into a different puzzle day, correctly receiving a new day's game. The timing fixture was moved to daytime to isolate this acceptance item. Midnight completion/start policy remains a separate open TODO; no production behavior was changed to make this test pass.
+
+Frontend regressions cover timer cleanup on unmount, resuming from the returned server baseline, subsequent ticking, and frozen completed-game time. The real browser regression closes the page, leaves the original context offline for a 2.2-second interval without game requests, and opens a fresh context using the saved account credentials. Resume returns the original ID with the closed-page interval included; a repeated start/resume request keeps that ID and elapsed time cannot go backwards. The displayed timer also uses the returned elapsed baseline. This emulates a different browser session, not a physical second device.
+
+| Check rerun for this change | Result |
+| --- | --- |
+| Java 21 / PostgreSQL full `mvn verify` | 65 passed, zero skipped/failures/errors |
+| Full frontend unit suite with V8 coverage | 13 passed, no unhandled errors |
+| TypeScript / production build and built-worker tests | Build passed; 8 tests passed |
+| Production Nginx Chromium + mobile Chromium, closed-page Resume and explicit-Start regressions | 4 passed |
+| `git diff --check` | Passed |
+
+Frontend unit coverage is 17.53% lines and 16.43% branches; the existing low-coverage follow-up remains open. The deployed test frontend/backend artifacts were reused because this change affects tests/documentation only. These are local results; successful remote CI, Firefox, physical device validation, separate Start/Resume screens, and the remaining midnight/concurrency acceptance items are not claimed complete. Production secrets/data were not used and no migration or production deployment was performed.

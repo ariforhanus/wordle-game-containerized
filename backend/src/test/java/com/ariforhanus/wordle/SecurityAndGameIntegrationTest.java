@@ -188,6 +188,77 @@ class SecurityAndGameIntegrationTest {
         assertEquals(result, games.guess(user.getId(), game.id(), "APPLE", 1));
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"en", "tr"})
+    void disconnectedTimeCountsAndResumeFromAnotherSessionKeepsTheOriginalStart(String language)
+            throws Exception {
+        // Stay within one puzzle day; midnight behavior has a separate acceptance item.
+        clock.now.set(Instant.parse("2026-11-09T10:00:00Z"));
+        Instant startedAt = clock.instant();
+        var game = games.start(user.getId(), language);
+        String answer = language.equals("tr") ? "İNCİR" : "APPLE";
+        db.update(
+                "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
+                        + " WHERE id = ?)",
+                answer,
+                game.id());
+        // There are no game requests while this deterministic server clock advances.
+        clock.now.set(startedAt.plusSeconds(120));
+        String newSession = jwt.generateToken(user.getId(), user.getUsername(), "USER");
+        for (int retry = 0; retry < 3; retry++) {
+            http.perform(
+                            post("/api/v1/daily/games")
+                                    .param("lang", language)
+                                    .header("Authorization", "Bearer " + newSession))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(game.id()))
+                    .andExpect(jsonPath("$.elapsedMs").value(120000));
+        }
+        assertEquals(
+                startedAt,
+                db.queryForObject(
+                                "SELECT started_at FROM daily_games WHERE id = ?",
+                                java.sql.Timestamp.class,
+                                game.id())
+                        .toInstant());
+        assertEquals(1, count("daily_games"));
+        clock.now.set(startedAt.plusSeconds(180));
+        http.perform(
+                        post("/api/v1/daily/games/" + game.id() + "/guesses")
+                                .header("Authorization", "Bearer " + newSession)
+                                .contentType("application/json")
+                                .content(
+                                        json.writeValueAsString(
+                                                java.util.Map.of("guess", answer, "attempt", 1))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("won"))
+                .andExpect(jsonPath("$.elapsedMs").value(180000))
+                .andExpect(
+                        jsonPath("$.score")
+                                .value(
+                                        com.ariforhanus.wordle.service.ScoreService.calculateScore(
+                                                1, 180000)));
+        assertEquals(
+                180000L,
+                db.queryForObject(
+                        "SELECT duration_ms FROM scores WHERE user_id = ? AND language = ?",
+                        Long.class,
+                        user.getId(),
+                        language));
+        clock.now.set(startedAt.plusSeconds(240));
+        var finished = games.start(user.getId(), language);
+        assertEquals(game.id(), finished.id());
+        assertEquals(180000, finished.elapsedMs());
+        assertEquals(1, count("scores"));
+        assertEquals(
+                startedAt,
+                db.queryForObject(
+                                "SELECT started_at FROM daily_games WHERE id = ?",
+                                java.sql.Timestamp.class,
+                                game.id())
+                        .toInstant());
+    }
+
     @Test
     void gameOwnershipIsEnforced() throws Exception {
         var game = startApple();

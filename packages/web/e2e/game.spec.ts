@@ -62,6 +62,65 @@ test("daily visits, reloads, language changes and status reads do not start the 
   expect(starts).toHaveLength(1);
 });
 
+test("daily timer includes time with the page closed and resumes in a fresh browser context", async ({
+  page,
+  context,
+  browser,
+}) => {
+  await register(page);
+  await page.goto("/daily");
+  const startResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/v1/daily/games",
+  );
+  await page.locator(".daily-start-card button").click();
+  const started = await (await startResponse).json();
+  await expect(page.locator(".board")).toBeVisible();
+  const storageState = await context.storageState();
+  await context.setOffline(true);
+  await page.close();
+  // A real no-page/no-network interval verifies server time, without browser clock mocking.
+  await new Promise((resolve) => setTimeout(resolve, 2200));
+  const reopened = await browser.newContext({ storageState });
+  try {
+    const nextPage = await reopened.newPage();
+    await nextPage.goto("/daily");
+    const resumeResponse = nextPage.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/api/v1/daily/games",
+    );
+    await nextPage.locator(".daily-start-card button").click();
+    const resumed = await (await resumeResponse).json();
+    expect(resumed.id).toBe(started.id);
+    expect(resumed.elapsedMs - started.elapsedMs).toBeGreaterThanOrEqual(2000);
+    expect(resumed.guesses).toEqual(started.guesses);
+    await expect(nextPage.locator(".board")).toBeVisible();
+    // The displayed timer must use the resumed server baseline, then continue ticking.
+    await expect
+      .poll(async () => {
+        const text = await nextPage.locator(".daily-timer").innerText();
+        const [minutes, seconds] = text.split(":").map(Number);
+        return minutes * 60 + seconds;
+      })
+      .toBeGreaterThanOrEqual(Math.floor(resumed.elapsedMs / 1000));
+    const token = await nextPage.evaluate(() =>
+      localStorage.getItem("jwtToken"),
+    );
+    const repeated = await reopened.request.post(
+      "/api/v1/daily/games?lang=en",
+      { headers: { Authorization: "Bearer " + token } },
+    );
+    expect(repeated.status()).toBe(200);
+    const retried = await repeated.json();
+    expect(retried.id).toBe(started.id);
+    expect(retried.elapsedMs).toBeGreaterThanOrEqual(resumed.elapsedMs);
+  } finally {
+    await reopened.close();
+  }
+});
+
 test("login page supports labels and browser zoom", async ({ page }) => {
   await page.goto("/login");
   const results = await new AxeBuilder({ page }).analyze();

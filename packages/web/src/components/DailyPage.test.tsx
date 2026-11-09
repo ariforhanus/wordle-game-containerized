@@ -1,5 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -76,6 +77,65 @@ describe("server-authoritative daily play", () => {
     fireEvent.click(screen.getByText("daily.startResume"));
     await screen.findByText("2026-11-09");
     expect(dailyGameApi.start).toHaveBeenCalledExactlyOnceWith("tr");
+  });
+
+  it("resumes from fresh server elapsed time after leaving instead of resetting its timer", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(dailyGameApi.start).mockResolvedValue({
+        ...initial,
+        elapsedMs: 10000,
+      });
+      const first = mount();
+      await act(async () =>
+        fireEvent.click(screen.getByText("daily.startResume")),
+      );
+      expect(screen.getByLabelText("daily.elapsed").textContent).toBe("00:10");
+      act(() => vi.advanceTimersByTime(3000));
+      expect(screen.getByLabelText("daily.elapsed").textContent).toBe("00:13");
+      first.unmount();
+      expect(vi.getTimerCount()).toBe(0);
+      act(() => vi.advanceTimersByTime(120000));
+      vi.mocked(dailyGameApi.start).mockResolvedValue({
+        ...initial,
+        elapsedMs: 133000,
+      });
+      mount();
+      expect(dailyGameApi.start).toHaveBeenCalledTimes(1);
+      await act(async () =>
+        fireEvent.click(screen.getByText("daily.startResume")),
+      );
+      expect(screen.getByLabelText("daily.elapsed").textContent).toBe("02:13");
+      act(() => vi.advanceTimersByTime(1000));
+      expect(screen.getByLabelText("daily.elapsed").textContent).toBe("02:14");
+      expect(dailyGameApi.start).toHaveBeenCalledTimes(2);
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps completed game time frozen after reopening", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(dailyGameApi.start).mockResolvedValue({
+        ...initial,
+        elapsedMs: 133000,
+        status: "lost",
+        answer: "APPLE",
+        score: 0,
+      });
+      mount();
+      await act(async () =>
+        fireEvent.click(screen.getByText("daily.startResume")),
+      );
+      expect(screen.getByLabelText("daily.elapsed").textContent).toBe("02:13");
+      act(() => vi.advanceTimersByTime(120000));
+      expect(screen.getByLabelText("daily.elapsed").textContent).toBe("02:13");
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+    }
   });
 
   it("retains the same turn after a lost response and retries without inventing a result", async () => {
