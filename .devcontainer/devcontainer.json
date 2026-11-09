@@ -1,0 +1,37 @@
+{
+  "name": "Wordle private mobile preview",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "forwardPorts": [
+    8080
+  ],
+  "portsAttributes": {
+    "8080": {
+      "label": "Wordle preview",
+      "onAutoForward": "notify",
+      "protocol": "http",
+      "requireLocalPort": true
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "remote.autoForwardPorts": false
+      }
+    },
+    "codespaces": {
+      "openFiles": [
+        "docs/CODESPACES_PREVIEW.md"
+      ]
+    }
+  },
+  "postStartCommand": "bash .devcontainer/start-preview-background.sh",
+  "waitFor": "onCreateCommand",
+  "remoteUser": "vscode"
+}

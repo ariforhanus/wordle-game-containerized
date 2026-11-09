@@ -32,6 +32,8 @@ jobs:
         working-directory: backend
       - name: Operator-script failure tests
         run: python -m unittest discover -s tests/ops -v
+      - name: Preview startup failure and repeat-start tests
+        run: python -m unittest discover -s tests/preview -v
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with: {name: backend-coverage, path: backend/target/site/jacoco, retention-days: 7}
       - name: Rehearse database backup and isolated restore
@@ -143,3 +145,26 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '1'
           format: table
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Fresh preview startup and application smoke test
+        run: |
+          ./scripts/start-preview.sh
+          ./scripts/smoke-preview.sh --full
+      - name: Restart and repeated startup preserve data and secrets
+        run: |
+          cp .preview/secrets.env .preview/secrets.expected
+          ./scripts/preview-compose.sh exec -T postgres psql -U postgres -d wordle_preview -v ON_ERROR_STOP=1 -c "CREATE TABLE preview_restart_probe (value text); INSERT INTO preview_restart_probe VALUES ('preserved');"
+          ./scripts/preview-compose.sh stop
+          ./scripts/start-preview.sh
+          ./scripts/start-preview.sh
+          cmp .preview/secrets.env .preview/secrets.expected
+          ./scripts/preview-compose.sh exec -T postgres psql -U postgres -d wordle_preview -Atc "SELECT value FROM preview_restart_probe" | grep -qx preserved
+      - name: Preview diagnostics
+        if: failure()
+        run: |
+          ./scripts/preview-compose.sh ps
+          ./scripts/preview-compose.sh logs --tail=100

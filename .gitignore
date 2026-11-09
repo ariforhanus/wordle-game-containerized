@@ -38,3 +38,7 @@ packages/web/coverage/
 
 # Python test bytecode
 __pycache__/
+
+# Disposable Codespaces preview credentials, state and logs
+.preview/
+work/

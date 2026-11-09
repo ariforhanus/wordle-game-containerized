@@ -11,3 +11,5 @@ work
 
 **/test-results
 **/playwright-report
+
+.preview
