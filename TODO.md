@@ -66,7 +66,7 @@ V6 dönem indeksi ve sentetik önce/sonra okuma planları tamamlandı (`docs/per
 ## P1.4 — Günlük oyun UX ve erişilebilirlik
 
 - [x] Kullanıcı kararı: önceki günün yarım oyunu devam ettirilemesin; gün sınırında sunucu GET/tahmin için `410 game_expired` dönsün. Eski oyunlar için Resume seçicisi eklenmeyecek; bugünün oyunu açık Start gerektirir.
-- [ ] Oyun sonunda seçili dilin istatistiklerini, tahmin dağılımını ve sunucunun gün/zaman dilimiyle uyumlu sonraki oyuna geri sayımı göster; gün değişiminde eski oyunu yanlışlıkla başlatma.
+- [x] Oyun sonunda seçili dilin istatistiklerini, tahmin dağılımını ve sunucunun gün/zaman dilimiyle uyumlu sonraki oyuna geri sayımı göster; gün değişiminde eski oyunu yanlışlıkla başlatma.
 - [ ] Günlük ve serbest oyunun farkını açıkla: sıralama, günlük hak, süre ve çevrimdışı kullanım kuralları.
 - [ ] Ağ hatasında yazılmış/iletilmiş tahminleri koru; retry sırasında çift tahmin oluşturma. Mevcut kayıp yanıt testine yazılmakta olan tahmin, offline/online geçişi ve yeniden bağlantı senaryolarını ekle.
 - [ ] Mobil klavye/tahta, yatay ekran, yakınlaştırma ve odak davranışını doğrula; emülasyona ek fiziksel cihaz kontrolü yap.
@@ -74,7 +74,7 @@ V6 dönem indeksi ve sentetik önce/sonra okuma planları tamamlandı (`docs/per
 - [ ] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %22,20 satır / %24,22 dal kapsamını özellikle UI hata yollarında genişlet.
 - [ ] Firefox'ta başarılı tarayıcı koşusu elde et; yerelde sayfa açılmadan context çöküyor. WebKit testini gerçek Safari/fiziksel cihaz doğrulaması yerine sayma; manuel yardımcı teknoloji testlerini tamamla.
 
-Kısmi ilerleme: seçili dilin oyun sonu istatistikleri ve tahmin dağılımı tamamlandı; sonraki oyuna geri sayım henüz yok. Yeni dönem toplamı/dil geçişi testleri eklendi; frontend kapsamı %34,58 satır / %36,15 dal. Erişilebilirlik, ağ kesintisi ve fiziksel cihaz maddeleri açık.
+Oyun sonu istatistikleri, tahmin dağılımı ve sunucu takvimine bağlı geri sayım tamamlandı. Sayaç bitince yalnızca bugünün durumunu kontrol etme seçeneği açılır; otomatik Start yoktur. Günlük/serbest oyun açıklamaları sıradaki iştir. Frontend kapsamı %37,37 satır / %39,15 dal; erişilebilirlik, ağ kesintisi ve fiziksel cihaz maddeleri açık.
 
 ## P2.1 — Yeni diller ve kelime rotasyonu
 

@@ -999,3 +999,64 @@ test.describe("expired daily games", () => {
     expect(starts).toBe(1);
   });
 });
+
+test.describe("daily result countdown", () => {
+  test.use({ serviceWorkers: "block" });
+
+  async function finishDaily(page: import("@playwright/test").Page) {
+    await register(page);
+    const answers = await fixtureDailyWords(page.context());
+    await page.goto("/daily");
+    const started = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/daily/games");
+    await page.locator(".daily-start-card button").click();
+    const game = await (await started).json();
+    const token = await page.evaluate(() => localStorage.getItem("jwtToken"));
+    const finished = await page.context().request.post(`/api/v1/daily/games/${game.id}/guesses`, {
+      headers: { Authorization: "Bearer " + token }, data: { guess: answers.en.word, attempt: 1 },
+    });
+    expect(finished.status()).toBe(200);
+    expect((await finished.json()).status).toBe("won");
+  }
+
+  test("saved result shows the real server countdown independently of the device clock", async ({ page }) => {
+    await finishDaily(page);
+    await page.reload();
+    await page.getByRole("button", { name: "View today's result", exact: true }).click();
+    const timer = page.getByRole("timer", { name: "Next daily game" });
+    await expect(timer).toHaveText(/^\d{2}:\d{2}:\d{2}$/);
+    await expect(page.getByText("Game time zone: Europe/Istanbul", { exact: true })).toBeVisible();
+    const first = await timer.textContent();
+    await page.clock.setSystemTime(new Date("2030-01-01T00:00:00Z"));
+    await expect(timer).toHaveText(/^\d{2}:\d{2}:\d{2}$/);
+    const second = await timer.textContent();
+    const seconds = (value: string) => value.split(":").reduce((total, part) => total * 60 + Number(part), 0);
+    expect(Math.abs(seconds(first!) - seconds(second!))).toBeLessThan(5);
+  });
+
+  test("countdown rollover refreshes status only after a click and never auto-Starts", async ({ page }) => {
+    await finishDaily(page);
+    let starts = 0;
+    let nextDay = false;
+    await page.route("**/api/v1/daily/games?*", async (route) => {
+      if (route.request().method() === "POST") { starts++; return route.continue(); }
+      const response = await route.fetch();
+      const status = await response.json();
+      const boundary = Date.parse(status.nextGameAt);
+      if (!nextDay) return route.fulfill({ response, json: { ...status, serverNow: new Date(boundary - 3000).toISOString() } });
+      const date = new Date(status.date + "T12:00:00Z");
+      date.setUTCDate(date.getUTCDate() + 1);
+      return route.fulfill({ response, json: { ...status, date: date.toISOString().slice(0, 10), serverNow: new Date(boundary).toISOString(), nextGameAt: new Date(boundary + 86400000).toISOString(), state: "not_started", game: null } });
+    });
+    await page.reload();
+    await page.getByRole("button", { name: "View today's result", exact: true }).click();
+    await expect(page.getByRole("timer", { name: "Next daily game" })).toBeVisible();
+    const check = page.getByRole("button", { name: "Check today’s game", exact: true });
+    await expect(check).toBeVisible({ timeout: 10000 });
+    expect(starts).toBe(0);
+    nextDay = true;
+    await check.click();
+    await expect(page.getByRole("button", { name: "Start today's game", exact: true })).toBeEnabled();
+    await expect(page.locator(".board")).toHaveCount(0);
+    expect(starts).toBe(0);
+  });
+});

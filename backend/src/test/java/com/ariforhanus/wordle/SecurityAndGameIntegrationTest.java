@@ -62,6 +62,52 @@ class SecurityAndGameIntegrationTest {
     }
 
     @Test
+    void calendarMetadataIsServerAuthoritativeAndNeverStartsAGame() throws Exception {
+        http.perform(get("/api/v1/daily/games").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serverNow").value(clock.instant().toString()))
+                .andExpect(
+                        jsonPath("$.nextGameAt")
+                                .value(
+                                        REFERENCE_DAY
+                                                .plusDays(1)
+                                                .atStartOfDay(APP_ZONE)
+                                                .toInstant()
+                                                .toString()));
+        assertEquals(0, count("daily_games"));
+        assertEquals(0, count("daily_puzzles"));
+        var game = startApple();
+        games.guess(user.getId(), game.id(), "APPLE", 1);
+        assertEquals(clock.instant(), games.status(user.getId(), "en").serverNow());
+        assertEquals(
+                REFERENCE_DAY.plusDays(1).atStartOfDay(APP_ZONE).toInstant(),
+                games.status(user.getId(), "en").nextGameAt());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+        "2024-03-10T05:00:00Z,2024-03-11T04:00:00Z,23",
+        "2024-11-03T04:00:00Z,2024-11-04T05:00:00Z,25"
+    })
+    void calendarUsesActualZoneDayLengthAtKnownDstTransitions(String start, String end, int hours) {
+        // Purpose-specific known New York DST boundaries, not production clock values.
+        var service =
+                new DailyGameService(
+                        db,
+                        org.mockito.Mockito.mock(
+                                com.ariforhanus.wordle.service.DailyPuzzleService.class),
+                        org.mockito.Mockito.mock(
+                                com.ariforhanus.wordle.service.GuessDictionary.class),
+                        Clock.fixed(Instant.parse(start), ZoneOffset.UTC),
+                        "America/New_York");
+        var status = service.status(user.getId(), "en");
+        assertEquals(Instant.parse(end), status.nextGameAt());
+        assertEquals(hours, Duration.between(status.serverNow(), status.nextGameAt()).toHours());
+        assertEquals("America/New_York", status.timeZone());
+        assertEquals(0, count("daily_games"));
+    }
+
+    @Test
     void registrationPersistsTheInjectedCreationInstant() throws Exception {
         http.perform(
                         post("/api/v1/auth/register")
@@ -507,6 +553,7 @@ class SecurityAndGameIntegrationTest {
         String session = jwt.generateToken(user.getId(), user.getUsername(), "USER");
         var before = gameRequest(get("/api/v1/daily/games").param("lang", language), session);
         assertEquals(oldDate.toString(), before.get("date").asText());
+        assertEquals(boundary.toString(), before.get("nextGameAt").asText());
         assertEquals("Europe/Istanbul", before.get("timeZone").asText());
         assertEquals(0, count("daily_puzzles"));
         var old =
@@ -530,6 +577,9 @@ class SecurityAndGameIntegrationTest {
         var after = gameRequest(get("/api/v1/daily/games").param("lang", language), session);
         assertEquals("not_started", after.get("state").asText());
         assertEquals(today.toString(), after.get("date").asText());
+        assertEquals(
+                today.plusDays(1).atStartOfDay(zone).toInstant().toString(),
+                after.get("nextGameAt").asText());
         assertEquals(1, count("daily_games"));
         assertEquals(1, count("daily_puzzles"));
         http.perform(

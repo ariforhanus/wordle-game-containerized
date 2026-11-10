@@ -34,7 +34,13 @@ public class DailyGameService {
         this.zone = ZoneId.of(timezone);
     }
 
-    public record StatusView(String state, GameView game, String date, String timeZone) {}
+    public record StatusView(
+            String state,
+            GameView game,
+            String date,
+            String timeZone,
+            Instant serverNow,
+            Instant nextGameAt) {}
 
     public static class DayChangedException extends RuntimeException {}
 
@@ -46,7 +52,9 @@ public class DailyGameService {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_lang");
         }
-        LocalDate today = LocalDate.now(clock.withZone(zone));
+        Instant serverNow = clock.instant();
+        LocalDate today = serverNow.atZone(zone).toLocalDate();
+        Instant nextGameAt = today.plusDays(1).atStartOfDay(zone).toInstant();
         var ids =
                 db.queryForList(
                         "SELECT g.id FROM daily_games g JOIN daily_puzzles p ON p.id = g.puzzle_id"
@@ -61,7 +69,9 @@ public class DailyGameService {
                     game.status().equals("playing") ? "playing" : "finished",
                     game,
                     today.toString(),
-                    zone.getId());
+                    zone.getId(),
+                    serverNow,
+                    nextGameAt);
         }
         boolean historicalResult =
                 Boolean.TRUE.equals(
@@ -76,7 +86,9 @@ public class DailyGameService {
                 historicalResult ? "already_played" : "not_started",
                 null,
                 today.toString(),
-                zone.getId());
+                zone.getId(),
+                serverNow,
+                nextGameAt);
     }
 
     @Transactional

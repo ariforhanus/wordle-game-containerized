@@ -15,6 +15,7 @@ import Board from "./Board";
 import Keyboard from "./Keyboard";
 import Confetti from "./Confetti";
 import DailyResultStats from "./DailyResultStats";
+import DailyCountdown from "./DailyCountdown";
 import { buildShareText, copyToClipboard } from "../utils/shareResult";
 import "./GamePage.css";
 import "./DailyPage.css";
@@ -89,7 +90,7 @@ export default function DailyPage() {
     return () => clearInterval(timer);
   }, [game]);
 
-  const handleExpired = useCallback(() => {
+  const refreshToday = useCallback(() => {
     setGame(null);
     setGuess("");
     setDayChanged(true);
@@ -115,7 +116,7 @@ export default function DailyPage() {
     } catch (err) {
       if (requestedLang !== selectedLang.current) return;
       if (err instanceof ApiError && err.status === 410) {
-        handleExpired();
+        refreshToday();
       } else if (
         err instanceof ApiError &&
         err.status === 409 &&
@@ -173,7 +174,7 @@ export default function DailyPage() {
       if (game.language !== selectedLang.current) return;
       if (err instanceof ApiError && err.status === 400)
         toast.warning(t("game.invalidWord"));
-      else if (err instanceof ApiError && err.status === 410) handleExpired();
+      else if (err instanceof ApiError && err.status === 410) refreshToday();
       else if (err instanceof ApiError && err.status === 409) {
         try {
           const result = await dailyGameApi.load(game.id);
@@ -183,7 +184,7 @@ export default function DailyPage() {
           }
         } catch (err) {
           if (game.language !== selectedLang.current) return;
-          if (err instanceof ApiError && err.status === 410) handleExpired();
+          if (err instanceof ApiError && err.status === 410) refreshToday();
           else if (err instanceof ApiError && err.status === 409)
             setAlreadyPlayed(true);
           else if (err instanceof ApiError && err.status === 403)
@@ -196,7 +197,7 @@ export default function DailyPage() {
       inFlight.current = false;
       setBusy(false);
     }
-  }, [game, guess, toast, t, handleExpired]);
+  }, [game, guess, toast, t, refreshToday]);
   useEffect(() => {
     // Preserve native keyboard activation of Start/Resume/result buttons outside active play.
     if (!game || game.status !== "playing") return;
@@ -341,6 +342,7 @@ export default function DailyPage() {
           </p>
           <p>{t("daily.confirmedScore", { score: game.score })}</p>
           <DailyResultStats language={game.language} gameId={game.id} />
+          <DailyCountdown key={game.id} language={game.language} gameDate={game.date} onCheckToday={refreshToday} />
           <button
             className="btn-share"
             onClick={async () => {

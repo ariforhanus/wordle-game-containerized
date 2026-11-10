@@ -44,7 +44,7 @@ const nextDay = new Date(`${initial.date}T00:00:00Z`);
 nextDay.setUTCDate(nextDay.getUTCDate() + 1);
 const NEXT_TEST_DAY = nextDay.toISOString().slice(0, 10);
 
-const dayMetadata = { date: initial.date, timeZone: "Europe/Istanbul" };
+const dayMetadata = { date: initial.date, timeZone: "Europe/Istanbul", serverNow: `${initial.date}T12:00:00Z`, nextGameAt: `${initial.date}T21:00:00Z` };
 function mount() {
   return render(
     <MemoryRouter>

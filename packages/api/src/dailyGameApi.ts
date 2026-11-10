@@ -34,6 +34,9 @@ export function guess(
 }
 
 export interface DailyGameStatus {
+  // Optional for cached clients talking to an older backend; countdown fails closed.
+  serverNow?: string;
+  nextGameAt?: string;
   date: string;
   timeZone: string;
   state: "not_started" | "playing" | "finished" | "already_played";
