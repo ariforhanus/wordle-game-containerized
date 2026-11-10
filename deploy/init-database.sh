@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+# Keep LF line endings: this script is executed by the Linux PostgreSQL entrypoint.
 # psql variables quote values safely; do not concatenate passwords into SQL.
 psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   --set=app_password="$WORDLE_DB_PASSWORD" --set=db_name="$POSTGRES_DB" <<'SQL'

@@ -90,3 +90,28 @@ use these credentials for staging/production or replace them with live secrets
 in this tracked file. Removing it later does not erase Git history; rotate all
 provisioned credentials and the JWT key before public use. Existing persisted
 accounts/database roles are not reset by editing the file.
+
+## Windows: PostgreSQL init script cannot execute
+
+A Windows checkout with CRLF shell-script lines can produce
+`10-wordle.sh: cannot execute: required file not found` even though the file
+exists. `.gitattributes` now forces LF for shell scripts and container SQL/build
+files. The init script was changed so pulling this fix also rewrites that file.
+
+For the specific failed first initialization shown by this error, PostgreSQL has
+already created its data directory/database but has not created the application
+role. Restarting alone skips init scripts. After pulling this branch, recover it
+without deleting the data volume:
+
+```sh
+git pull
+docker compose up -d postgres
+docker compose exec postgres sh /docker-entrypoint-initdb.d/10-wordle.sh
+docker compose up --build -d
+```
+
+The manual init step is for this interrupted first setup, where `wordle` does not
+yet exist. Do not rerun it on an already provisioned database or reset a volume
+containing application data. If the role already exists, investigate the current
+startup error and stored role credentials instead of deleting data. This fix does
+not reset existing database passwords. Fresh checkouts initialize normally.
