@@ -60,6 +60,7 @@ function typeWord() {
 afterEach(cleanup);
 beforeEach(() => {
   locale.language = "en";
+  sessionStorage.clear();
   vi.resetAllMocks();
   vi.mocked(scoreApi.getMyStats).mockResolvedValue(statsFixture());
   vi.mocked(dailyGameApi.status).mockResolvedValue({
@@ -472,6 +473,103 @@ describe("server-authoritative daily play", () => {
     await screen.findByText("daily.dayChanged");
     await screen.findByText("daily.start");
     expect(dailyGameApi.start).not.toHaveBeenCalled();
+  });
+
+  it("restores a partial draft on same-game Resume after a reload", async () => {
+    const view = mount();
+    fireEvent.click(await screen.findByText("daily.start"));
+    await screen.findByText(initial.date);
+    fireEvent.keyDown(window, { key: "a" });
+    fireEvent.keyDown(window, { key: "p" });
+    view.unmount();
+    vi.mocked(dailyGameApi.status).mockResolvedValue({ ...dayMetadata, state: "playing", game: initial });
+    vi.mocked(dailyGameApi.load).mockResolvedValue(initial);
+    const restored = mount();
+    fireEvent.click(await screen.findByText("daily.resume"));
+    await screen.findByText(initial.date);
+    expect(restored.container.querySelector(".board-row")?.textContent).toBe("AP");
+    expect(dailyGameApi.guess).not.toHaveBeenCalled();
+  });
+
+  it("preserves an offline draft and only reads on reconnect without submitting", async () => {
+    const view = mount();
+    fireEvent.click(await screen.findByText("daily.start"));
+    await screen.findByText(initial.date);
+    fireEvent(window, new Event("offline"));
+    typeWord();
+    fireEvent.keyDown(window, { key: "Enter" });
+    expect(dailyGameApi.guess).not.toHaveBeenCalled();
+    expect(view.container.querySelector(".board-row")?.textContent).toBe("APPLE");
+    vi.mocked(dailyGameApi.load).mockResolvedValue(initial);
+    fireEvent(window, new Event("online"));
+    await screen.findByText("daily.reconnected");
+    expect(dailyGameApi.load).toHaveBeenCalledExactlyOnceWith(initial.id);
+    expect(view.container.querySelector(".board-row")?.textContent).toBe("APPLE");
+    expect(dailyGameApi.guess).not.toHaveBeenCalled();
+  });
+
+  it("locks ambiguous input, confirms a saved turn by GET and removes its pending draft", async () => {
+    const view = mount();
+    vi.mocked(dailyGameApi.guess).mockRejectedValue(new Error("lost reply"));
+    fireEvent.click(await screen.findByText("daily.start"));
+    await screen.findByText(initial.date);
+    typeWord();
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByText("daily.pendingRule");
+    fireEvent.keyDown(window, { key: "Backspace" });
+    fireEvent.keyDown(window, { key: "c" });
+    expect(view.container.querySelector(".board-row")?.textContent).toBe("APPLE");
+    vi.mocked(dailyGameApi.load).mockResolvedValue({ ...initial, guesses: [{ guess: "APPLE", statuses: Array(5).fill("absent") }] });
+    fireEvent(window, new Event("online"));
+    await screen.findByText("daily.reconnected");
+    expect(screen.queryByText("daily.pendingRule")).toBeNull();
+    expect(view.container.querySelectorAll(".board-row")[1].textContent).toBe("");
+    expect(dailyGameApi.guess).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps retrying exactly the pending payload when a read has not confirmed it", async () => {
+    vi.mocked(dailyGameApi.guess).mockRejectedValue(new Error("offline"));
+    mount();
+    fireEvent.click(await screen.findByText("daily.start"));
+    await screen.findByText(initial.date);
+    typeWord();
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByText("daily.pendingRule");
+    vi.mocked(dailyGameApi.load).mockResolvedValue(initial);
+    fireEvent(window, new Event("online"));
+    await screen.findByText("daily.reconnected");
+    fireEvent.click(screen.getByText("daily.retry"));
+    await waitFor(() => expect(dailyGameApi.guess).toHaveBeenCalledTimes(2));
+    expect(dailyGameApi.guess).toHaveBeenLastCalledWith(initial.id, "APPLE", 1);
+  });
+
+  it("expires a reconnecting game without replaying its draft into the next day", async () => {
+    const { ApiError } = await import("@wordle/api");
+    mount();
+    fireEvent.click(await screen.findByText("daily.start"));
+    await screen.findByText(initial.date);
+    typeWord();
+    vi.mocked(dailyGameApi.load).mockRejectedValue(new ApiError(410, { error: "game_expired" }));
+    vi.mocked(dailyGameApi.status).mockResolvedValue({ ...dayMetadata, date: NEXT_TEST_DAY, state: "not_started", game: null });
+    fireEvent(window, new Event("online"));
+    await screen.findByText("daily.dayChanged");
+    await screen.findByText("daily.start");
+    expect(sessionStorage.getItem("wordle_daily_draft_en")).toBeNull();
+    expect(dailyGameApi.guess).not.toHaveBeenCalled();
+    expect(dailyGameApi.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores reconnect replies after unmount instead of mutating another view's stored draft", async () => {
+    let resolve!: (game: DailyGame) => void;
+    vi.mocked(dailyGameApi.load).mockImplementation(() => new Promise((done) => { resolve = done; }));
+    const view = mount();
+    fireEvent.click(await screen.findByText("daily.start"));
+    await screen.findByText(initial.date);
+    fireEvent(window, new Event("online"));
+    view.unmount();
+    sessionStorage.setItem("wordle_daily_draft_en", "newer-view-fixture");
+    await act(async () => resolve({ ...initial, status: "won", answer: "APPLE", score: 9000 }));
+    expect(sessionStorage.getItem("wordle_daily_draft_en")).toBe("newer-view-fixture");
   });
 
 });

@@ -74,7 +74,8 @@ export class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  opts: RequestInit = {}
+  opts: RequestInit = {},
+  timeoutMs?: number
 ): Promise<T> {
   const url = `${baseUrl}${path}`;
   const headers: Record<string, string> = {
@@ -86,28 +87,34 @@ async function request<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, { ...opts, headers, cache: "no-store" });
+  const controller = timeoutMs && timeoutMs > 0 ? new AbortController() : undefined;
+  const timeout = controller ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
+  try {
+    const res = await fetch(url, { ...opts, headers, cache: "no-store", signal: controller?.signal ?? opts.signal });
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new ApiError(res.status, body, `API ${res.status}: ${path}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new ApiError(res.status, body, `API ${res.status}: ${path}`);
+    }
+
+    const text = await res.text();
+    if (!text) return undefined as T;
+    return JSON.parse(text) as T;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const text = await res.text();
-  if (!text) return undefined as T;
-  return JSON.parse(text) as T;
 }
 
-export function get<T>(path: string): Promise<T> {
-  return request<T>(path);
+export function get<T>(path: string, timeoutMs?: number): Promise<T> {
+  return request<T>(path, {}, timeoutMs);
 }
 
-export function post<T>(path: string, body?: unknown): Promise<T> {
+export function post<T>(path: string, body?: unknown, timeoutMs?: number): Promise<T> {
   return request<T>(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
-  });
+  }, timeoutMs);
 }
 
 export function put<T>(path: string, body?: unknown): Promise<T> {

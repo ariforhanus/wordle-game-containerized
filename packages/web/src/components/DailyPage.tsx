@@ -18,6 +18,7 @@ import DailyResultStats from "./DailyResultStats";
 import GameModeInfo from "./GameModeInfo";
 import DailyCountdown from "./DailyCountdown";
 import { buildShareText, copyToClipboard } from "../utils/shareResult";
+import { clearDailyDraft, restoreDailyDraft, saveDailyDraft } from "../utils/dailyDraft";
 import "./GamePage.css";
 import "./DailyPage.css";
 
@@ -33,6 +34,11 @@ export default function DailyPage() {
   const [lookupVersion, setLookupVersion] = useState(0);
   const [game, setGame] = useState<DailyGame | null>(null);
   const [guess, setGuess] = useState("");
+  const [pending, setPending] = useState(false);
+  const [offline, setOffline] = useState(() => navigator.onLine === false);
+  const [recovered, setRecovered] = useState(false);
+  const gameRef = useRef<DailyGame | null>(null);
+  gameRef.current = game;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [verificationNeeded, setVerificationNeeded] = useState(false);
@@ -44,6 +50,12 @@ export default function DailyPage() {
   selectedLang.current = i18n.language;
   const lang = game?.language ?? i18n.language;
 
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated()) navigate("/login");
   }, [navigate]);
@@ -52,6 +64,8 @@ export default function DailyPage() {
     let active = true;
     setGame(null);
     setGuess("");
+    setPending(false);
+    setRecovered(false);
     setError(false);
     setAlreadyPlayed(false);
     setVerificationNeeded(false);
@@ -91,7 +105,20 @@ export default function DailyPage() {
     return () => clearInterval(timer);
   }, [game]);
 
+  useEffect(() => {
+    if (game) saveDailyDraft(game, guess, pending);
+  }, [game, guess, pending]);
+
+  const acceptSavedGame = useCallback((result: DailyGame) => {
+    const draft = restoreDailyDraft(result);
+    setGame(result);
+    setGuess(draft.guess);
+    setPending(draft.pending);
+  }, []);
+
   const refreshToday = useCallback(() => {
+    if (gameRef.current) clearDailyDraft(gameRef.current.language);
+    setPending(false);
     setGame(null);
     setGuess("");
     setDayChanged(true);
@@ -110,12 +137,12 @@ export default function DailyPage() {
         ? await dailyGameApi.load(available.game.id)
         : await dailyGameApi.start(requestedLang, available!.date);
       if (
-        result.language === selectedLang.current &&
+        mounted.current && result.language === selectedLang.current &&
         requestedLang === selectedLang.current
       )
-        setGame(result);
+        acceptSavedGame(result);
     } catch (err) {
-      if (requestedLang !== selectedLang.current) return;
+      if (!mounted.current || requestedLang !== selectedLang.current) return;
       if (err instanceof ApiError && err.status === 410) {
         refreshToday();
       } else if (
@@ -140,16 +167,16 @@ export default function DailyPage() {
   }
   const addLetter = useCallback(
     (letter: string) => {
-      if (inFlight.current || game?.status !== "playing") return;
+      if (inFlight.current || pending || game?.status !== "playing") return;
       const upper = toUpperCase(letter, lang);
       if (isValidLetter(upper, lang))
         setGuess((g) => (g.length < 5 ? g + upper : g));
     },
-    [game?.status, lang],
+    [game?.status, lang, pending],
   );
   const removeLetter = useCallback(() => {
-    if (!inFlight.current) setGuess((g) => g.slice(0, -1));
-  }, []);
+    if (!inFlight.current && !pending) setGuess((g) => g.slice(0, -1));
+  }, [pending]);
   const submit = useCallback(async () => {
     if (
       !game ||
@@ -158,6 +185,9 @@ export default function DailyPage() {
       inFlight.current
     )
       return;
+    if (offline) { setError(true); return; }
+    setPending(true);
+    saveDailyDraft(game, guess, true);
     inFlight.current = true;
     setBusy(true);
     setError(false);
@@ -167,24 +197,28 @@ export default function DailyPage() {
         guess,
         game.guesses.length + 1,
       );
-      if (updated.language === selectedLang.current) {
+      if (mounted.current && updated.language === selectedLang.current && gameRef.current?.id === game.id) {
+        clearDailyDraft(game.language);
         setGame(updated);
         setGuess("");
+        setPending(false);
       }
     } catch (err) {
-      if (game.language !== selectedLang.current) return;
-      if (err instanceof ApiError && err.status === 400)
+      if (!mounted.current || game.language !== selectedLang.current || gameRef.current?.id !== game.id) return;
+      if (err instanceof ApiError && err.status === 400) {
+        setPending(false);
         toast.warning(t("game.invalidWord"));
+      }
       else if (err instanceof ApiError && err.status === 410) refreshToday();
       else if (err instanceof ApiError && err.status === 409) {
         try {
           const result = await dailyGameApi.load(game.id);
-          if (result.language === selectedLang.current) {
-            setGame(result);
-            setGuess("");
+          if (mounted.current && result.language === selectedLang.current && gameRef.current?.id === game.id) {
+            acceptSavedGame(result);
+            setRecovered(true);
           }
         } catch (err) {
-          if (game.language !== selectedLang.current) return;
+          if (!mounted.current || game.language !== selectedLang.current || gameRef.current?.id !== game.id) return;
           if (err instanceof ApiError && err.status === 410) refreshToday();
           else if (err instanceof ApiError && err.status === 409)
             setAlreadyPlayed(true);
@@ -198,7 +232,39 @@ export default function DailyPage() {
       inFlight.current = false;
       setBusy(false);
     }
-  }, [game, guess, toast, t, refreshToday]);
+  }, [game, guess, toast, t, refreshToday, offline, acceptSavedGame]);
+  const reconnect = useCallback(async () => {
+    if (inFlight.current) return;
+    const current = gameRef.current;
+    if (!current) { setLookupVersion((value) => value + 1); return; }
+    if (current.status !== "playing") return;
+    inFlight.current = true;
+    setBusy(true);
+    setRecovered(false);
+    try {
+      const result = await dailyGameApi.load(current.id);
+      if (!mounted.current || gameRef.current?.id !== current.id || selectedLang.current !== current.language) return;
+      acceptSavedGame(result);
+      setError(false);
+      setRecovered(true);
+    } catch (err) {
+      if (!mounted.current || gameRef.current?.id !== current.id || selectedLang.current !== current.language) return;
+      if (err instanceof ApiError && err.status === 410) refreshToday();
+      else setError(true);
+    } finally { inFlight.current = false; setBusy(false); }
+  }, [acceptSavedGame, refreshToday]);
+
+  useEffect(() => {
+    const disconnected = () => { setOffline(true); setRecovered(false); };
+    const connected = () => { setOffline(false); void reconnect(); };
+    window.addEventListener("offline", disconnected);
+    window.addEventListener("online", connected);
+    return () => {
+      window.removeEventListener("offline", disconnected);
+      window.removeEventListener("online", connected);
+    };
+  }, [reconnect]);
+
   useEffect(() => {
     // Preserve native keyboard activation of Start/Resume/result buttons outside active play.
     if (!game || game.status !== "playing") return;
@@ -315,6 +381,9 @@ export default function DailyPage() {
     <div className="game-page">
       <GameModeInfo />
       <Confetti active={game.status === "won"} />
+      {offline && <p role="status">{t("daily.offlineRule")}</p>}
+      {pending && <p role="status">{t("daily.pendingRule")}</p>}
+      {recovered && <p role="status">{t("daily.reconnected")}</p>}
       <p>{game.date}</p>
       <p>{t("daily.rolloverRule")}</p>
       <div className="daily-timer" aria-label={t("daily.elapsed")}>
@@ -329,12 +398,13 @@ export default function DailyPage() {
         disabled={busy || game.status !== "playing"}
         lang={lang}
       />
-      {error && (
-        <div role="alert">
-          <p>{t("daily.saveError")}</p>
-          <button onClick={() => void submit()} disabled={busy}>
+      {(error || pending) && game.status === "playing" && (
+        <div role={error ? "alert" : undefined}>
+          {error && <p>{t("daily.saveError")}</p>}
+          <button onClick={() => void submit()} disabled={busy || offline || guess.length !== 5}>
             {t("daily.retry")}
           </button>
+          <button onClick={() => void reconnect()} disabled={busy || offline}>{t("daily.checkSaved")}</button>
         </div>
       )}
       {game.status !== "playing" && (

@@ -1094,3 +1094,67 @@ test("native language names persist and mode rules explain daily versus practice
   await expect(page.getByRole("button", { name: "Start today's game", exact: true })).toBeEnabled();
   await expect(page.locator(".board")).toHaveCount(0);
 });
+
+test.describe("daily reconnect and draft recovery", () => {
+  test.use({ serviceWorkers: "block" });
+  test("offline typing survives reconnect without an automatic guess", async ({ page, context }) => {
+    await register(page);
+    const answers = await fixtureDailyWords(context);
+    const word = answers.en.word === "APPLE" ? "CIGAR" : "APPLE";
+    let writes = 0;
+    page.on("request", (request) => {
+      if (request.method() === "POST" && /\/daily\/games\/[^/]+\/guesses$/.test(new URL(request.url()).pathname)) writes++;
+    });
+    await page.goto("/daily");
+    await page.locator(".daily-start-card button").click();
+    await expect(page.locator(".board")).toBeVisible();
+    await page.keyboard.type(word.slice(0, 2));
+    await expect(page.locator(".board-row").first()).toHaveText(word.slice(0, 2));
+    await context.setOffline(true);
+    await expect(page.getByText("You are offline.", { exact: false })).toBeVisible();
+    await page.keyboard.type(word.slice(2));
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".board-row").first()).toHaveText(word);
+    expect(writes).toBe(0);
+    await context.setOffline(false);
+    await expect(page.getByText("Saved game refreshed.", { exact: false })).toBeVisible();
+    await expect(page.locator(".board-row").first()).toHaveText(word);
+    expect(writes).toBe(0);
+    const saved = page.waitForResponse((response) => response.request().method() === "POST" && response.url().endsWith("/guesses"));
+    await page.locator(".keyboard").getByRole("button", { name: "ENTER", exact: true }).click();
+    expect((await (await saved).json()).guesses).toHaveLength(1);
+    expect(writes).toBe(1);
+    await context.setOffline(true);
+    await context.setOffline(false);
+    await expect(page.getByText("Saved game refreshed.", { exact: false })).toBeVisible();
+    expect(writes).toBe(1);
+  });
+
+  test("a committed lost reply is reconciled on reload without resending the pending word", async ({ page, context }) => {
+    await register(page);
+    const answers = await fixtureDailyWords(context);
+    const word = answers.en.word === "APPLE" ? "CIGAR" : "APPLE";
+    let writes = 0;
+    await context.route("**/daily/games/*/guesses", async (route) => {
+      writes++;
+      await route.fetch();
+      await route.abort("failed");
+    });
+    await page.goto("/daily");
+    await page.locator(".daily-start-card button").click();
+    await expect(page.locator(".board")).toBeVisible();
+    await page.keyboard.type(word);
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("This guess has not been confirmed.", { exact: false })).toBeVisible();
+    await page.keyboard.press("Backspace");
+    await page.keyboard.type("z");
+    await expect(page.locator(".board-row").first()).toHaveText(word);
+    await page.reload();
+    await page.locator(".daily-start-card button").click();
+    await expect(page.locator(".board-row").first()).toHaveText(word);
+    await expect(page.locator(".board-row").nth(1)).toHaveText("");
+    await expect(page.getByText("This guess has not been confirmed.", { exact: false })).toHaveCount(0);
+    expect(writes).toBe(1);
+    expect(await page.evaluate(() => sessionStorage.getItem("wordle_daily_draft_en"))).toBeNull();
+  });
+});

@@ -68,13 +68,13 @@ V6 dönem indeksi ve sentetik önce/sonra okuma planları tamamlandı (`docs/per
 - [x] Kullanıcı kararı: önceki günün yarım oyunu devam ettirilemesin; gün sınırında sunucu GET/tahmin için `410 game_expired` dönsün. Eski oyunlar için Resume seçicisi eklenmeyecek; bugünün oyunu açık Start gerektirir.
 - [x] Oyun sonunda seçili dilin istatistiklerini, tahmin dağılımını ve sunucunun gün/zaman dilimiyle uyumlu sonraki oyuna geri sayımı göster; gün değişiminde eski oyunu yanlışlıkla başlatma.
 - [x] Günlük ve serbest oyunun farkını açıkla: sıralama, günlük hak, süre ve çevrimdışı kullanım kuralları.
-- [ ] Ağ hatasında yazılmış/iletilmiş tahminleri koru; retry sırasında çift tahmin oluşturma. Mevcut kayıp yanıt testine yazılmakta olan tahmin, offline/online geçişi ve yeniden bağlantı senaryolarını ekle.
+- [x] Ağ hatasında yazılmış/iletilmiş tahminleri koru; retry sırasında çift tahmin oluşturma. Mevcut kayıp yanıt testine yazılmakta olan tahmin, offline/online geçişi ve yeniden bağlantı senaryolarını ekle.
 - [ ] Mobil klavye/tahta, yatay ekran, yakınlaştırma ve odak davranışını doğrula; emülasyona ek fiziksel cihaz kontrolü yap.
 - [ ] Reduced-motion tercihini uygula; sonuç/klavye durumları yalnızca renkle aktarılmasın. Ekran okuyucu duyuruları, klavye erişimi, kontrast ve renk körlüğü seçeneklerini iyileştir.
 - [ ] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %22,20 satır / %24,22 dal kapsamını özellikle UI hata yollarında genişlet.
 - [ ] Firefox'ta başarılı tarayıcı koşusu elde et; yerelde sayfa açılmadan context çöküyor. WebKit testini gerçek Safari/fiziksel cihaz doğrulaması yerine sayma; manuel yardımcı teknoloji testlerini tamamla.
 
-Oyun sonu istatistikleri, tahmin dağılımı ve sunucu takvimine bağlı geri sayım tamamlandı. Sayaç bitince yalnızca bugünün durumunu kontrol etme seçeneği açılır; otomatik Start yoktur. Günlük/serbest oyun karşılaştırması EN/TR olarak iki oyun ekranına eklendi; sırada ağ kesintisi/reconnect davranışı var. Dil seçimi bayrak/kod tekrarı yerine kendi adlarıyla native seçim kullanıyor; mobil kapalı menü inert ve menü simgesi fonttan bağımsız SVG. Frontend kapsamı %41,29 satır / %43,22 dal; erişilebilirlik, ağ kesintisi ve fiziksel cihaz maddeleri açık.
+Oyun sonu istatistikleri, tahmin dağılımı ve sunucu takvimine bağlı geri sayım tamamlandı. Sayaç bitince yalnızca bugünün durumunu kontrol etme seçeneği açılır; otomatik Start yoktur. Günlük/serbest oyun karşılaştırması EN/TR olarak iki oyun ekranına eklendi; ağ kesintisi/taslak/reconnect akışı da tamamlandı; sırada erişilebilirlik ve mobil düzen maddeleri var. Dil seçimi bayrak/kod tekrarı yerine kendi adlarıyla native seçim kullanıyor; mobil kapalı menü inert ve menü simgesi fonttan bağımsız SVG. Frontend kapsamı %44,64 satır / %48,12 dal; erişilebilirlik ve fiziksel cihaz maddeleri açık. Taslaklar sekme içi best-effort saklanır; API sonucu/cevap/oturum bilgisi saklanmaz, otomatik hamle kuyruğu yoktur.
 
 ## P2.1 — Yeni diller ve kelime rotasyonu
 
