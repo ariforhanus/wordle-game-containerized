@@ -68,6 +68,20 @@ Password change/reset and logout-all increment an account authentication version
 
 Authentication limits are persisted in PostgreSQL: ten login attempts per account per 15-minute window, three reset requests per address per hour, twenty registrations per peer IP per hour, plus an overall peer-IP bound. Forwarded client headers are deliberately not trusted by the application. An ingress can group many users under one peer IP; tune edge/client-IP trust and limits for the actual network before a capacity rollout. Rate buckets and expired token rows are purged hourly after their retention window. The account limit also applies to nonexistent accounts.
 
+Limits are fixed epoch windows and count consumed admission budget, not every
+denied request. Full buckets stop incrementing; a blocked peer is rejected before
+body parsing/new identity buckets. Application 429s use no-store and Retry-After
+to the rejecting window's end. An independent later scope can still reject.
+Login/register display EN/TR throttle guidance for JSON or HTML 429 responses.
+
+Default forwarding strategy is explicitly NONE; production Nginx replaces peer
+headers and clears untrusted forwarding metadata. In current Caddy→Nginx→backend
+Compose, edge clients share Caddy's address and application clients share Nginx's
+address. Validate/tune trusted hops, real-IP handling and both limiter layers on
+the actual ingress before public traffic. No broad trusted-CIDR list was added.
+See `docs/ABUSE_PREVENTION.md` for tested controls, policy proposals, remaining
+multi-account/automation risks and the required staging matrix.
+
 ## Deletion and audit retention
 
 Self-service deletion requires the current password and explicit UI confirmation. EN/TR notices explain active deletion, retained security events and backup limits before consent. Users, avatars, games, scores, and recovery tokens are deleted atomically; audit actor/target references become null and shared puzzles remain. Audit rows older than 90 × 24 hours, rate windows older than 24 hours and tokens expired for over 24 hours become eligible for hourly best-effort cleanup using the injected Clock. All cleanup categories share one transaction; outages/failures can delay removal. NULL audit references and hashed rate keys are not a complete-anonymity promise.

@@ -1,6 +1,65 @@
 # Validation of the readiness changes
 
-## Latest checkpoint — deletion disclosure and retention correctness, 2026-11-10
+## Latest checkpoint — abuse budgets and proxy-header boundaries, 2026-11-10
+
+| Check | Result |
+| --- | --- |
+| Full Java 21 / real PostgreSQL `mvn verify` | 175 passed; zero skips/failures/errors |
+| Frontend unit/component suite | 93 passed; no unhandled errors |
+| TypeScript / release Vite build and built-worker tests | Build passed; 8 tests passed |
+| Selected desktop/mobile Chromium E2E | 12 passed; zero skips |
+| Same selected Firefox E2E | 6 passed; zero skips |
+| Opt-in real Nginx production/preview header tests | 2 passed, both source configurations also passed `nginx -t` |
+| Default operator suite | 18 discovered: 15 passed, 3 explicitly skipped opt-in checks |
+
+Fresh JaCoCo: 76.13% lines / 63.46% branches. Frontend V8: 64.62% lines / 60.57%
+branches. Browser execution is not included in these unit metrics.
+
+The ten new PostgreSQL-backed limiter tests retain existing budgets, verify
+two independent filter instances admit only ten of twelve concurrent attempts,
+and prove a blocked peer neither reads bodies nor creates rotating-identity
+buckets. Stored counters remain bounded; legacy saturated rows still deny.
+Exact/fractional window ends, registration/reset/verification limits, spoofed
+forwarding headers, oversized/malformed requests, local fixture disable behavior
+and rejection-writer failure are covered. Existing email verification, account
+deletion, session revocation, game integrity and rotation tests remain passing.
+Denials still use database/index/row-lock work; no unlimited-load claim is made.
+
+The frontend adds status-based throttle handling for both JSON and HTML 429s,
+including actual EN/TR login/register copy, preserved input and no token storage.
+Four new browser cases per engine intercept the first auth response with 429 and
+let explicit retry reach the real backend; the selected logout/account-focus
+regressions also passed. Only interception contexts block workers. Runtime
+quotas/concurrency are tested separately against PostgreSQL; E2E backend rate
+limits are disabled only in the isolated UI fixture. Release assets were served
+through Vite Preview, not the production Nginx/Caddy path. Firefox preserves its
+default browser security and uses the previously verified command-sandbox
+escalation. WebKit was not rerun because its disposable cache is absent.
+
+The opt-in proxy test uses the existing read-only Nginx 1.31.7 review container,
+temporary secondary configs and a local header-echo server. It reads current
+production/preview fragments and changes listen/upstream/include/temp paths for
+isolation; the main container configuration is untouched. Forged XFF/X-Real-IP,
+Forwarded/host/port/prefix headers are checked after real proxying, retaining the
+preview scheme mapping. Initial fixture issues (stale saved host address,
+read-only temp defaults and ambient outbound proxy on loopback wget) were
+resolved; the completed two-test run passed. Ordinary outbound proxy settings
+were preserved; only the fixture's loopback client bypasses proxy use. The default
+operator run skips these two checks and the existing real-DB write-fault opt-in.
+This is not a new image build/scan or a full real-ingress/client-IP rehearsal.
+
+The current Caddy→Nginx→backend topology still shares coarse peer-IP budgets.
+`docs/ABUSE_PREVENTION.md` records the actual controls, proposed person-level
+competition rules, admin-answer privilege, residual automation/alias/NAT risks
+and required trusted-hop/real-IP staging matrix. Actual ingress activation is
+explicitly P0; no broad trusted proxy range, automatic ban, CAPTCHA, fingerprint,
+schema migration, new language or microservice was added. Jenkins/CI setup stays
+deferred to the owner; these are local results, not remote CI or production proof.
+
+Logs: `/workspace/work/abuse/{backend,frontend,production,e2e-chromium,e2e-firefox,proxy-tests,ops-default}.log`.
+No live service/data/credentials were changed and no main merge was performed.
+
+## Previous checkpoint — deletion disclosure and retention correctness, 2026-11-10
 
 This is the latest local evidence; prior checkpoint counts below are historical.
 Jenkins setup was deferred to the owner. No GitHub/Jenkins workflow was modified

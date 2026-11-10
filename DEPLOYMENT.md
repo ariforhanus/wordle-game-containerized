@@ -30,6 +30,13 @@ account password; changing `.env` alone does not reset a stored password.
 
 ## Production
 
+Before public traffic, complete the source-address/limiter rehearsal in
+`docs/ABUSE_PREVENTION.md`. Current Caddy→Nginx→backend peers share coarse IP
+budgets; without a deployment-specific trusted-hop/real-IP configuration, many
+players can throttle one another. Forwarding defaults to NONE and Nginx scrubs
+untrusted metadata. Keep backend ports private and verify every hop rather than
+enabling arbitrary forwarded-IP trust or disabling abuse controls.
+
 Set `WORDLE_DOMAIN` to a public DNS name pointing at the host and `CORS_ORIGINS=https://that-name`. Run `docker compose --profile production up --build -d`. Caddy terminates TLS and redirects HTTP to HTTPS. Only the ingress publishes public ports; the frontend's development port remains loopback-only. Persist Caddy and PostgreSQL volumes. Firewall all other host ports. Nginx rate limits API traffic and authentication requests; account-aware distributed throttling is a further improvement for larger deployments. With an ingress proxy, tune client-IP trust and rate limits for your network before load testing.
 
 Backend/frontend containers run as non-root with read-only root filesystems, temporary storage, memory limits, dropped capabilities, and health checks. `/actuator/health/readiness` on internal management port 9091 reveals no component details. No admin GUI is deployed. Do not activate the `dev` profile in production.

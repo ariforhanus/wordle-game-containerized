@@ -225,6 +225,7 @@
     "light": "Açık Mod"
   },
   "api": {
+    "rate_limited": "Çok fazla deneme yaptınız. Bir süre bekleyin.",
     "required_fields": "Kullanıcı adı, e-posta ve şifre zorunlu.",
     "username_taken": "Bu kullanıcı adı zaten alınmış.",
     "email_taken": "Bu e-posta zaten kayıtlı.",

@@ -24,6 +24,7 @@ Bu maddeler geliştirme sırasında izlenir; production çıkışı tamamı doğ
 - [ ] `.github/rulesets/main.json` kurallarını GitHub ayarlarında etkinleştir; PR incelemesi ve başarılı zorunlu kontroller olmadan main'e birleşmeyi engelle. Yönetim erişimi gerekir.
 - [ ] Gerçek production verisinin yetkili bir kopyasıyla migration/preflight ve rollback provasını tamamla; eski kayıtları silmeden uyumsuzlukları gider.
 - [ ] Alan adı, DNS ve HTTPS yapılandırmasını belirle ve doğrula.
+- [ ] Gerçek ingress zincirinde güvenilir proxy/real-IP ayarlarını ve iki limit katmanını doğrula: Caddy/Nginx ortak IP kotaları, farklı istemciler/NAT, IPv4/IPv6 ve sahte/bozuk başlıklar. Backend erişimini kısıtla ve kapasiteyi ölç. Yerel başlık testleri tamamlandı; gerçek hop aktivasyonu `docs/ABUSE_PREVENTION.md` matrisiyle açık.
 - [ ] Release imajlarını staging'de doğrula; high/critical imaj taramaları, Compose/health/readiness, Nginx ve migration sonuçlarını kaydet.
 - [ ] Production SMTP sağlayıcısı ve public URL'yi seç/yapılandır; gerçek sağlayıcıyla teslimat ve reset/doğrulama akışını doğrula. Sonra sıralı oyun için doğrulanmış e-posta şartını etkinleştir.
 - [ ] Production backup/restore ve monitoring'i devreye al; şifreli ortam dışı yedek, alarm alıcısı/log hedefi ve ölçülmüş kurtarma hedefleriyle geri yükleme provasını tamamla.
@@ -95,7 +96,7 @@ Kullanıcı kararı: **yeni dil ekleme kapsam dışı**. Aşağıdaki dil/sözl�
 Production'ı engelleyen uygulama/aktivasyon işleri P0.2'de; burası ek politika ve ölçek gereksinimleridir.
 
 - [x] Hesap silme/saklama davranışını EN/TR onay ekranında açıkla; aktif veri, bağlantısı kaldırılmış audit, geçici güvenlik kayıtları ve yedek sınırlarını ayır. Silme cascade/rollback/diğer kullanıcı izolasyonu, Clock tabanlı temizlik sınırları ve gerçek yedek mtime davranışı test edildi. Restore sonrası talepleri tekrar uygulama ve token iptali runbook'u hazır; gerçek süre/journal aktivasyonu P0.2'de açık.
-- [ ] Bot ve çoklu hesap suistimali için yarışma politikasını ve ek sinyalleri değerlendir; mevcut doğrulanmış e-posta/hesap-IP limitlerini koru. Güvenilir proxy/client-IP yapılandırmasını gerçek ingress için doğrula.
+- [x] Bot/çoklu hesap politikası ve sinyal değerlendirmesi `docs/ABUSE_PREVENTION.md` içinde hazır. Kota dolduktan sonra değişen hesap adlarıyla DB satırı büyütme yolu kapatıldı; atomik sınırlar, pencere/Retry-After, sahte başlıklar, Nginx temizliği ve EN/TR 429/retry akışı test edildi. Mevcut doğrulama/oyun kuralları korunuyor; gerçek ingress doğrulaması P0.2'de açık. Tek kişi/hesap tespiti veya otomatik ban uygulanmış sayılmaz.
 - [ ] SMTP teslimat gecikmesi, timing farkları, retry ve transaction etkileri için dayanıklı mail outbox ihtiyacını değerlendir; gerçek sağlayıcı arızalarını staging'de test et.
 - [ ] Production büyüklüğünde staging kapasite testleri, yedek geri dönüş tatbikatı, alarm teslimatı ve release/rollback provalarını düzenli işlet. Yerel smoke testini kapasite garantisi olarak sunma.
 

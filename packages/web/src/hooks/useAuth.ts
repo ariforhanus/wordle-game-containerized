@@ -10,6 +10,8 @@ import {
 
 /** Extract the error code from an ApiError body, if available */
 function extractErrorCode(err: unknown): string | undefined {
+  // Edge proxies can return an HTML 429 body; the status still means throttling.
+  if (err instanceof ApiError && err.status === 429) return "rate_limited";
   if (err instanceof ApiError && err.body && typeof err.body === "object") {
     const body = err.body as Record<string, unknown>;
     if (typeof body.error === "string") return body.error;

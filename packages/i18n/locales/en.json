@@ -225,6 +225,7 @@
     "light": "Light Mode"
   },
   "api": {
+    "rate_limited": "Too many attempts. Please wait before trying again.",
     "required_fields": "Username, email and password are required.",
     "username_taken": "This username is already taken.",
     "email_taken": "This email is already registered.",

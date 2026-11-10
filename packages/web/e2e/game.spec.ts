@@ -2,6 +2,55 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import en from "../../i18n/locales/en.json" with { type: "json" };
 import tr from "../../i18n/locales/tr.json" with { type: "json" };
+
+test.describe("auth throttle recovery", () => {
+  test.use({ serviceWorkers: "block" });
+  for (const language of ["en", "tr"] as const) {
+    for (const mode of ["login", "register"] as const) {
+      test(`${mode} explains 429 in ${language} and succeeds only after an explicit retry`, async ({ page }) => {
+        let username = "throttle_" + Date.now() + Math.floor(Math.random() * 1000);
+        if (mode === "login") {
+          await register(page);
+          const profile = await page.context().request.get("/api/v1/auth/me", {
+            headers: { Authorization: "Bearer " + await page.evaluate(() => localStorage.getItem("jwtToken")) },
+          });
+          username = (await profile.json()).username;
+          await page.evaluate(() => localStorage.removeItem("jwtToken"));
+        }
+        await page.goto(`/${mode}`);
+        await page.evaluate((value) => localStorage.setItem("wordle_lang", value), language);
+        await page.reload();
+        let requests = 0;
+        await page.route(`**/api/v1/auth/${mode}`, (route) => {
+          requests++;
+          if (requests > 1) return route.continue();
+          return route.fulfill({ status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" },
+            contentType: mode === "login" ? "application/json" : "text/html",
+            body: mode === "login" ? '{"error":"rate_limited"}' : "<h1>Too Many Requests</h1>" });
+        });
+        const prefix = mode === "login" ? "login" : "reg";
+        await page.locator(`#${prefix}-username`).fill(username);
+        await page.locator(`#${prefix}-password`).fill("browser-password-123");
+        if (mode === "register") {
+          await page.locator("#reg-email").fill(username + "@example.test");
+          await page.locator("#reg-confirm").fill("browser-password-123");
+          await page.locator("#reg-country").selectOption({ index: 1 });
+        }
+        await page.locator('button[type="submit"]').click();
+        await expect(page.getByRole("alert")).toHaveText((language === "en" ? en : tr).api.rate_limited);
+        await expect(page.locator(`#${prefix}-username`)).toHaveValue(username);
+        await expect(page.locator(`#${prefix}-password`)).toHaveValue("browser-password-123");
+        expect(requests).toBe(1);
+        expect(await page.evaluate(() => localStorage.getItem("jwtToken"))).toBeNull();
+        await page.locator('button[type="submit"]').click();
+        await expect(page).toHaveURL(/\/$/);
+        expect(requests).toBe(2);
+        expect(await page.evaluate(() => localStorage.getItem("jwtToken"))).toBeTruthy();
+      });
+    }
+  }
+});
+
 async function register(page: import("@playwright/test").Page) {
   const suffix = Date.now().toString() + Math.floor(Math.random() * 1000);
   await page.goto("/register");
