@@ -45,6 +45,7 @@ export function RecoveryPage({
     setError("");
     if (mode === "reset" && (password.length < 12 || password !== confirm)) {
       setError(t("account.passwordMismatch"));
+      document.getElementById(password.length < 12 ? "new-password" : "confirm-password")?.focus();
       return;
     }
     setBusy(true);
@@ -104,11 +105,13 @@ export function RecoveryPage({
                 </label>
                 <input
                   id="confirm-password"
+                  aria-invalid={error === t("account.passwordMismatch") || undefined}
+                  aria-describedby={error ? "recovery-error" : undefined}
                   type="password"
                   autoComplete="new-password"
                   required
                   value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
+                  onChange={(e) => { setConfirm(e.target.value); setError(""); }}
                 />
               </>
             )}
@@ -123,7 +126,7 @@ export function RecoveryPage({
             </button>
           </>
         )}
-        {error && <p role="alert">{error}</p>}
+        {error && <p id="recovery-error" role="alert">{error}</p>}
         <Link to="/login">{t("auth.loginTitle")}</Link>
       </form>
     </div>
@@ -173,6 +176,7 @@ export function AccountSecurityPage() {
     e.preventDefault();
     if (password !== confirm) {
       setError(t("account.passwordMismatch"));
+      document.getElementById("security-confirm")?.focus();
       return;
     }
     void action(() => authApi.changePassword(current, password), true);
@@ -228,11 +232,13 @@ export function AccountSecurityPage() {
           <label htmlFor="security-confirm">{t("auth.confirmPassword")}</label>
           <input
             id="security-confirm"
+            aria-invalid={error === t("account.passwordMismatch") || undefined}
+            aria-describedby={error ? "security-error" : undefined}
             type="password"
             autoComplete="new-password"
             required
             value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            onChange={(e) => { setConfirm(e.target.value); setError(""); }}
           />
           <button className="btn-primary" disabled={busy}>
             {t("account.changePassword")}
@@ -280,7 +286,7 @@ export function AccountSecurityPage() {
           </form>
         </details>
         {message && <p role="status">{message}</p>}
-        {error && <p role="alert">{error}</p>}
+        {error && <p id="security-error" role="alert">{error}</p>}
         <Link to="/profile">{t("nav.profile")}</Link>
       </div>
     </div>

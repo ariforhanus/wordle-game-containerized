@@ -98,3 +98,10 @@
 
 .auth-switch a { color: var(--auth-link, #1d4ed8); }
 [data-theme="dark"] .auth-switch a { --auth-link: #93c5fd; }
+
+.auth-card a { color: var(--auth-link, #1d4ed8); }
+[data-theme="dark"] .auth-card { --auth-link: #93c5fd; }
+.auth-card :is(input, select):focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}

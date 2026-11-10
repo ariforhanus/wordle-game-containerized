@@ -6,7 +6,7 @@ This branch keeps the Spring Boot/PostgreSQL/React application together. It does
 
 The previous Compose file committed database, pgAdmin, bootstrap-admin, and JWT credentials. Treat all deployed copies as exposed. Removing them from Git does not rotate them. Rotate the deployed database accounts and administrator password, replace the signing key (invalidating every old token), and remove any separately running pgAdmin instance. Review administrative access logs. Do not restore the old secrets from history.
 
-Copy `.env.example` to `.env` and supply independently generated secrets. For example, generate a new signing key with `openssl rand -hex 32`. Never commit `.env`. Bootstrap is optional; set all three ADMIN variables together. Existing accounts must already be ADMIN with the same email and password; bootstrap will never promote a registered user. Remove bootstrap variables after provisioning.
+This branch contains a tracked `.env` at the owner's explicit request, exclusively for private localhost tests. Before public deployment, replace shared fixtures through external secret configuration; never add production credentials to that tracked file. For example, generate a new signing key with `openssl rand -hex 32`. Bootstrap is optional; set all three ADMIN variables together. Existing accounts must already be ADMIN with the same email and password; bootstrap will never promote a registered user. Remove bootstrap variables after provisioning.
 
 ## Fresh local installation
 
@@ -17,9 +17,9 @@ Copy `.env.example` to `.env` and supply independently generated secrets. For ex
 
 PostgreSQL creates a separate `wordle` login without superuser, role-creation, or database-creation privileges. The application owns its database so Flyway can apply schema migrations. For stricter production separation, run migrations with a dedicated schema owner and grant the runtime account only the needed data permissions.
 
-For the explicitly requested private localhost test login, a fresh checkout can run
-`node deploy/setup-local-env.mjs --insecure-local-admin`. It creates an ignored,
-owner-only `.env` with username `admin`, password `123456`, random database/JWT
+The committed local fixture already provides the requested `admin` / `123456`
+test login. In a checkout without `.env`, `node deploy/setup-local-env.mjs --insecure-local-admin`
+creates an owner-only file with that login, random database/JWT
 secrets, and `ALLOW_INSECURE_LOCAL_ADMIN=true`. Existing env files are never
 overwritten. The normal generator still uses a strong random admin password.
 The short-password option is disabled by default and bootstrap rejects it unless
@@ -45,6 +45,13 @@ The new default is Flyway migrations plus Hibernate validation. Automatic schema
 5. For an existing V3+ database, also run `deploy/preflight-daily-games.sql` before V7. Review malformed puzzle/guess values and status/count/completion inconsistencies explicitly. V7 scans existing rows and takes table locks: reserve and rehearse a write window. See `docs/DAILY_GAME_CONSISTENCY.md` for guarantees and remaining cross-table boundaries. Apply migrations and verify row counts, constraints, login, authorization, and game completion before reopening traffic. Deploy at a daily rollover if you need all players to begin under the same puzzle-selection rules.
 
 V2 adds optimistic locking, daily uniqueness, value checks, and user foreign keys. Deleting a user deletes their scores and games. Historical usernames remain snapshots. Previously submitted scores are retained but **not retroactively verified**; decide separately whether to reset competitive rankings. Old and new clients cannot safely coexist for ranked play: `/api/v1/scores` and the old daily-answer API no longer support ranked play. Require clients to reload the new release.
+
+V8 keeps persisted puzzle identities/answers immutable, preserves existing repeats,
+and adds the answer-rotation index. Rehearse its ordinary index-build/table locks
+on an authorized production copy and reserve a write window. Upgrade every puzzle
+writer before reopening traffic; mixed old writers bypass the new selection lock.
+Keep READ COMMITTED for creation, retain existing answers through dictionary
+changes, and follow `docs/WORD_ROTATION.md` for exceptional repair/rollback limits.
 
 ## Game protocol
 

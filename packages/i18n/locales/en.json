@@ -210,6 +210,10 @@
     "lang_games_10": { "title": "Local Hero", "desc": "Play 10 games in this language." }
   },
   "themes": {
+    "loading": "Loading themed words",
+    "loadError": "Could not load this theme’s word list.",
+    "retry": "Retry word list",
+
     "title": "Themes",
     "pickTheme": "Pick a theme and guess the word!",
     "back": "All Themes",

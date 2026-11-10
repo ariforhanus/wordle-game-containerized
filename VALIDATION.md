@@ -1,5 +1,65 @@
 # Validation of the readiness changes
 
+## Latest checkpoint — existing-language rotation and account/themed flows, 2026-11-10
+
+This section supersedes older counts and the local Firefox blocker below. Older
+sections retain historical evidence, not the current acceptance status.
+
+| Latest check | Result |
+| --- | --- |
+| Full Java 21 / real PostgreSQL `mvn verify` | 162 passed; zero skipped, failures or errors |
+| Frontend unit/component suite | 82 passed; no unhandled errors |
+| TypeScript / release Vite build and built-worker artifact tests | Build passed; 8 tests passed |
+| Selected desktop Chromium, mobile Chromium and WebKit E2E | 33 passed; zero skips |
+| Firefox E2E suite on the release assets / real backend | 25 passed; 3 explicitly skipped |
+| V8 custom-format backup / checksum / isolated restore | Passed; disposable restore database removed |
+| Rotation query EXPLAIN (ANALYZE, BUFFERS) and result equivalence | 20,000 synthetic TEMP rows; 12 measured executions; before/after result hashes equal |
+
+JaCoCo is 75.92% lines / 61.34% branches. Frontend V8 is 57.69% lines / 56.50%
+branches. Unit coverage does not include browser execution. Component tests ran
+on the current component logic; the subsequent shared share-button CSS correction
+was verified by rebuilding and real-browser normal/hover scans in both themes.
+
+Backend coverage includes unseen-answer priority, the 30-calendar-day preference,
+undersized pools, language isolation, Turkish normalization, saved future/past
+neighbors, concurrent independent writers/dates, rollback and incompatible parent
+isolation. V7-to-V8 preserves repeated historical rows; ordinary edits/deletion
+are rejected. Existing game-integrity fixtures now insert known answers before
+Start, instead of mutating saved puzzles. The immutability guard was not weakened
+for tests. Saved correct answers remain valid after dictionary removal; invalid
+alternative guesses still fail. No new language or dictionary content was added.
+
+The 33 selected browser checks retain explicit Start/concurrent-session recovery,
+expiry, reconnect/drafts, language names, feedback/focus/mobile layouts and add
+stable saved answers across two actual players, themed load retry/same-answer
+restart, modal Tab wrapping, and account validation focus. Axe first caught a real
+share-button contrast failure; after correcting shared styles, the entire
+selection passed, including light/dark normal/hover dialog scans. Earlier failed
+runs and repeated subset checks are not counted as additional passing coverage.
+
+Firefox 159.0 / Playwright revision 1572 now opens contexts/pages and passes 25
+tests. Within the agent command sandbox it failed before navigation with
+`Could not find profile folder`; the exact smoke and E2E commands succeeded
+outside that command sandbox, preserving the browser's own default security
+settings. No sandbox-disabling flags/preferences were added to code or CI. The
+first full run reached 24 passes before an ENOSPC failure; after clearing only
+owned disposable tool components, the complete rerun passed. Its three skips are
+one SMTP-capture flow and the two production Nginx/security-header/offline cases:
+this run used Vite Preview, not the production Nginx image. Remote CI was not
+established by these local results.
+
+Raw local logs: `/workspace/work/rotation/backend-final.log`,
+`/workspace/work/rotation/backup-restore.log`, and
+`/workspace/work/no-new-languages/{frontend-final,production-final,e2e-final,firefox-e2e-final}.log`.
+Reproducible index evidence and limitations: `docs/performance/rotation/`.
+Migration/locking/old-writer/DDL-owner limits: `docs/WORD_ROTATION.md`.
+Real NVDA/VoiceOver, actual mobile/Safari devices, full browser zoom, production
+copy migration locks, live SMTP, staging images/scans and release gates remain
+open. No production migration, credential rotation, deployment or main merge
+occurred.
+
+## Original readiness baseline — 2026-11-09
+
 Local validation on 2026-11-09:
 
 | Check | Result |

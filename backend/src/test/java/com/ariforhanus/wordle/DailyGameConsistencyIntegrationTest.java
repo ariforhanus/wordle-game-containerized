@@ -91,7 +91,11 @@ class DailyGameConsistencyIntegrationTest {
 
     @Test
     void acceptsRepeatedTurkishGuessesAndAtomicCompletion() {
-        db.update("UPDATE daily_puzzles SET answer='İNCİR',language='tr'");
+        db.update(
+                "INSERT INTO daily_puzzles(id,played_at,language,answer) VALUES"
+                    + " ('tr-puzzle',?,'tr','İNCİR')",
+                REFERENCE_DAY);
+        db.update("UPDATE daily_games SET puzzle_id='tr-puzzle'");
         db.update("UPDATE daily_games SET guesses='KİTAP,KİTAP,KİTAP,KİTAP,KİTAP'");
         db.update(
                 "UPDATE daily_games SET"
@@ -106,7 +110,12 @@ class DailyGameConsistencyIntegrationTest {
     void rejectsMalformedAnswers(String answer) {
         assertThrows(
                 DataIntegrityViolationException.class,
-                () -> db.update("UPDATE daily_puzzles SET answer=?", answer));
+                () ->
+                        db.update(
+                                "INSERT INTO daily_puzzles(id,played_at,language,answer) VALUES"
+                                    + " ('invalid',?,'tr',?)",
+                                REFERENCE_DAY,
+                                answer));
         assertEquals("APPLE", db.queryForObject("SELECT answer FROM daily_puzzles", String.class));
     }
 

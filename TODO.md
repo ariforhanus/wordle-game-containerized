@@ -2,7 +2,7 @@
 
 Bu liste `fix/security-game-integrity` dalının mevcut kodu ve `VALIDATION.md` sonuçları esas alınarak güncellendi. `[x]` yalnızca uygulanmış ve yerelde doğrulanmış işi gösterir; production kurulumu veya başarılı uzak CI anlamına gelmez. Kısmen mevcut özelliklerin yeni kabul koşulları açık bırakıldı.
 
-Önerilen geliştirme sırası: **süre adaleti → toplam puan sıralaması → dil bazlı streak → veri modeli/performans → günlük oyun UX/erişilebilirlik → yeni diller**. CI ve yayın güvenliği engelleri bu sıraya paralel çözülür ve production çıkışını engeller. Doğruluk, performans optimizasyonundan; mevcut dil kurallarının düzeltilmesi de yeni dil eklenmesinden önce gelir.
+Önerilen geliştirme sırası: **süre adaleti → toplam puan sıralaması → dil bazlı streak → veri modeli/performans → günlük oyun UX/erişilebilirlik → mevcut dillerin kelime rotasyonu → hesap/operasyon politikaları**. Kullanıcının son kararıyla yeni dil ekleme ertelendi. CI ve yayın güvenliği engelleri bu sıraya paralel çözülür ve production çıkışını engeller. Yerel uygulama/test adımları ile dış ortamda gereken doğrulamaları ayrı izliyoruz.
 
 ## P0.1 — Günlük oyun süresi ve adalet
 
@@ -72,18 +72,21 @@ V6 dönem indeksi ve sentetik önce/sonra okuma planları tamamlandı (`docs/per
 - [ ] Mobil klavye/tahta, yatay ekran, yakınlaştırma ve odak davranışını doğrula; emülasyona ek fiziksel cihaz kontrolü yap.
 - [x] Reduced-motion tercihi, kalıcı renk dışı semboller, EN/TR ekran okuyucu geri bildirimi ve kör mod gizliliği; yardım/ipucu/sonuç odağı ve native klavye davranışı iyileştirildi. Açık/koyu tahta ve tuş kontrastı gerçek tarayıcıda en az 4,5:1 kontrol edildi.
 - [ ] Tüm sayfa/hesap/temalı mod akışlarının kapsamlı odak ve kontrast denetimini, gerçek NVDA/VoiceOver ve renk görme simülasyonu/kullanıcı kontrollerini tamamla; kapsam/sınırlar `docs/ACCESSIBILITY.md` içinde.
+- [x] Hesap şifre onayı hatalarında alan odağı/erişilebilir hata ilişkisini; temalı oyunda sonuç odağını, açık/koyu paylaşım kontrastını, aynı cevapla tekrar oynamayı ve kelime listesi hata/retry akışını component ve tarayıcı testleriyle doğrula. Bu otomatik kapsam tam site/gerçek yardımcı teknoloji denetimi yerine geçmez.
 - [x] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %22,20 satır / %24,22 dal kapsamını özellikle UI hata yollarında genişlet.
-- [ ] Firefox'ta başarılı tarayıcı koşusu elde et; yerelde sayfa açılmadan context çöküyor. WebKit testini gerçek Safari/fiziksel cihaz doğrulaması yerine sayma; manuel yardımcı teknoloji testlerini tamamla.
+- [x] Firefox'ta başarılı yerel tarayıcı koşusu: 25 geçti, gerçek SMTP/production Nginx gerektiren 3 senaryo atlandı. Komut sandbox'ı dışında profil erişimiyle çalıştı; repo/CI tarayıcı güvenlik ayarları gevşetilmedi. Atlananlar ve gerçek yardımcı teknoloji/fiziksel Safari kontrolleri hâlâ açık.
 
-Oyun sonu istatistikleri, tahmin dağılımı ve sunucu takvimine bağlı geri sayım tamamlandı. Sayaç bitince yalnızca bugünün durumunu kontrol etme seçeneği açılır; otomatik Start yoktur. Günlük/serbest oyun karşılaştırması EN/TR olarak iki oyun ekranına eklendi; ağ kesintisi/taslak/reconnect akışı da tamamlandı; erişilebilirlik/mobil geliştirme adımı da tamamlandı; tam kapsamlı manuel denetimler, Firefox ve fiziksel cihaz kontrolü açık. Dil seçimi bayrak/kod tekrarı yerine kendi adlarıyla native seçim kullanıyor; mobil kapalı menü inert ve menü simgesi fonttan bağımsız SVG. Frontend kapsamı %51,14 satır / %52,71 dal; Kapsamlı manuel erişilebilirlik ve fiziksel cihaz maddeleri açık. 320×568 / 736×320 ve %200 metin emülasyonu kontrol edildi; bu gerçek cihaz veya tam tarayıcı zoom provası değildir. Taslaklar sekme içi best-effort saklanır; API sonucu/cevap/oturum bilgisi saklanmaz, otomatik hamle kuyruğu yoktur.
+Oyun sonu istatistikleri, tahmin dağılımı ve sunucu takvimine bağlı geri sayım tamamlandı. Sayaç bitince yalnızca bugünün durumunu kontrol etme seçeneği açılır; otomatik Start yoktur. Günlük/serbest oyun karşılaştırması EN/TR olarak iki oyun ekranına eklendi; ağ kesintisi/taslak/reconnect akışı ve erişilebilirlik/mobil geliştirme adımı tamamlandı. Dil seçimi bayrak/kod tekrarı yerine kendi adlarıyla native seçim kullanıyor; mobil kapalı menü inert ve menü simgesi fonttan bağımsız SVG. Güncel frontend kapsamı %57,69 satır / %56,50 dal. Firefox yerel koşusu geçti; kapsamlı manuel erişilebilirlik, fiziksel cihaz ve production Nginx/SMTP kontrolü açık. 320×568 / 736×320 ve %200 metin emülasyonu kontrol edildi; bu gerçek cihaz veya tam tarayıcı zoom provası değildir. Taslaklar sekme içi best-effort saklanır; API sonucu/cevap/oturum bilgisi saklanmaz, otomatik hamle kuyruğu yoktur.
 
-## P2.1 — Yeni diller ve kelime rotasyonu
+## P2.1 — Mevcut dillerin kelime rotasyonu; yeni diller ertelendi
+
+Kullanıcı kararı: **yeni dil ekleme kapsam dışı**. Aşağıdaki dil/sözlük maddeleri bilinçli ertelendi, tamamlanmış sayılmaz. EN/TR sözlük içerikleri/lisansları değiştirilmedi.
 
 - [ ] Almanca, Fransızca ve İspanyolca desteğini dil kayıtları/API/UI üzerinden ekle; önce P1 dil izolasyonunu tamamla.
 - [ ] Her dil için cevap ve geçerli tahmin sözlüklerini ayrı hazırla; kaynak, lisans, yeniden dağıtım hakkı ve attribution gereksinimlerini doğrula ve depoda belgele. Lisansı doğrulanmamış sözlük yayımlama.
 - [ ] Dil bazlı harf kuralları, büyük/küçük harf dönüşümü, Unicode normalizasyonu, beş harf kuralı ve klavye düzenini tanımla; arayüz çevirilerini ve backend/frontend/E2E testlerini tamamla.
-- [ ] Yakın tarihlerde aynı cevabı önleyen dil bazlı rotasyonu değerlendir; havuz yetersizliği, eşzamanlı puzzle oluşturma ve sürüm değişikliği davranışını belirle.
-- [ ] Geçmiş günlük cevapların sözlük, algoritma veya uygulama güncellemesiyle değişmemesini garanti et; kalıcı puzzle kayıtları ve regression testleriyle doğrula. Rotasyon değişikliğinden önce bu garanti sağlansın.
+- [x] EN/TR için kullanılmamış cevap önceliği, 30 takvim günü tercihli aralık ve küçük havuzda en uzak tekrar politikası; iki yöndeki komşu tarihler, eşzamanlı instance/tarihler ve rollback testleri. Politika, indeks ölçümü ve rollout sınırları `docs/WORD_ROTATION.md` içinde.
+- [x] Geçmiş günlük cevaplar önce kalıcı kayıttan okunsun; V8 sıradan UPDATE/DELETE ile kimlik/cevap değişimini engellesin. Sözlük değişikliği/arıza, eski ID, migration geçmişi ve sözlükten çıkarılmış doğru cevabın oynanabilirliği test edildi. DDL sahibi/TRUNCATE ve eski haricî yazıcı sınırları belgeli.
 
 ## P2.2 — Hesap ve operasyonel dayanıklılık
 

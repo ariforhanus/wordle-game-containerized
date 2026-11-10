@@ -1240,3 +1240,96 @@ test.describe("game accessibility", () => {
     }
   });
 });
+
+test.describe("existing languages rotation and audited flows", () => {
+  test.use({ serviceWorkers: "block", reducedMotion: "reduce" });
+  test("persisted daily answers stay stable across reads and independent players", async ({ page, browser }) => {
+    await register(page);
+    const first = await fixtureDailyWords(page.context());
+    const again = await fixtureDailyWords(page.context());
+    expect(again.en.word).toBe(first.en.word);
+    expect(again.tr.word).toBe(first.tr.word);
+    async function play(player: import("@playwright/test").Page) {
+      const token = await player.evaluate(() => localStorage.getItem("jwtToken"));
+      const headers = { Authorization: "Bearer " + token };
+      const before = await player.context().request.get("/api/v1/daily/games?lang=en", { headers });
+      expect((await before.json()).state).toBe("not_started");
+      const started = await player.context().request.post("/api/v1/daily/games?lang=en", { headers });
+      const game = await started.json();
+      expect(game.answer).toBeNull();
+      const result = await player.context().request.post(`/api/v1/daily/games/${game.id}/guesses`, { headers, data: { guess: first.en.word, attempt: 1 } });
+      expect(result.status()).toBe(200);
+      expect((await result.json()).status).toBe("won");
+      const saved = await player.context().request.get(`/api/v1/daily/games/${game.id}`, { headers });
+      expect((await saved.json()).answer).toBe(first.en.word);
+    }
+    await play(page);
+    const other = await browser.newContext({ baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000", serviceWorkers: "block" });
+    try { const player = await other.newPage(); await register(player); await play(player); }
+    finally { await other.close(); }
+    expect((await fixtureDailyWords(page.context())).en.word).toBe(first.en.word);
+  });
+
+  test("themed word failures retry, result traps focus and the same next answer starts a fresh round", async ({ page }) => {
+    let unavailable = true;
+    await page.route("**/themes/marvel.json", (route) => unavailable
+      ? route.fulfill({ status: 503, body: "unavailable" })
+      : route.fulfill({ json: { words: ["STARK"] } }));
+    await page.goto("/themes/marvel");
+    await expect(page.getByRole("alert")).toContainText("Could not load this theme");
+    await expect(page.getByRole("grid")).toHaveCount(0);
+    unavailable = false;
+    await page.getByRole("button", { name: "Retry word list", exact: true }).click();
+    await expect(page.getByRole("grid")).toBeVisible();
+    for (let round = 0; round < 2; round++) {
+      await page.getByRole("grid").click();
+      await page.keyboard.type("stark");
+      await page.keyboard.press("Enter");
+      const dialog = page.getByRole("dialog", { name: "Word", exact: true });
+      const share = dialog.getByRole("button", { name: "Share Result", exact: true });
+      await expect(share).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      await expect(dialog.getByRole("link")).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(share).toBeFocused();
+      for (const theme of ["light", "dark"]) {
+        await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+        for (const hovered of [false, true]) {
+          if (hovered) await share.hover();
+          else await page.mouse.move(0, 0);
+          const scan = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(["wcag2a", "wcag2aa"]).analyze();
+          expect(scan.violations).toEqual([]);
+        }
+      }
+      await dialog.getByRole("button", { name: "Play Again", exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page.locator(".board-row").first()).toHaveText("");
+    }
+  });
+
+  test("account errors focus the named field and security/recovery forms pass scoped accessibility checks", async ({ page }) => {
+    await register(page);
+    await page.goto("/account");
+    await expect(page.locator("#current-password")).toBeVisible();
+    let writes = 0;
+    page.on("request", (request) => { if (request.method() === "POST") writes++; });
+    await page.locator("#current-password").fill("browser-password-123");
+    await page.locator("#security-password").fill("new-fixture-password-123");
+    await page.locator("#security-confirm").fill("different-fixture-password");
+    await page.getByRole("button", { name: "Change password", exact: true }).click();
+    await expect(page.locator("#security-confirm")).toBeFocused();
+    await expect(page.locator("#security-confirm")).toHaveAttribute("aria-invalid", "true");
+    await expect(page.locator("#security-confirm")).toHaveAccessibleDescription(/matching passwords/);
+    expect(writes).toBe(0);
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+      const scan = await new AxeBuilder({ page }).include(".auth-card").withTags(["wcag2a", "wcag2aa"]).analyze();
+      expect(scan.violations).toEqual([]);
+    }
+    await page.goto("/forgot-password");
+    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+    const scan = await new AxeBuilder({ page }).include(".auth-card").withTags(["wcag2a", "wcag2aa"]).analyze();
+    expect(scan.violations).toEqual([]);
+    expect(writes).toBe(0);
+  });
+});

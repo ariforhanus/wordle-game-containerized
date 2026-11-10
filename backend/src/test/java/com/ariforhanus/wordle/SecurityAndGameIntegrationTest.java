@@ -383,13 +383,9 @@ class SecurityAndGameIntegrationTest {
         // Stay within one puzzle day; midnight behavior has a separate acceptance item.
         clock.set(DAYTIME);
         Instant startedAt = clock.instant();
-        var game = games.start(user.getId(), language);
         String answer = language.equals("tr") ? "İNCİR" : "APPLE";
-        db.update(
-                "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
-                        + " WHERE id = ?)",
-                answer,
-                game.id());
+        seedAnswer(language, answer);
+        var game = games.start(user.getId(), language);
         // There are no game requests while this deterministic server clock advances.
         clock.set(startedAt.plusSeconds(120));
         String newSession = jwt.generateToken(user.getId(), user.getUsername(), "USER");
@@ -484,6 +480,7 @@ class SecurityAndGameIntegrationTest {
 
     @Test
     void concurrentStartsAndGuessesProduceOneGameAndOneScore() throws Exception {
+        seedAnswer("en", "APPLE");
         try (var pool = Executors.newFixedThreadPool(2)) {
             var start = new CountDownLatch(1);
             Callable<DailyGameService.GameView> task =
@@ -496,7 +493,6 @@ class SecurityAndGameIntegrationTest {
             start.countDown();
             var game = a.get(10, TimeUnit.SECONDS);
             assertEquals(game.id(), b.get(10, TimeUnit.SECONDS).id());
-            db.update("UPDATE daily_puzzles SET answer='APPLE'");
             var turn = new CountDownLatch(1);
             Callable<DailyGameService.GameView> guess =
                     () -> {
@@ -556,6 +552,9 @@ class SecurityAndGameIntegrationTest {
         assertEquals(boundary.toString(), before.get("nextGameAt").asText());
         assertEquals("Europe/Istanbul", before.get("timeZone").asText());
         assertEquals(0, count("daily_puzzles"));
+        String word = language.equals("tr") ? "İNCİR" : "APPLE";
+        String oldAnswer = winning ? word : language.equals("tr") ? "KİTAP" : "CIGAR";
+        seedAnswer(language, oldAnswer);
         var old =
                 gameRequest(
                         post("/api/v1/daily/games")
@@ -563,13 +562,6 @@ class SecurityAndGameIntegrationTest {
                                 .param("date", oldDate.toString()),
                         session);
         String oldId = old.get("id").asText();
-        String word = language.equals("tr") ? "İNCİR" : "APPLE";
-        String oldAnswer = winning ? word : language.equals("tr") ? "KİTAP" : "CIGAR";
-        db.update(
-                "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
-                        + " WHERE id = ?)",
-                oldAnswer,
-                oldId);
         int finalTurn = winning ? 1 : 6;
         for (int turn = 1; turn < finalTurn; turn++) games.guess(user.getId(), oldId, word, turn);
         clock.set(boundary);
@@ -603,6 +595,7 @@ class SecurityAndGameIntegrationTest {
                 .andExpect(status().isBadRequest());
         assertEquals(1, count("daily_games"));
         assertEquals(1, count("daily_puzzles"));
+        seedAnswer(language, word);
         var next =
                 gameRequest(
                         post("/api/v1/daily/games")
@@ -612,11 +605,6 @@ class SecurityAndGameIntegrationTest {
         String nextId = next.get("id").asText();
         assertNotEquals(oldId, nextId);
         assertEquals(today.toString(), next.get("date").asText());
-        db.update(
-                "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
-                        + " WHERE id = ?)",
-                word,
-                nextId);
         clock.set(boundary.plusSeconds(20));
         http.perform(
                         turnRequest(oldId, word, finalTurn)
@@ -782,8 +770,8 @@ class SecurityAndGameIntegrationTest {
 
     @Test
     void sixIncorrectGuessesPersistALossAndBlockFurtherTurns() {
-        var game = startApple();
-        db.update("UPDATE daily_puzzles SET answer='CIGAR'");
+        seedAnswer("en", "CIGAR");
+        var game = games.start(user.getId(), "en");
         for (int i = 1; i <= 6; i++) games.guess(user.getId(), game.id(), "APPLE", i);
         var result = games.get(user.getId(), game.id());
         assertEquals("lost", result.status());
@@ -1142,15 +1130,11 @@ class SecurityAndGameIntegrationTest {
     void finalTurnWaitsForDatabaseLockAndCommitsOnceAcrossSessions(String language, boolean winning)
             throws Exception {
         var sessions = independentSessions(3);
-        var game = games.start(user.getId(), language);
-        Instant startedAt = clock.instant();
         String guess = language.equals("tr") ? "İNCİR" : "APPLE";
         String answer = winning ? guess : language.equals("tr") ? "KİTAP" : "CIGAR";
-        db.update(
-                "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
-                        + " WHERE id = ?)",
-                answer,
-                game.id());
+        seedAnswer(language, answer);
+        var game = games.start(user.getId(), language);
+        Instant startedAt = clock.instant();
         int turn = winning ? 1 : 6;
         for (int index = 1; index < turn; index++)
             games.guess(user.getId(), game.id(), guess, index);
@@ -1247,12 +1231,8 @@ class SecurityAndGameIntegrationTest {
     void differentSessionHttpTurnsConflictWithoutOverwritingTheAcceptedGuess(String language)
             throws Exception {
         var sessions = independentSessions(2);
+        seedAnswer(language, language.equals("tr") ? "İNCİR" : "APPLE");
         var game = games.start(user.getId(), language);
-        db.update(
-                "UPDATE daily_puzzles SET answer = ? WHERE id = (SELECT puzzle_id FROM daily_games"
-                        + " WHERE id = ?)",
-                language.equals("tr") ? "İNCİR" : "APPLE",
-                game.id());
         var words =
                 language.equals("tr")
                         ? java.util.List.of("ELMAS", "KİTAP")
@@ -1737,20 +1717,34 @@ class SecurityAndGameIntegrationTest {
 
     @Test
     void turkishGameHandlesLocaleCasing() {
+        seedAnswer("tr", "İNCİR");
         var game = games.start(user.getId(), "tr");
-        db.update(
-                "UPDATE daily_puzzles SET answer='İNCİR' WHERE id=(SELECT puzzle_id FROM"
-                        + " daily_games WHERE id=?)",
-                game.id());
         assertEquals("won", games.guess(user.getId(), game.id(), "incir", 1).status());
         assertEquals("İNCİR", games.get(user.getId(), game.id()).answer());
         assertEquals(1, count("scores"));
     }
 
     private DailyGameService.GameView startApple() {
-        var game = games.start(user.getId(), "en");
-        db.update("UPDATE daily_puzzles SET answer='APPLE'");
-        return games.get(user.getId(), game.id());
+        seedAnswer("en", "APPLE");
+        return games.start(user.getId(), "en");
+    }
+
+    private void seedAnswer(String language, String answer) {
+        LocalDate day = LocalDate.now(clock.withZone(APP_ZONE));
+        db.update(
+                "INSERT INTO daily_puzzles(id,played_at,language,answer) VALUES (?,?,?,?) ON"
+                    + " CONFLICT DO NOTHING",
+                day + "_" + language,
+                day,
+                language,
+                answer);
+        assertEquals(
+                answer,
+                db.queryForObject(
+                        "SELECT answer FROM daily_puzzles WHERE played_at=? AND language=?",
+                        String.class,
+                        day,
+                        language));
     }
 
     private int count(String table) {

@@ -210,6 +210,10 @@
     "lang_games_10": { "title": "Yerel Kahraman", "desc": "Bu dilde 10 oyun oynayın." }
   },
   "themes": {
+    "loading": "Tema kelimeleri yükleniyor",
+    "loadError": "Bu temanın kelime listesi yüklenemedi.",
+    "retry": "Kelime listesini yeniden dene",
+
     "title": "Temalar",
     "pickTheme": "Bir tema seç ve kelimeyi tahmin et!",
     "back": "Tüm Temalar",

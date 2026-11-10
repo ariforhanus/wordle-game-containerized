@@ -170,7 +170,9 @@ public class DailyGameService {
         }
         if (!game.status().equals("playing") || attempt != guesses.size() + 1)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "turn_conflict");
-        if (!guess.matches("[A-ZÇĞİÖŞÜ]{5}") || !dictionary.contains(guess, game.language()))
+        // A saved puzzle answer remains a valid winning guess after a dictionary update.
+        if (!guess.matches("[A-ZÇĞİÖŞÜ]{5}")
+                || (!guess.equals(game.answer()) && !dictionary.contains(guess, game.language())))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_word");
         guesses.add(guess);
         String status =
