@@ -2,7 +2,7 @@
 
 ## Authorization and branch
 
-Repository: ariforhanus/wordle-game-containerized. Continue on fix/security-game-integrity; do not merge main, deploy production or migrate to microservices. User authorized fixes, tests and branch publication, wants TODO work continued in priority order and explicit test/report evidence. Inspect current code first. Preserve existing functionality and other contributors' changes. No sub-agents were requested. Never publish the private root .env or .preview configuration.
+Repository: ariforhanus/wordle-game-containerized. Continue on fix/security-game-integrity; do not merge main, deploy production or migrate to microservices. User authorized fixes, tests and branch publication, wants TODO work continued in priority order and explicit test/report evidence. Inspect current code first. Preserve existing functionality and other contributors' changes. No sub-agents were requested. Latest user override: root .env is now committed as a LOCAL TEST FIXTURE at explicit owner request. Its credentials are public test values; rotate them before public use. Keep .preview credentials private.
 
 ## Completed in this checkpoint
 
@@ -45,3 +45,7 @@ User requested admin / 123456 for private testing and a generated secret. Root i
 Latest full backend: 141 passed; env-generator: 5 passed. Compose config checks passed. Actual release-JAR admin login and authenticated admin endpoint passed using an isolated test database. Logs in /workspace/work/local-admin/. This smoke test did not modify the user's Compose database or reset any preexisting real account. Short test credentials must stay private/local; matching URL/CORS does not enforce network isolation. Future public use requires explicitly rotating the stored admin password and disabling the opt-in.
 
 Continue the remaining index write-cost measurement/countdown TODOs after this interruption. Existing production gates remain open; do not merge main or deploy.
+
+## Latest override: commit the local env
+
+The owner explicitly requested committing root .env and removing it later. It is now tracked despite the ignore rule, with a local-test-only header. Fresh branch checkouts already contain this file: do not run the non-overwriting generator unless the file has first been deliberately moved. The earlier private/ignored-root-env statements describe prior checkpoints and are superseded by this request. Deleting .env in a future commit will not remove it from history. Rotate database/admin credentials and JWT before public use; no production credentials should be substituted into this tracked file. .preview remains private. Base and production-profile Compose configuration were revalidated without printing secrets. No application code changed in this checkpoint.

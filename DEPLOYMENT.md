@@ -79,3 +79,14 @@ Configure centralized logs, alerts for authentication failures/5xx/latency, back
 ## Further production-readiness work
 
 See `OPERATIONS.md` for account-security configuration, backup/restore, monitoring, CI gates, and rollback. See `TODO.md` for the distinction between implemented work and deployment-specific activation. The legacy frontend has been removed. Offline support now uses an explicit static-asset allowlist; it does not use the former vulnerable PWA dependency chain or cache API responses. The latest complete npm audit reports zero known advisories.
+
+## Owner-requested committed local fixture
+
+This development branch includes root `.env` at the owner's explicit request for
+immediate local testing (`admin` / `123456`). Treat every value in it as public
+test data, including its database passwords and JWT key. Fresh checkouts can use
+it directly with local Compose; the generator refuses to overwrite it. Do not
+use these credentials for staging/production or replace them with live secrets
+in this tracked file. Removing it later does not erase Git history; rotate all
+provisioned credentials and the JWT key before public use. Existing persisted
+accounts/database roles are not reset by editing the file.
