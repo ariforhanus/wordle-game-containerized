@@ -2,6 +2,8 @@ import { useRef, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { GameState } from "@wordle/engine";
 import "./Board.css";
+import { useReducedMotion } from "../hooks/useReducedMotion";
+import { feedbackSymbols } from "../utils/feedback";
 
 interface BoardProps {
   state: GameState;
@@ -12,6 +14,7 @@ interface BoardProps {
 
 export default function Board({ state, shakeRow, blindMode }: BoardProps) {
   const { t } = useTranslation();
+  const reducedMotion = useReducedMotion();
   const { guesses, currentGuess, maxAttempts, wordLength, status } = state;
 
   // Are colors hidden? Only in blind mode while still playing
@@ -28,7 +31,8 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
     prevGuessCount.current = curr;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
-    if (curr > prev && curr > 0) {
+    if (reducedMotion) { setRevealingRow(null); setRevealedCells(new Set()); }
+    if (!reducedMotion && curr > prev && curr > 0) {
       // A new guess was just submitted — reveal row (curr - 1)
       const rowIdx = curr - 1;
       setRevealingRow(rowIdx);
@@ -58,7 +62,7 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
       );
     }
     return () => timers.forEach(clearTimeout);
-  }, [guesses.length, wordLength]);
+  }, [guesses.length, wordLength, reducedMotion]);
 
   const rows: React.ReactNode[] = [];
 
@@ -68,7 +72,7 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
     if (r < guesses.length) {
       // Submitted guess row
       const { guess, statuses } = guesses[r];
-      const isRevealing = r === revealingRow;
+      const isRevealing = !reducedMotion && r === revealingRow;
 
       for (let c = 0; c < wordLength; c++) {
         if (isRevealing && !hideColors) {
@@ -80,6 +84,8 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
               role="gridcell"
               key={c}
               className={`cell cell-filled cell-reveal ${statusClass}`}
+              aria-label={`${guess[c]}: ${t(`feedback.${statuses[c]}`)}`}
+              data-feedback-symbol={hasRevealed ? feedbackSymbols[statuses[c]] : undefined}
               style={{ animationDelay: `${c * 300}ms` }}
             >
               {guess[c]}
@@ -92,6 +98,7 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
               role="gridcell"
               key={c}
               className="cell cell-filled cell-blind"
+              aria-label={`${guess[c]}: ${t("feedback.hidden")}`}
             >
               {guess[c]}
             </div>,
@@ -99,7 +106,9 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
         } else {
           // Already revealed (previous rows) — show final state
           cells.push(
-            <div role="gridcell" key={c} className={`cell cell-${statuses[c]}`}>
+            <div role="gridcell" key={c} className={`cell cell-${statuses[c]}`}
+              aria-label={`${guess[c]}: ${t(`feedback.${statuses[c]}`)}`}
+              data-feedback-symbol={feedbackSymbols[statuses[c]]}>
               {guess[c]}
             </div>,
           );
@@ -130,19 +139,24 @@ export default function Board({ state, shakeRow, blindMode }: BoardProps) {
     }
 
     rows.push(
-      <div role="row" key={r} className="board-row">
+      <div role="row" key={r} className="board-row" aria-label={t("feedback.row", { row: r + 1 })}>
         {cells}
       </div>,
     );
   }
 
+  const last = guesses[guesses.length - 1];
+  const announcement = last ? `${t("feedback.row", { row: guesses.length })}: ${last.guess}. ${hideColors
+    ? t("feedback.hidden")
+    : Array.from(last.guess).map((letter, index) => `${letter}: ${t(`feedback.${last.statuses[index]}`)}`).join("; ")}` : "";
   return (
-    <div
-      className="board"
-      role="grid"
-      aria-label={t("game.enterGuess") as string}
-    >
-      {rows}
+    <div className="board-container">
+      <div className="board" role="grid" tabIndex={0} aria-readonly="true" aria-rowcount={maxAttempts} aria-colcount={wordLength}
+        aria-label={t("game.enterGuess")}>
+        {rows}
+      </div>
+      <p className="feedback-legend">{hideColors ? t("feedback.hidden") : t("feedback.legend")}</p>
+      <div className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</div>
     </div>
   );
 }

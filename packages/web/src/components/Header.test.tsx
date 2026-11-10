@@ -36,3 +36,12 @@ it("shows the current Turkish choice rather than a next-language abbreviation", 
   const view = mount();
   expect((view.container.querySelector(".desktop-actions select") as HTMLSelectElement).selectedOptions[0].text).toBe("Türkçe");
 });
+it("closes the mobile menu with Escape and returns focus to its toggle", () => {
+  const view = mount();
+  const button = within(view.container).getByRole("button", { name: "nav.menu" });
+  fireEvent.click(button);
+  (view.container.querySelector("#mobile-nav-menu select") as HTMLSelectElement).focus();
+  fireEvent.keyDown(document, { key: "Escape" });
+  expect(button.getAttribute("aria-expanded")).toBe("false");
+  expect(document.activeElement).toBe(button);
+});

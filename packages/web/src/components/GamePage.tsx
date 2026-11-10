@@ -13,6 +13,7 @@ import HowToPlayModal from "./HowToPlayModal";
 import Board from "./Board";
 import Keyboard from "./Keyboard";
 import "./GamePage.css";
+import { useDialogFocus } from "../hooks/useDialogFocus";
 
 export default function GamePage() {
   const { t, i18n } = useTranslation();
@@ -59,6 +60,10 @@ export default function GamePage() {
     }
     return false;
   }, [lang]);
+
+  const hintConfirmRef = useDialogFocus(showHintConfirm, () => setShowHintConfirm(false));
+  const hintTextRef = useDialogFocus(showHintText, () => setShowHintText(false));
+  const resultRef = useDialogFocus(Boolean(resultMsg));
 
   const loadWord = useCallback(async () => {
     setLoading(true);
@@ -199,7 +204,7 @@ export default function GamePage() {
   const hintAvailable = langConfig.hasHints && state.status === "playing";
 
   if (loading && !answer) {
-    return <div className="page-center"><div className="spinner" /></div>;
+    return <div className="page-center"><div className="spinner" role="status" aria-label={t("daily.loading")} /></div>;
   }
 
   return (
@@ -219,7 +224,7 @@ export default function GamePage() {
           onClick={toggleHardMode}
           title={t("game.hardMode")}
         >
-          <i className="fas fa-fire" />
+          <i aria-hidden="true" className="fas fa-fire" />
           <span className="toolbar-label">{t("game.hardMode")}</span>
         </button>
         <button
@@ -227,15 +232,16 @@ export default function GamePage() {
           onClick={toggleBlindMode}
           title={t("game.blindMode")}
         >
-          <i className="fas fa-eye-slash" />
+          <i aria-hidden="true" className="fas fa-eye-slash" />
           <span className="toolbar-label">{t("game.blindMode")}</span>
         </button>
         <button
           className="toolbar-btn"
           onClick={() => setShowHowToPlay(true)}
-          title={t("game.howToPlay")}
+          disabled={state.status !== "playing"}
+          aria-label={t("game.howToPlay")} title={t("game.howToPlay")}
         >
-          <i className="fas fa-question-circle" />
+          <i aria-hidden="true" className="fas fa-question-circle" />
         </button>
       </div>
 
@@ -246,7 +252,7 @@ export default function GamePage() {
           onClick={handleHintClick}
           title={t("game.hint")}
         >
-          <i className="fas fa-lightbulb" /> {t("game.hint")}
+          <i aria-hidden="true" className="fas fa-lightbulb" /> {t("game.hint")}
         </button>
       )}
 
@@ -263,7 +269,7 @@ export default function GamePage() {
       {/* Hint enable confirmation popup */}
       {showHintConfirm && (
         <div className="result-overlay" onClick={() => setShowHintConfirm(false)} role="presentation">
-          <div className="result-card hint-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("game.hintConfirmTitle") as string}>
+          <div ref={hintConfirmRef} tabIndex={-1} className="result-card hint-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("game.hintConfirmTitle") as string}>
             <p className="hint-confirm-text">
               {t("game.hintConfirmTitle")}
             </p>
@@ -285,7 +291,7 @@ export default function GamePage() {
       {/* Hint display popup */}
       {showHintText && (
         <div className="result-overlay" onClick={() => setShowHintText(false)} role="presentation">
-          <div className="result-card hint-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("game.hint") as string}>
+          <div ref={hintTextRef} tabIndex={-1} className="result-card hint-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("game.hint") as string}>
             <div className="hint-display-icon">
               <i className="fas fa-lightbulb" aria-hidden="true" />
             </div>
@@ -300,7 +306,7 @@ export default function GamePage() {
       {/* Result popup */}
       {resultMsg && (
         <div className="result-overlay" role="presentation">
-          <div className="result-card" role="dialog" aria-modal="true" aria-label={t("game.word") as string}>
+          <div ref={resultRef} tabIndex={-1} className="result-card" role="dialog" aria-modal="true" aria-label={t("game.word") as string}>
             <p className="result-text">{resultMsg}</p>
             {definition && (
               <p className="result-def">
@@ -309,7 +315,7 @@ export default function GamePage() {
             )}
             <div className="result-actions">
               <button className="btn-share" onClick={handleShare}>
-                <i className="fas fa-share-alt" /> {t("game.share")}
+                <i aria-hidden="true" className="fas fa-share-alt" /> {t("game.share")}
               </button>
               <button className="btn-primary" onClick={handlePlayAgain}>
                 {t("game.playAgain")}

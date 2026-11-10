@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { dailyGameApi, isAuthenticated, ApiError } from "@wordle/api";
@@ -265,16 +265,18 @@ export default function DailyPage() {
     };
   }, [reconnect]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // Install with the board commit so immediate keystrokes use the current turn.
     // Preserve native keyboard activation of Start/Resume/result buttons outside active play.
     if (!game || game.status !== "playing") return;
     function onKey(e: KeyboardEvent) {
       if (
         e.ctrlKey ||
         e.metaKey ||
-        e.altKey ||
+        e.altKey || e.isComposing ||
         (e.target instanceof HTMLElement &&
-          /INPUT|TEXTAREA|SELECT/.test(e.target.tagName))
+          (e.target.closest("input, textarea, select, header, [role=dialog]") ||
+           (e.key === "Enter" && e.target.closest("button, a, summary"))))
       )
         return;
       if (e.key === "Enter") {
@@ -283,7 +285,11 @@ export default function DailyPage() {
       } else if (e.key === "Backspace") {
         e.preventDefault();
         removeLetter();
-      } else if (isValidLetter(e.key, lang)) addLetter(e.key);
+      } else if (isValidLetter(e.key, lang)) {
+        if (e.target instanceof HTMLElement && e.target.closest("button, a, summary"))
+          document.querySelector<HTMLElement>(".board")?.focus({ preventScroll: true });
+        addLetter(e.key);
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

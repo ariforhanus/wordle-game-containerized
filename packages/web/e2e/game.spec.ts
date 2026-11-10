@@ -1063,7 +1063,7 @@ test.describe("daily result countdown", () => {
 
 test("native language names persist and mode rules explain daily versus practice", async ({ page }, testInfo) => {
   await page.goto("/game");
-  const mobile = (page.viewportSize()?.width ?? 1280) <= 640;
+  const mobile = await page.getByRole("button", { name: "Menu", exact: true }).isVisible();
   if (mobile) await page.getByRole("button", { name: "Menu", exact: true }).click();
   const language = page.locator(mobile ? "#mobile-nav-menu .language-select" : ".desktop-actions .language-select");
   await expect(language).toBeVisible();
@@ -1156,5 +1156,87 @@ test.describe("daily reconnect and draft recovery", () => {
     await expect(page.getByText("This guess has not been confirmed.", { exact: false })).toHaveCount(0);
     expect(writes).toBe(1);
     expect(await page.evaluate(() => sessionStorage.getItem("wordle_daily_draft_en"))).toBeNull();
+  });
+});
+
+test.describe("game accessibility", () => {
+  test.use({ reducedMotion: "reduce", serviceWorkers: "block" });
+  async function practice(page: import("@playwright/test").Page) {
+    await page.route("**/api/v1/word/random?*", (route) => route.fulfill({ json: { word: "APPLE", definition: "Practice fixture" } }));
+    await page.goto("/game");
+    await expect(page.locator(".board")).toBeVisible();
+  }
+  test("feedback has symbols and descriptions, motion is reduced and help owns keyboard focus", async ({ page }) => {
+    await practice(page);
+    const help = page.getByRole("button", { name: "How To Play", exact: true });
+    await help.click();
+    const dialog = page.getByRole("dialog", { name: "How To Play", exact: true });
+    const close = dialog.getByRole("button", { name: "Got it!", exact: true });
+    await expect(close).toBeFocused();
+    await page.keyboard.type("apple");
+    await expect(page.locator(".board-row").first()).toHaveText("");
+    await page.keyboard.press("Tab");
+    await expect(close).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(help).toBeFocused();
+    await page.keyboard.type("alley");
+    await expect(page.locator(".board")).toBeFocused();
+    await page.keyboard.press("Enter");
+    const correct = page.getByRole("gridcell", { name: "A: correct position", exact: true });
+    await expect(correct).toHaveAttribute("data-feedback-symbol", "✓");
+    await expect(page.getByRole("gridcell", { name: "L: in the word, different position", exact: true })).toHaveAttribute("data-feedback-symbol", "•");
+    await expect(page.getByRole("gridcell", { name: "L: not in the word", exact: true })).toHaveAttribute("data-feedback-symbol", "×");
+    await expect(page.locator(".cell-reveal")).toHaveCount(0);
+    await expect(page.locator(".keyboard").getByRole("button", { name: "A", exact: true })).toHaveAccessibleDescription("correct position");
+    expect(await correct.evaluate((cell) => getComputedStyle(cell, "::after").content)).toContain("✓");
+    const audited = await new AxeBuilder({ page }).include(".app-header").include(".board-container").include(".keyboard").withTags(["wcag2a", "wcag2aa"]).analyze();
+    expect(audited.violations).toEqual([]);
+    for (const theme of ["dark", "light"]) {
+      await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+      const ratios = await page.locator(".cell[data-feedback-symbol], .key").evaluateAll((elements) => {
+        const luminance = (color: string) => {
+          const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map((value) => {
+            const n = value / 255; return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+          });
+          return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+        };
+        return elements.map((element) => {
+          const style = getComputedStyle(element);
+          const a = luminance(style.color), b = luminance(style.backgroundColor);
+          return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+        });
+      });
+      expect(Math.min(...ratios)).toBeGreaterThanOrEqual(4.5);
+    }
+    await page.keyboard.type("apple");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("dialog", { name: "Word", exact: true })).toBeVisible();
+    await expect(page.locator(".confetti-container")).toHaveCount(0);
+  });
+  test("small, landscape and enlarged-text layouts keep the board and help reachable", async ({ page }) => {
+    for (const size of [{ width: 320, height: 568 }, { width: 736, height: 320 }]) {
+      await page.setViewportSize(size);
+      await practice(page);
+      await page.evaluate(() => document.documentElement.style.fontSize = "200%");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      const help = page.getByRole("button", { name: "How To Play", exact: true });
+      await help.click();
+      const dialog = page.getByRole("dialog", { name: "How To Play", exact: true });
+      const bounds = await dialog.boundingBox();
+      expect(bounds!.y).toBeGreaterThanOrEqual(0);
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(size.height);
+      await page.keyboard.press("Escape");
+      await expect(help).toBeFocused();
+      const menu = page.getByRole("button", { name: "Menu", exact: true });
+      await menu.click();
+      const language = page.locator("#mobile-nav-menu select");
+      await language.scrollIntoViewIfNeeded();
+      await expect(language).toBeInViewport();
+      await page.keyboard.press("Escape");
+      await expect(menu).toHaveAttribute("aria-expanded", "false");
+      await expect(menu).toBeFocused();
+      await page.evaluate(() => document.documentElement.style.fontSize = "");
+    }
   });
 });

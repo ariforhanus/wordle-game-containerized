@@ -51,13 +51,13 @@
 .cell-correct {
   background: var(--correct, #6aaa64);
   border-color: var(--correct, #6aaa64);
-  color: white;
+  color: #101010;
 }
 
 .cell-present {
   background: var(--present, #c9b458);
   border-color: var(--present, #c9b458);
-  color: white;
+  color: #101010;
 }
 
 .cell-absent {
@@ -130,3 +130,18 @@
     font-size: 1.6rem;
   }
 }
+
+.board-container { width: 100%; max-width: 314px; }
+.board-row { width: 100%; }
+.cell { position: relative; min-width: 0; width: 0; flex: 1; height: auto; aspect-ratio: 1; }
+.cell[data-feedback-symbol]::after {
+  content: attr(data-feedback-symbol);
+  position: absolute;
+  bottom: 1px;
+  right: 3px;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 900;
+}
+.feedback-legend { text-align: center; font-size: 0.75rem; line-height: 1.5; margin-bottom: 8px; }
+@media (max-width: 400px) { .board-container { max-width: 274px; } }

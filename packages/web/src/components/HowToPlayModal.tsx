@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import "./HowToPlayModal.css";
+import { useDialogFocus } from "../hooks/useDialogFocus";
 
 const STORAGE_KEY = "wordle_htp_seen";
 
@@ -26,9 +27,8 @@ export default function HowToPlayModal({
   // Auto-show on first ever visit (only if not manualOnly)
   useEffect(() => {
     if (manualOnly) return;
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      setOpen(true);
-    }
+    try { if (!localStorage.getItem(STORAGE_KEY)) setOpen(true); }
+    catch { setOpen(true); }
   }, [manualOnly]);
 
   // Force-open from parent (help button)
@@ -39,16 +39,18 @@ export default function HowToPlayModal({
   }, [forceOpen]);
 
   function close() {
-    localStorage.setItem(STORAGE_KEY, "1");
+    try { localStorage.setItem(STORAGE_KEY, "1"); } catch { /* Help must remain dismissible. */ }
     setOpen(false);
     onClose?.();
   }
+
+  const dialogRef = useDialogFocus(open, close);
 
   if (!open) return null;
 
   return (
     <div className="htp-overlay" onClick={close} role="presentation">
-      <div className="htp-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="htp-dialog-title">
+      <div ref={dialogRef} tabIndex={-1} className="htp-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="htp-dialog-title">
         <h2 className="htp-title" id="htp-dialog-title">{t("game.howToPlay")}</h2>
         <p className="htp-desc">{t("game.howToPlayDesc")}</p>
 

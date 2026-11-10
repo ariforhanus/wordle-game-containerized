@@ -30,6 +30,15 @@
     "menu": "Menu",
     "language": "Language"
   },
+  "feedback": {
+    "backspace": "Delete last letter",
+    "correct": "correct position",
+    "present": "in the word, different position",
+    "absent": "not in the word",
+    "hidden": "Feedback hidden until the game ends",
+    "row": "Guess {{row}}",
+    "legend": "✓ Correct position · • Different position · × Not in the word"
+  },
   "modes": {
     "compare": "Daily or practice?",
     "daily": "One ranked game per language each day. Start begins the timer, which keeps running while you are away. Finish before midnight in the game time zone. A connection is required to start and submit guesses.",
@@ -50,7 +59,7 @@
     "share": "Share Result",
     "copied": "Copied to clipboard!",
     "howToPlay": "How To Play",
-    "howToPlayDesc": "Guess the word in 6 tries. After each guess, the color of the tiles will change to show how close your guess was to the word.",
+    "howToPlayDesc": "Guess the word in 6 tries. Feedback uses color, symbols and text: ✓ correct position, • different position, × not in the word.",
     "howCorrect": "is in the word and in the correct spot.",
     "howPresent": "is in the word but in the wrong spot.",
     "howAbsent": "is not in the word in any spot.",

@@ -83,13 +83,13 @@
 .htp-correct {
   background: var(--correct, #6aaa64);
   border-color: var(--correct, #6aaa64);
-  color: white;
+  color: #101010;
 }
 
 .htp-present {
   background: var(--present, #c9b458);
   border-color: var(--present, #c9b458);
-  color: white;
+  color: #101010;
 }
 
 .htp-absent {
@@ -128,3 +128,5 @@
     font-size: 0.95rem;
   }
 }
+
+.htp-card { max-height: calc(100dvh - 40px); overflow-y: auto; }

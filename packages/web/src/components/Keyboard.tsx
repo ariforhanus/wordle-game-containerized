@@ -1,3 +1,5 @@
+import { useId } from "react";
+import { feedbackSymbols } from "../utils/feedback";
 import type { LetterStatus } from "@wordle/engine";
 import { getLanguage } from "@wordle/engine";
 import { useTranslation } from "react-i18next";
@@ -24,7 +26,8 @@ export default function Keyboard({
   blindMode,
   lang: langOverride,
 }: KeyboardProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const descriptionId = useId();
   const langConfig = getLanguage(langOverride ?? i18n.language);
   const rows = langConfig.keyboard;
 
@@ -37,6 +40,8 @@ export default function Keyboard({
 
   return (
     <div className="keyboard">
+      {(["correct", "present", "absent"] as const).map((status) =>
+        <span className="sr-only" id={`${descriptionId}-${status}`} key={status}>{t(`feedback.${status}`)}</span>)}
       {rows.map((row, i) => (
         <div key={i} className="keyboard-row">
           {row.map((key) => {
@@ -48,6 +53,9 @@ export default function Keyboard({
                 className={`key ${status ? `key-${status}` : ""} ${
                   isSpecial ? "key-wide" : ""
                 }`}
+                aria-label={key === "⌫" ? t("feedback.backspace") : key}
+                aria-describedby={status ? `${descriptionId}-${status}` : undefined}
+                data-feedback-symbol={status && !isSpecial ? feedbackSymbols[status] : undefined}
                 onClick={() => handleClick(key)}
                 disabled={disabled}
               >

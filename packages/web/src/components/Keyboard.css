@@ -50,12 +50,12 @@
 
 .key-correct {
   background: var(--correct, #6aaa64);
-  color: white;
+  color: #101010;
 }
 
 .key-present {
   background: var(--present, #c9b458);
-  color: white;
+  color: #101010;
 }
 
 .key-absent {
@@ -102,3 +102,15 @@
     gap: 2px;
   }
 }
+
+.key { position: relative; min-width: 0; }
+.key[data-feedback-symbol]::after {
+  content: attr(data-feedback-symbol);
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.key:focus-visible { outline-offset: 1px; }

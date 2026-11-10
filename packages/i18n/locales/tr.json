@@ -30,6 +30,15 @@
     "menu": "Menü",
     "language": "Dil"
   },
+  "feedback": {
+    "backspace": "Son harfi sil",
+    "correct": "doğru yerde",
+    "present": "kelimede var, başka yerde",
+    "absent": "kelimede yok",
+    "hidden": "Geri bildirim oyun bitene kadar gizli",
+    "row": "Tahmin {{row}}",
+    "legend": "✓ Doğru yerde · • Başka yerde · × Kelimede yok"
+  },
   "modes": {
     "compare": "Günlük oyun mu, serbest oyun mu?",
     "daily": "Her dilde günde bir sıralamalı oyun. Başlat ile süre başlar ve sen yokken de devam eder. Oyun zaman diliminde gece yarısından önce bitirmelisin. Başlamak ve tahmin göndermek için bağlantı gerekir.",
@@ -50,7 +59,7 @@
     "share": "Sonucu Paylaş",
     "copied": "Panoya kopyalandı!",
     "howToPlay": "Nasıl Oynanır",
-    "howToPlayDesc": "Kelimeyi 6 denemede tahmin edin. Her tahminden sonra kutucukların rengi, tahmininizin kelimeye ne kadar yakın olduğunu gösterecektir.",
+    "howToPlayDesc": "Kelimeyi 6 denemede bul. Geri bildirim renk, sembol ve metinle gösterilir: ✓ doğru yerde, • başka yerde, × kelimede yok.",
     "howCorrect": "harfi kelimede var ve doğru yerde.",
     "howPresent": "harfi kelimede var ama yanlış yerde.",
     "howAbsent": "harfi kelimede yok.",

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./Confetti.css";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 
 interface ConfettiProps {
   active: boolean;
@@ -30,10 +31,11 @@ const COLORS = [
 let idCounter = 0;
 
 export default function Confetti({ active, duration = 3000 }: ConfettiProps) {
+  const reducedMotion = useReducedMotion();
   const [particles, setParticles] = useState<Particle[]>([]);
 
   useEffect(() => {
-    if (!active) {
+    if (!active || reducedMotion) {
       setParticles([]);
       return;
     }
@@ -57,7 +59,7 @@ export default function Confetti({ active, duration = 3000 }: ConfettiProps) {
     // Clean up after duration
     const timer = setTimeout(() => setParticles([]), duration);
     return () => clearTimeout(timer);
-  }, [active, duration]);
+  }, [active, duration, reducedMotion]);
 
   if (particles.length === 0) return null;
 

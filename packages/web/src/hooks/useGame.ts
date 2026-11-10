@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import {
   createGame,
   addLetter as engineAddLetter,
@@ -141,10 +141,13 @@ export function useGame({
     });
   }, [validWords]);
 
-  // Keyboard handler
-  useEffect(() => {
+  // Install before paint, so the visible board and keyboard handler agree.
+  useLayoutEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (state.status !== "playing") return;
+      if (state.status !== "playing" || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+      if (e.target instanceof HTMLElement &&
+          (e.target.closest("input, textarea, select, header, [role=dialog]") ||
+           (e.key === "Enter" && e.target.closest("button, a, summary")))) return;
 
       const key = e.key;
       if (key === "Enter") {
@@ -152,6 +155,8 @@ export function useGame({
       } else if (key === "Backspace") {
         removeLetter();
       } else if (isValidLetter(key, state.lang)) {
+        if (e.target instanceof HTMLElement && e.target.closest("button, a, summary"))
+          document.querySelector<HTMLElement>(".board")?.focus({ preventScroll: true });
         addLetter(key);
       }
     }

@@ -260,3 +260,5 @@
   margin-bottom: 20px;
   color: var(--text-primary, #1a1a2e);
 }
+
+.result-card[role="dialog"] { max-height: calc(100dvh - 40px); overflow-y: auto; }
