@@ -756,6 +756,36 @@ class SecurityAndGameIntegrationTest {
     }
 
     @Test
+    void conflictingHistoricalScoreRollsBackCompletionAndReturns409() throws Exception {
+        var game = startApple();
+        db.update(
+                "INSERT INTO"
+                    + " scores(user_id,username,language,attempts,duration_ms,won_at,played_at,score,word,won)"
+                    + " VALUES (?,'player','en',2,1000,?,?,123,'CIGAR',true)",
+                user.getId(),
+                java.sql.Timestamp.from(clock.instant()),
+                REFERENCE_DAY);
+        http.perform(
+                        post("/api/v1/daily/games/" + game.id() + "/guesses")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType("application/json")
+                                .content("{\"guess\":\"APPLE\",\"attempt\":1}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("conflict"));
+        var unchanged = games.get(user.getId(), game.id());
+        assertEquals("playing", unchanged.status());
+        assertTrue(unchanged.guesses().isEmpty());
+        assertNull(
+                db.queryForObject(
+                        "SELECT finished_at FROM daily_games WHERE id=?",
+                        java.sql.Timestamp.class,
+                        game.id()));
+        assertEquals(1, count("scores"));
+        assertEquals(123, db.queryForObject("SELECT score FROM scores", Integer.class));
+        assertEquals("CIGAR", db.queryForObject("SELECT word FROM scores", String.class));
+    }
+
+    @Test
     void unsafeLegacyMigrationFailsWithoutDeletingData() throws Exception {
         db.execute("CREATE SCHEMA legacy_test");
         try {

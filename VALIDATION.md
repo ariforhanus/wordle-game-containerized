@@ -189,3 +189,22 @@ Daily rankings use canonical played_at. Weekly/monthly rankings now SUM winning 
 Tests cover totals beyond one-game bounds, month/week/language isolation, single-row players, LIMIT after aggregation, canonical date and deterministic ties; current-name changes; independent losses/gaps/future dates; selected-language profile/result and stale request handling. A 2,000-score fixture exercises bounded summaries and thousand-day streaks. E2E uses an explicitly isolated bootstrap admin/known-answer fixture, real saved wins and a different-language loss; CI defines these public test-only credentials and disables external dictionary calls for that job.
 
 The E2E release assets were served by Vite Preview because local disk capacity prevented a full image build. Six production-Nginx-header/offline cases were intentionally skipped (two per engine); Nginx was not revalidated for this batch. Firefox, physical devices and assistive technologies remain unverified. V6 is a regular transactional index build and requires a production write window/rehearsal. The synthetic read benchmark is not API p95/capacity or write-overhead validation; streak query timing did not improve. No production data, migration, deployment, main merge or microservice migration occurred. Remote CI remains a separate release gate.
+
+## V7 structural consistency and completion conflict rollback — 2026-11-10
+
+V7 adds row-local CHECK constraints for normalized five-letter puzzle answers and serialized guesses (at most six), playing/won/lost turn counts, and terminal finished_at presence. It leaves historical rows untouched and validates them before allowing the migration to commit. deploy/preflight-daily-games.sql is a separate read-only diagnostic for V3+ databases; the original legacy-adoption preflight remains compatible with pre-daily schemas. No applied migration was edited.
+
+DailyGameService no longer silently ignores a score uniqueness collision on completion. A conflicting score now fails the INSERT, rolls back the game update and returns HTTP 409. Existing exact-replay and PostgreSQL game-row lock behavior remains intact. Cross-table result semantics are still enforced by the application transaction, not a new deferred trigger; see docs/DAILY_GAME_CONSISTENCY.md for this boundary and migration locking requirements.
+
+| Verification rerun for this change | Result |
+| --- | --- |
+| Full Java 21 / real PostgreSQL mvn verify | 130 passed; zero failures/errors/skips |
+| New structural/preflight/migration cases | 22 passed, included in 130 |
+| New HTTP score-collision rollback regression | Passed, included in 130 |
+| Selected desktop/mobile Chromium and WebKit E2E | 15 passed; no skips |
+| Real checksum backup and isolated restore of V7 database | Passed; disposable restore database removed |
+| git diff --check | Passed |
+
+The isolated migration test deliberately inserts malformed data into a V6 schema, verifies V7 rollback preserves both history and schema, explicitly repairs only that disposable fixture, and successfully retries V7. The error log emitted by that expected failed migration is part of the test, not a failed suite. Existing concurrent sessions, forced lock waits, duplicate finals, language/date boundaries and injected score-write rollback tests passed unchanged.
+
+The E2E selection checks network lost replies, concurrent sessions/final retry, terminal result views, period totals and language streaks. It used the existing release assets through Vite Preview and the new release JAR. No frontend source changed, so frontend unit/build/worker results remain the prior checkpoint's results rather than newly rerun claims. Production Nginx/offline, Firefox, physical devices and assistive technologies were not rerun. A production-sized V7 scan/lock rehearsal and index write-cost load test remain open. No production migration, data repair, deployment or main merge was performed.

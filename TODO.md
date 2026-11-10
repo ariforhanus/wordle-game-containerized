@@ -58,10 +58,10 @@ Doğruluk constraint'leri P0/P1 özellikleriyle birlikte teslim edilir; aşağı
 - [ ] Dil, `played_at`, oyuncu, kazanma filtresi ve aggregate sorguları için indeksleri değerlendir; önce/sonra planları, yazma maliyeti ve migration etkisini karşılaştır.
 - [x] Profil/istatistik ve leaderboard streak sorgularında gereksiz tüm geçmişi uygulama belleğine yüklemeyi kaldır; SQL aggregate/projection veya gerekçelendirilmiş özet yaklaşımı kullan. Kaynak verinin doğruluğunu ve dil izolasyonunu koru.
 - [x] `scores.username` tekrarını değerlendir: güncel profil adı mı tarihsel snapshot mı gösterileceğini belirle; kullanıcı adı değişimi, JOIN/denormalizasyon, silme ve eski veri tutarlılığı için karar/migration/test hazırla.
-- [ ] Kullanıcı+dil+gün tekilliği, tahmin sıra/limitleri, durum/skor ilişkisi ve referans bütünlüğü constraint'lerini denetle; yeni model gerekirse ileri migration ekle, uygulanmış migration'ları değiştirme.
-- [ ] Migration/preflight, eşzamanlı yazma, skor oluşturma rollback'i ve yinelenen istek testlerini yeni sorgu/model kuralları için tamamla; mevcut testleri koru.
+- [x] Kullanıcı+dil+gün tekilliği, tahmin sıra/limitleri, durum/skor ilişkisi ve referans bütünlüğü constraint'lerini denetle; yeni model gerekirse ileri migration ekle, uygulanmış migration'ları değiştirme.
+- [x] Migration/preflight, eşzamanlı yazma, skor oluşturma rollback'i ve yinelenen istek testlerini yeni sorgu/model kuralları için tamamla; mevcut testleri koru.
 
-V6 dönem indeksi ve sentetik önce/sonra okuma planları tamamlandı (`docs/performance/`); yazma maliyeti yük testi ve production büyüklüğünde migration provası açık. Mevcut eşzamanlılık/rollback/retry testleri ve V6 içeren izole backup/restore geçti; ek yapısal constraint denetimi sıradaki geliştirme işidir. TEXT/JSONB/tablo kararı `docs/GUESSES_STORAGE_DECISION.md`, kullanıcı adı kararı `docs/SCORE_IDENTITY_DECISION.md` içinde.
+V6 dönem indeksi ve sentetik önce/sonra okuma planları tamamlandı (`docs/performance/`); yazma maliyeti yük testi ve production büyüklüğünde migration provası açık. V7 ile tahmin biçimi/sayısı, durum ve tamamlanma zamanı constraint’leri eklendi; salt okunur preflight ve bozuk geçmişte atomik migration rollback’i test edildi. Skor çakışmasında oyun güncellemesi de geri alınıyor. Oyun/skor arasındaki anlamsal eşleşme uygulama transaction’ına dayanır; doğrudan SQL yazıcılarına karşı deferred ilişki henüz yok. Denetim ve sınırlar `docs/DAILY_GAME_CONSISTENCY.md` içinde. Production veri provası P0.2’de açık. TEXT/JSONB/tablo kararı `docs/GUESSES_STORAGE_DECISION.md`, kullanıcı adı kararı `docs/SCORE_IDENTITY_DECISION.md` içinde.
 
 ## P1.4 — Günlük oyun UX ve erişilebilirlik
 

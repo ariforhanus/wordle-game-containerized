@@ -174,11 +174,10 @@ public class DailyGameService {
                             ? ScoreService.calculateScore(guesses.size(), duration)
                             : 0;
             // Both the game and its score commit together. Historical daily scores cannot be
-            // replaced.
+            // replaced. A conflicting score must roll back the game update too.
             db.update(
                     "INSERT INTO scores(user_id, username, language, attempts, duration_ms, won_at,"
-                        + " played_at, score, word, won) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON"
-                        + " CONFLICT (user_id, played_at, language) DO NOTHING",
+                            + " played_at, score, word, won) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     userId,
                     username,
                     game.language(),
