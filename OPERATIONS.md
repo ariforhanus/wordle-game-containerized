@@ -62,7 +62,24 @@ SMTP delivery is disabled by default until a provider is selected. Set `MAIL_ENA
 
 For local testing, point SMTP to a local capture service, use `PUBLIC_URL=http://localhost:3000`, and disable SMTP authentication/STARTTLS only on that local server. The app never logs reset links as a mail fallback. If mail is disabled, email requests return a clear 503. Configure connection/read/write timeouts and delivery monitoring at the provider.
 
-Verification links expire after 24 hours; password-reset links after 30 minutes. Tokens contain 256 random bits, are stored only as SHA-256 digests, are single-use, and are bound to a purpose. A newer request consumes older links. Fragments keep link secrets out of HTTP access logs and referrers, and the UI removes fragments from history after reading them. Opening a GET does not consume a token; a user must submit the form. Reset requests give the same HTTP response for known and unknown addresses. Delivery currently happens during the request; if timing-side-channel resistance or delivery retries are required, use a durable mail outbox before large-scale public operation.
+Verification links expire after 24 hours; password-reset links after 30 minutes. Tokens contain 256 random bits, are stored only as SHA-256 digests, are single-use, and are bound to a purpose. A successfully committed newer issuance consumes older links. Fragments keep link secrets out of HTTP access logs and referrers, and the UI removes fragments from history after reading them. Opening a GET does not consume a token; a user must submit the form. Public reset returns the same accepted response for known/unknown addresses even on an SMTP MailException, after service rollback preserves the old link. Disabled mail remains 503 for both; authenticated verification transport failure is retryable 503. Receipt of a request is not a delivery confirmation.
+
+Submission failures increment internal `wordle_mail_delivery_failures_total` with
+only reset/verification purpose labels and fixed warning events without provider
+details or recipients. Add a counter-increase alert/receiver: HTTP 5xx alarms
+alone no longer expose these neutral public failures. PUBLIC_URL validation now
+rejects missing hosts, opaque/relative URLs, user info, query/fragment and bad ports;
+HTTP is accepted only for literal loopback test roots. Sender existence at startup
+does not prove actual delivery/TLS/authentication.
+
+SMTP is still synchronous, inside the user-row transaction. Per-operation 5s
+timeouts are not an overall deadline; known/unknown timing differences, held
+connections/locks, lost acknowledgements and send-versus-commit gaps remain.
+`docs/SMTP_DELIVERY_DECISION.md` records the tested limits and concrete next
+outbox implementation in this monolith, including key management, leases,
+at-least-once retries, expiry/cancellation and explicit issuance-semantics changes.
+No durable queue or automatic retry was added here. Validate those controls and
+the actual provider before public mail activation.
 
 Password change/reset and logout-all increment an account authentication version; old JWTs are rejected immediately. A normal local logout only removes the current browser token. Password changes sign the user out, requiring login with the new password. Set `REQUIRE_VERIFIED_EMAIL=true` only after delivery has been configured and tested; it is a useful barrier against casual multi-account ranking abuse, not proof of unique human identity.
 

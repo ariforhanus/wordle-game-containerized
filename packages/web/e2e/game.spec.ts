@@ -3,6 +3,41 @@ import AxeBuilder from "@axe-core/playwright";
 import en from "../../i18n/locales/en.json" with { type: "json" };
 import tr from "../../i18n/locales/tr.json" with { type: "json" };
 
+test.describe("SMTP outage privacy and retry", () => {
+  for (const language of ["en", "tr"] as const) {
+    test(`real SMTP failure keeps public reset neutral and verification retryable in ${language}`, async ({ page, context }) => {
+      test.skip(process.env.E2E_SMTP_FAILURE !== "true", "Requires the isolated mail-enabled backend with a refused local SMTP port");
+      await register(page);
+      const token = await page.evaluate(() => localStorage.getItem("jwtToken"));
+      const profile = await context.request.get("/api/v1/auth/me", { headers: { Authorization: "Bearer " + token } });
+      const email = (await profile.json()).email;
+      const text = (language === "en" ? en : tr).account;
+      await page.evaluate((value) => localStorage.setItem("wordle_lang", value), language);
+      const responses: string[] = [];
+      for (const address of [email, "unknown_" + Date.now() + "@example.test"]) {
+        await page.goto("/forgot-password");
+        await page.locator("#recovery-email").fill(address);
+        const response = page.waitForResponse((res) => new URL(res.url()).pathname === "/api/v1/account/forgot-password" && res.request().method() === "POST");
+        await page.getByRole("button", { name: text.continue, exact: true }).click();
+        const result = await response;
+        expect(result.status()).toBe(200);
+        responses.push(await result.text());
+        await expect(page.getByRole("status")).toHaveText(text.emailSent);
+        await expect(page.getByRole("alert")).toHaveCount(0);
+      }
+      expect(responses[0]).toBe(responses[1]);
+      await page.goto("/account");
+      const verify = page.getByRole("button", { name: text.sendVerification, exact: true });
+      const failure = page.waitForResponse((res) => new URL(res.url()).pathname === "/api/v1/account/verification" && res.request().method() === "POST");
+      await verify.click();
+      expect((await failure).status()).toBe(503);
+      await expect(page.getByRole("alert")).toHaveText(text.mailUnavailable);
+      await expect(verify).toBeEnabled();
+      expect((await context.request.get("/api/v1/auth/me", { headers: { Authorization: "Bearer " + token } })).status()).toBe(200);
+    });
+  }
+});
+
 test.describe("auth throttle recovery", () => {
   test.use({ serviceWorkers: "block" });
   for (const language of ["en", "tr"] as const) {

@@ -1,6 +1,61 @@
 # Validation of the readiness changes
 
-## Latest checkpoint — abuse budgets and proxy-header boundaries, 2026-11-10
+## Latest checkpoint — SMTP failure privacy and outbox decision, 2026-11-10
+
+| Check | Result |
+| --- | --- |
+| Full Java 21 / real PostgreSQL `mvn verify` | 206 passed; zero skips/failures/errors |
+| Frontend unit/component suite | 99 passed; no unhandled errors |
+| TypeScript / release Vite build and built-worker tests | Build passed; 8 tests passed |
+| Real refused-loopback-SMTP EN/TR outage E2E | 4 desktop/mobile Chromium + 2 Firefox passed |
+| Healthy loopback SMTP verification/reset/single-use/session-revocation E2E | 2 desktop/mobile Chromium + 1 Firefox passed |
+| Internal failure-counter and capture checks | 6 reset / 6 verification failures observed in outage phase; 3 verification / 3 reset messages and zero failures in healthy phase |
+
+Fresh JaCoCo: 76.78% lines / 65.57% branches. Frontend V8: 64.92% lines / 61.04%
+branches. These unit metrics exclude browser execution. All nine selected E2E
+tests ran with the real isolated backend, authentication limits **enabled**, and
+release assets through Vite Preview; zero skips. The outage phase configured
+mail enabled with refused localhost port 2526, then the same built backend was
+restarted against the existing loopback SMTP capture on 2525/8025 for the healthy
+phase. No real mailbox or provider was contacted.
+
+Public reset now catches SMTP MailException after transactional service rollback,
+returns the same accepted body for known/unknown addresses and preserves the old
+link. Authenticated verification gets retryable 503; disabled mail stays 503 for
+known/unknown addresses. Tests verify rollback, counters and absence of sensitive
+provider text in logs. Browser outage cases exercise actual connection refusal,
+not intercepted HTTP failures, in both real translations. Internal Prometheus
+checks confirm counters are emitted with only the two purposes and successful
+submission does not increment them. This is not an activated alert receiver.
+
+Twenty-four configuration cases cover valid HTTPS/loopback roots, startup rejection
+of malformed/opaque/relative/user-info/query/fragment/bad-port roots, sender
+availability and disabled mode. Real transport tests retain stalled greeting and
+refused connection checks, add a temporary 450 rejection with no DATA/retry, and
+accept DATA while withholding the final acknowledgement to prove uncertain
+delivery. A PostgreSQL test proves SMTP wait holds a user lock (exact SQLSTATE
+55P03) and the token is not yet visible to another transaction. A commit-phase
+abort injection proves accepted SMTP cannot be undone and its new link can be
+absent while the older link survives. These document residual limits; they are
+not a claim those external-transaction problems have been fixed.
+
+The initial backend test draft assumed a particular Spring lock-exception subtype
+and overlooked timeout exceptions stored in MailSendException's failed-message
+map. Final assertions inspect the actual PostgreSQL SQLSTATE and complete nested
+transport errors; the full 206-test rerun passed. No game/security coverage was
+removed or relaxation added. Six new frontend cases cover real EN/TR neutral
+acceptance and explicit retry after unavailability without losing input/session.
+
+Raw logs: `/workspace/work/mail-review/{backend-final,frontend,production,e2e-failure-chromium,e2e-failure-firefox,e2e-healthy-chromium,e2e-healthy-firefox,metrics-failure,healthy-capture}.log`.
+Firefox used the established command-sandbox escalation without disabling browser
+security. WebKit, production Nginx/Caddy, real provider TLS/auth/deliverability,
+physical devices and remote CI were not rerun. No queue, automatic retry, new
+SMTP provider, migration, microservice, language, production change or main merge.
+The next implementation and required issuance-semantics/key/lease/fault tests are
+in `docs/SMTP_DELIVERY_DECISION.md`; known/unknown timing differences, held
+connections and send/commit ambiguity remain open until that work is completed.
+
+## Previous checkpoint — abuse budgets and proxy-header boundaries, 2026-11-10
 
 | Check | Result |
 | --- | --- |

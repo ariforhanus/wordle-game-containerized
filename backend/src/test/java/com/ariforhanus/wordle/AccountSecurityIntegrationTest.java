@@ -46,6 +46,7 @@ class AccountSecurityIntegrationTest {
     @org.springframework.test.context.bean.override.mockito.MockitoSpyBean PasswordEncoder encoder;
     @Autowired ObjectMapper json;
     @Autowired AccountService accounts;
+    @Autowired io.micrometer.core.instrument.MeterRegistry metrics;
     @Autowired DailyGameService games;
     @Autowired AuditService audit;
     @Autowired MutableClock clock;
@@ -480,5 +481,159 @@ class AccountSecurityIntegrationTest {
                 encoder.matches(
                         "replacement-password-123",
                         users.findById(user.getId()).orElseThrow().getPasswordHash()));
+    }
+
+    @Test
+    @org.junit.jupiter.api.extension.ExtendWith(
+            org.springframework.boot.test.system.OutputCaptureExtension.class)
+    void publicResetKeepsTheSameResponseAfterSmtpFailureAndRecordsOnlySafeFailureData(
+            org.springframework.boot.test.system.CapturedOutput output) throws Exception {
+        accounts.requestReset(user.getEmail());
+        String original = delivered.getFirst();
+        var counter = metrics.counter("wordle.mail.delivery.failures", "purpose", "reset");
+        double before = counter.count();
+        doThrow(new org.springframework.mail.MailSendException("sensitive-provider-fixture"))
+                .when(mail)
+                .send(anyString(), anyString(), anyString());
+        var known =
+                http.perform(
+                                post("/api/v1/account/forgot-password")
+                                        .contentType("application/json")
+                                        .content(
+                                                json.writeValueAsString(
+                                                        Map.of("email", user.getEmail()))))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        var unknown =
+                http.perform(
+                                post("/api/v1/account/forgot-password")
+                                        .contentType("application/json")
+                                        .content("{\"email\":\"unknown@example.test\"}"))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        assertEquals(known, unknown);
+        assertEquals(before + 1, counter.count());
+        assertFalse(output.toString().contains("sensitive-provider-fixture"));
+        assertEquals(1, db.queryForObject("SELECT count(*) FROM account_tokens", Integer.class));
+        assertNull(db.queryForMap("SELECT consumed_at FROM account_tokens").get("consumed_at"));
+        accounts.consume(original, "RESET", "replacement-password-123");
+    }
+
+    @Test
+    void authenticatedVerificationSmtpFailureReturnsRetryableUnavailableAndPreservesOldLink()
+            throws Exception {
+        accounts.requestVerification(user.getId());
+        String original = delivered.getFirst();
+        var counter = metrics.counter("wordle.mail.delivery.failures", "purpose", "verification");
+        double before = counter.count();
+        doThrow(new org.springframework.mail.MailSendException("injected provider failure"))
+                .when(mail)
+                .send(anyString(), anyString(), anyString());
+        http.perform(
+                        post("/api/v1/account/verification")
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isServiceUnavailable());
+        assertEquals(before + 1, counter.count());
+        assertEquals(1, db.queryForObject("SELECT count(*) FROM account_tokens", Integer.class));
+        accounts.consume(original, "VERIFY", null);
+        assertTrue(users.findById(user.getId()).orElseThrow().isEmailVerified());
+    }
+
+    @Test
+    void disabledMailRemainsUnavailableForKnownAndUnknownPublicAddresses() throws Exception {
+        doThrow(
+                        new org.springframework.web.server.ResponseStatusException(
+                                org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                                "mail_unavailable"))
+                .when(mail)
+                .requireAvailable();
+        for (String email : List.of(user.getEmail(), "unknown@example.test"))
+            http.perform(
+                            post("/api/v1/account/forgot-password")
+                                    .contentType("application/json")
+                                    .content(json.writeValueAsString(Map.of("email", email))))
+                    .andExpect(status().isServiceUnavailable());
+        verify(mail, never()).send(anyString(), anyString(), anyString());
+        assertEquals(0, db.queryForObject("SELECT count(*) FROM account_tokens", Integer.class));
+    }
+
+    @Test
+    void smtpWaitHoldsTheUserLockAndTokenIsInvisibleUntilCommit() throws Exception {
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        doAnswer(
+                        invocation -> {
+                            entered.countDown();
+                            if (!release.await(5, TimeUnit.SECONDS))
+                                throw new IllegalStateException("fixture release timed out");
+                            return null;
+                        })
+                .when(mail)
+                .send(anyString(), anyString(), anyString());
+        try (var pool = Executors.newSingleThreadExecutor()) {
+            var request = pool.submit(() -> accounts.requestReset(user.getEmail()));
+            try {
+                assertTrue(entered.await(5, TimeUnit.SECONDS));
+                assertEquals(
+                        0, db.queryForObject("SELECT count(*) FROM account_tokens", Integer.class));
+                var conflict =
+                        assertThrows(
+                                org.springframework.dao.DataAccessException.class,
+                                () ->
+                                        db.queryForObject(
+                                                "SELECT id FROM users WHERE id=? FOR UPDATE NOWAIT",
+                                                Long.class,
+                                                user.getId()));
+                var sql =
+                        assertInstanceOf(
+                                java.sql.SQLException.class, conflict.getMostSpecificCause());
+                assertEquals("55P03", sql.getSQLState());
+            } finally {
+                release.countDown();
+            }
+            request.get(5, TimeUnit.SECONDS);
+        }
+        assertEquals(
+                user.getId(),
+                db.queryForObject(
+                        "SELECT id FROM users WHERE id=? FOR UPDATE NOWAIT",
+                        Long.class,
+                        user.getId()));
+        assertEquals(1, db.queryForObject("SELECT count(*) FROM account_tokens", Integer.class));
+    }
+
+    @Test
+    void smtpAcceptanceCannotBeRolledBackIfTheDatabaseCommitPhaseAborts() {
+        accounts.requestReset(user.getEmail());
+        String original = delivered.getFirst();
+        doAnswer(
+                        invocation -> {
+                            delivered.add(invocation.getArgument(2));
+                            org.springframework.transaction.support
+                                    .TransactionSynchronizationManager.registerSynchronization(
+                                    new org.springframework.transaction.support
+                                            .TransactionSynchronization() {
+                                        @Override
+                                        public void beforeCommit(boolean readOnly) {
+                                            throw new IllegalStateException(
+                                                    "injected commit-phase abort");
+                                        }
+                                    });
+                            return null;
+                        })
+                .when(mail)
+                .send(anyString(), anyString(), anyString());
+        assertThrows(IllegalStateException.class, () -> accounts.requestReset(user.getEmail()));
+        String alreadyAcceptedBySmtp = delivered.getLast();
+        assertNotEquals(original, alreadyAcceptedBySmtp);
+        assertEquals(1, db.queryForObject("SELECT count(*) FROM account_tokens", Integer.class));
+        assertThrows(
+                org.springframework.web.server.ResponseStatusException.class,
+                () -> accounts.consume(alreadyAcceptedBySmtp, "RESET", "replacement-password-123"));
+        accounts.consume(original, "RESET", "replacement-password-123");
     }
 }

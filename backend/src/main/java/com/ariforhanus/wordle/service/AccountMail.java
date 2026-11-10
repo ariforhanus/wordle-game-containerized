@@ -26,13 +26,37 @@ public class AccountMail {
         this.enabled = enabled;
         this.baseUrl = baseUrl;
         this.from = from;
-        URI uri = URI.create(baseUrl);
-        if (enabled
-                && (!"https".equals(uri.getScheme())
-                        && !("http".equals(uri.getScheme()) && "localhost".equals(uri.getHost()))))
-            throw new IllegalStateException("PUBLIC_URL must use HTTPS outside localhost");
+        if (enabled) validatePublicUrl(baseUrl);
         if (enabled && senders.getIfAvailable() == null)
             throw new IllegalStateException("SMTP_HOST is required when mail is enabled");
+    }
+
+    private static void validatePublicUrl(String value) {
+        URI uri;
+        try {
+            uri = URI.create(value);
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            throw new IllegalStateException("PUBLIC_URL must be a valid absolute HTTPS URL");
+        }
+        boolean localHttp =
+                "http".equalsIgnoreCase(uri.getScheme())
+                        && java.util.Set.of("localhost", "127.0.0.1", "[::1]")
+                                .contains(
+                                        uri.getHost() == null
+                                                ? ""
+                                                : uri.getHost().toLowerCase(java.util.Locale.ROOT));
+        if (!uri.isAbsolute()
+                || uri.isOpaque()
+                || uri.getHost() == null
+                || uri.getRawUserInfo() != null
+                || uri.getRawQuery() != null
+                || uri.getRawFragment() != null
+                || uri.getPort() == 0
+                || uri.getPort() > 65535
+                || !("https".equalsIgnoreCase(uri.getScheme()) || localHttp))
+            throw new IllegalStateException(
+                    "PUBLIC_URL requires HTTPS (or loopback HTTP), a host and no user info, query"
+                            + " or fragment");
     }
 
     public void requireAvailable() {
