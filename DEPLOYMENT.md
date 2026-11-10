@@ -17,6 +17,17 @@ Copy `.env.example` to `.env` and supply independently generated secrets. For ex
 
 PostgreSQL creates a separate `wordle` login without superuser, role-creation, or database-creation privileges. The application owns its database so Flyway can apply schema migrations. For stricter production separation, run migrations with a dedicated schema owner and grant the runtime account only the needed data permissions.
 
+For the explicitly requested private localhost test login, a fresh checkout can run
+`node deploy/setup-local-env.mjs --insecure-local-admin`. It creates an ignored,
+owner-only `.env` with username `admin`, password `123456`, random database/JWT
+secrets, and `ALLOW_INSECURE_LOCAL_ADMIN=true`. Existing env files are never
+overwritten. The normal generator still uses a strong random admin password.
+The short-password option is disabled by default and bootstrap rejects it unless
+PUBLIC_URL and every CORS origin are loopback HTTP URLs. It does not reset an
+existing account, promote a regular user, or change existing database passwords.
+Before staging/production, disable the option and explicitly rotate the provisioned
+account password; changing `.env` alone does not reset a stored password.
+
 ## Production
 
 Set `WORDLE_DOMAIN` to a public DNS name pointing at the host and `CORS_ORIGINS=https://that-name`. Run `docker compose --profile production up --build -d`. Caddy terminates TLS and redirects HTTP to HTTPS. Only the ingress publishes public ports; the frontend's development port remains loopback-only. Persist Caddy and PostgreSQL volumes. Firewall all other host ports. Nginx rate limits API traffic and authentication requests; account-aware distributed throttling is a further improvement for larger deployments. With an ingress proxy, tune client-IP trust and rate limits for your network before load testing.

@@ -100,3 +100,23 @@ test("reports a missing destination directory without claiming success", () =>
     assert.notEqual(result.status, 0);
     assert.ok(!result.stdout.includes("Created"));
   }));
+
+
+test("explicit insecure-local flag sets only the requested test login and keeps random secrets", () =>
+  fixture((directory) => {
+    const path = join(directory, ".env");
+    const result = spawnSync(process.execPath, [script, path, "--insecure-local-admin"], { encoding: "utf8" });
+    assert.equal(result.status, 0);
+    const values = parse(path);
+    assert.equal(values.ADMIN_USERNAME, "admin");
+    assert.equal(values.ADMIN_PASSWORD, "123456");
+    assert.equal(values.ALLOW_INSECURE_LOCAL_ADMIN, "true");
+    for (const key of secretKeys.filter((key) => key !== "ADMIN_PASSWORD")) {
+      assert.match(values[key], /^[A-Za-z0-9_-]{43,}$/);
+      assert.ok(!(result.stdout + result.stderr).includes(values[key]));
+    }
+    const original = readFileSync(path, "utf8");
+    const repeated = spawnSync(process.execPath, [script, path, "--insecure-local-admin"], { encoding: "utf8" });
+    assert.notEqual(repeated.status, 0);
+    assert.equal(readFileSync(path, "utf8"), original);
+  }));

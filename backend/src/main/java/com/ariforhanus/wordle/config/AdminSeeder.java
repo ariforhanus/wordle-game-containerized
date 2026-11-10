@@ -36,6 +36,26 @@ public class AdminSeeder implements ApplicationRunner {
     @Value("${ADMIN_EMAIL:}")
     private String adminEmail;
 
+    @Value("${app.bootstrap.allow-insecure-local-password:false}")
+    private boolean allowInsecureLocalPassword;
+
+    @Value("${app.public-url:http://localhost:8080}")
+    private String publicUrl = "http://localhost:8080";
+
+    @Value("${app.cors-origins:}")
+    private String corsOrigins = "";
+
+    private static boolean isLoopbackHttpUrl(String value) {
+        try {
+            var uri = java.net.URI.create(value);
+            return "http".equalsIgnoreCase(uri.getScheme())
+                    && uri.getUserInfo() == null
+                    && java.util.Set.of("localhost", "127.0.0.1", "[::1]").contains(uri.getHost());
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            return false;
+        }
+    }
+
     public AdminSeeder(UserRepository users, PasswordEncoder encoder, java.time.Clock clock) {
         this.users = users;
         this.encoder = encoder;
@@ -57,10 +77,22 @@ public class AdminSeeder implements ApplicationRunner {
             return;
         }
 
-        if (adminPassword.length() < 12
+        if (allowInsecureLocalPassword) {
+            if (!isLoopbackHttpUrl(publicUrl)
+                    || corsOrigins.isBlank()
+                    || java.util.Arrays.stream(corsOrigins.split(","))
+                            .anyMatch(origin -> !isLoopbackHttpUrl(origin.trim()))) {
+                throw new IllegalStateException(
+                        "Insecure local bootstrap requires loopback HTTP public URL and CORS"
+                            + " origins");
+            }
+            log.warn("Insecure local bootstrap is enabled; use only for private local testing");
+        }
+        int minimumLength = allowInsecureLocalPassword ? 6 : 12;
+        if (adminPassword.length() < minimumLength
                 || adminPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
             throw new IllegalStateException(
-                    "Bootstrap password must contain 12–72 characters and at most 72 UTF-8 bytes");
+                    "Bootstrap password violates the configured minimum or 72 UTF-8 byte limit");
         }
         var existing = users.findByUsername(adminUsername);
         if (existing.isPresent()) {

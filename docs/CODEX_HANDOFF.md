@@ -37,3 +37,11 @@ Disposable PostgreSQL container wordle-review-postgres uses localhost:55432, dat
 Benchmark: python scripts/benchmark-score-queries.py --container wordle-review-postgres --output docs/performance. It creates session-private TEMP tables only and extracts real native queries/V6 DDL; fixed dates are deterministic fixtures. Do not use ad-hoc current dates in test scenarios. Tests use shared TestTimes/MutableClock; production uses the injected Clock.
 
 For continuation, git fetch origin and inspect status/log before editing. Another contributor previously updated this same branch; preserve remote work. This document lives in the checkpoint commit: use git log -1 -- docs/CODEX_HANDOFF.md to identify it. Read TODO.md for exact checkboxes; partial UX and write-load items remain open.
+
+## Latest user interruption: explicit local admin login
+
+User requested admin / 123456 for private testing and a generated secret. Root ignored .env was updated (0600): JWT regenerated, database passwords preserved, optional SMTP disabled. Compose forwards ALLOW_INSECURE_LOCAL_ADMIN (default false). Bootstrap's opt-in accepts six-character passwords only with loopback HTTP public URL and nonempty all-loopback CORS; normal minimum remains 12. Account conflict/promotion/reset protections remain intact. Generator supports --insecure-local-admin for a fresh env, still refuses overwrite and uses random database/JWT keys. No private env secrets are committed. User must use the private workspace env file or run the generator in another checkout.
+
+Latest full backend: 141 passed; env-generator: 5 passed. Compose config checks passed. Actual release-JAR admin login and authenticated admin endpoint passed using an isolated test database. Logs in /workspace/work/local-admin/. This smoke test did not modify the user's Compose database or reset any preexisting real account. Short test credentials must stay private/local; matching URL/CORS does not enforce network isolation. Future public use requires explicitly rotating the stored admin password and disabling the opt-in.
+
+Continue the remaining index write-cost measurement/countdown TODOs after this interruption. Existing production gates remain open; do not merge main or deploy.
