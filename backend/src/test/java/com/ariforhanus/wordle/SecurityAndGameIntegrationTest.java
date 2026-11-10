@@ -568,29 +568,36 @@ class SecurityAndGameIntegrationTest {
                 word,
                 nextId);
         clock.set(boundary.plusSeconds(20));
-        var completed = gameRequest(turnRequest(oldId, word, finalTurn), session);
-        assertEquals(oldDate.toString(), completed.get("date").asText());
-        assertEquals(winning ? "won" : "lost", completed.get("status").asText());
-        assertEquals(20001, completed.get("elapsedMs").asLong());
-        assertEquals(oldAnswer, completed.get("answer").asText());
-        assertEquals(oldDate, db.queryForObject("SELECT played_at FROM scores", LocalDate.class));
+        http.perform(
+                        turnRequest(oldId, word, finalTurn)
+                                .header("Authorization", "Bearer " + session))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.error").value("game_expired"));
+        http.perform(
+                        get("/api/v1/daily/games/" + oldId)
+                                .header("Authorization", "Bearer " + session))
+                .andExpect(status().isGone());
+        if (finalTurn > 1)
+            http.perform(turnRequest(oldId, word, 1).header("Authorization", "Bearer " + session))
+                    .andExpect(status().isGone());
+        assertEquals(0, count("scores"));
         assertEquals(
-                boundary.plusSeconds(20),
-                db.queryForObject("SELECT won_at FROM scores", java.sql.Timestamp.class)
-                        .toInstant());
+                finalTurn - 1,
+                db.queryForObject(
+                        "SELECT CASE WHEN guesses='' THEN 0 ELSE"
+                                + " cardinality(string_to_array(guesses,',')) END FROM daily_games"
+                                + " WHERE id=?",
+                        Integer.class,
+                        oldId));
+        assertNull(
+                db.queryForObject(
+                        "SELECT finished_at FROM daily_games WHERE id=?",
+                        java.sql.Timestamp.class,
+                        oldId));
         assertEquals(0, scores.dailyTop(language, 10, zone).size());
-        boolean inWeek = winning && !oldDate.isBefore(today.with(java.time.DayOfWeek.MONDAY));
-        boolean inMonth = winning && !oldDate.isBefore(today.withDayOfMonth(1));
-        assertEquals(inWeek ? 1 : 0, scores.weeklyTop(language, 10, zone).size());
-        assertEquals(inMonth ? 1 : 0, scores.monthlyTop(language, 10, zone).size());
-        var current = gameRequest(get("/api/v1/daily/games").param("lang", language), session);
-        assertEquals(nextId, current.get("game").get("id").asText());
-        assertEquals("playing", current.get("state").asText());
-        clock.set(boundary.plusSeconds(21));
-        assertEquals(completed, gameRequest(turnRequest(oldId, word, finalTurn), session));
         gameRequest(turnRequest(nextId, word, 1), session);
         assertEquals(2, count("daily_games"));
-        assertEquals(2, count("scores"));
+        assertEquals(1, count("scores"));
         assertEquals(1, scores.dailyTop(language, 10, zone).size());
         assertEquals(
                 db.queryForObject("SELECT id FROM scores WHERE played_at = ?", Long.class, today),
@@ -605,7 +612,7 @@ class SecurityAndGameIntegrationTest {
     }
 
     @Test
-    void aStartBlockedAcrossMidnightKeepsItsCapturedServerDay() throws Exception {
+    void aStartBlockedAcrossMidnightRollsBackTheExpiredGame() throws Exception {
         var zone = APP_ZONE;
         LocalDate oldDate = REFERENCE_DAY;
         Instant boundary = oldDate.plusDays(1).atStartOfDay(zone).toInstant();
@@ -638,19 +645,19 @@ class SecurityAndGameIntegrationTest {
                 assertTrue(waiting > 0, "Start must be blocked on the uncommitted puzzle");
                 clock.set(boundary.plusSeconds(1));
                 blocker.commit();
-                var started = pending.get(10, TimeUnit.SECONDS);
-                assertEquals(oldDate.toString(), started.date());
-                assertEquals(1001, started.elapsedMs());
-                assertEquals(
-                        boundary.minusMillis(1),
-                        db.queryForObject(
-                                        "SELECT started_at FROM daily_games WHERE id = ?",
-                                        java.sql.Timestamp.class,
-                                        started.id())
-                                .toInstant());
+                var failed =
+                        assertThrows(
+                                ExecutionException.class, () -> pending.get(10, TimeUnit.SECONDS));
+                var expired =
+                        assertInstanceOf(
+                                org.springframework.web.server.ResponseStatusException.class,
+                                failed.getCause());
+                assertEquals(410, expired.getStatusCode().value());
+                assertEquals(0, count("daily_games"));
                 assertEquals("not_started", games.status(user.getId(), "en").state());
-                assertNotEquals(
-                        started.id(), games.start(user.getId(), "en", oldDate.plusDays(1)).id());
+                assertEquals(
+                        oldDate.plusDays(1).toString(),
+                        games.start(user.getId(), "en", oldDate.plusDays(1)).date());
             } finally {
                 blocker.rollback();
                 pool.shutdownNow();
@@ -659,13 +666,67 @@ class SecurityAndGameIntegrationTest {
     }
 
     @Test
-    void completionAcrossMidnightBelongsToOriginalPuzzle() {
+    void aGuessWaitingForARowLockExpiresBeforeItCanChangeTheGame() throws Exception {
+        Instant midnight = REFERENCE_DAY.plusDays(1).atStartOfDay(APP_ZONE).toInstant();
+        clock.set(midnight.minusMillis(1));
         var game = startApple();
-        clock.set(REFERENCE_DAY.plusDays(1).atStartOfDay(APP_ZONE).plusMinutes(1).toInstant());
-        var result = games.guess(user.getId(), game.id(), "APPLE", 1);
-        assertEquals(REFERENCE_DAY.toString(), result.date());
-        assertEquals(
-                REFERENCE_DAY, db.queryForObject("SELECT played_at FROM scores", LocalDate.class));
+        var pool = Executors.newSingleThreadExecutor();
+        try (var blocker = dataSource.getConnection()) {
+            blocker.setAutoCommit(false);
+            try {
+                try (var lock =
+                        blocker.prepareStatement(
+                                "SELECT id FROM daily_games WHERE id=? FOR UPDATE")) {
+                    lock.setString(1, game.id());
+                    lock.executeQuery().close();
+                }
+                var pending = pool.submit(() -> games.guess(user.getId(), game.id(), "APPLE", 1));
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                int waiting;
+                do {
+                    waiting =
+                            db.queryForObject(
+                                    "SELECT count(*) FROM pg_stat_activity WHERE"
+                                        + " datname=current_database() AND wait_event_type='Lock'"
+                                        + " AND query ILIKE '%daily_games%FOR UPDATE%'",
+                                    Integer.class);
+                    if (waiting > 0) break;
+                    Thread.sleep(10);
+                } while (System.nanoTime() < deadline);
+                assertTrue(waiting > 0);
+                clock.set(midnight);
+                blocker.commit();
+                var failed =
+                        assertThrows(
+                                ExecutionException.class, () -> pending.get(10, TimeUnit.SECONDS));
+                var expired =
+                        assertInstanceOf(
+                                org.springframework.web.server.ResponseStatusException.class,
+                                failed.getCause());
+                assertEquals(410, expired.getStatusCode().value());
+                assertEquals("game_expired", expired.getReason());
+                assertEquals(0, count("scores"));
+                assertEquals(
+                        "",
+                        db.queryForObject(
+                                "SELECT guesses FROM daily_games WHERE id=?",
+                                String.class,
+                                game.id()));
+            } finally {
+                blocker.rollback();
+                pool.shutdownNow();
+            }
+        }
+    }
+
+    @Test
+    void completedResultsRemainReadableButUnfinishedGamesExpire() {
+        var game = startApple();
+        var completed = games.guess(user.getId(), game.id(), "APPLE", 1);
+        clock.set(REFERENCE_DAY.plusDays(1).atStartOfDay(APP_ZONE).toInstant());
+        assertEquals(completed, games.get(user.getId(), game.id()));
+        assertEquals(completed, games.guess(user.getId(), game.id(), "APPLE", 1));
+        assertEquals(1, count("scores"));
         assertEquals(REFERENCE_DAY.plusDays(1).toString(), games.start(user.getId(), "en").date());
     }
 

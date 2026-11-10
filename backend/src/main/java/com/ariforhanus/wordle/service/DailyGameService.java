@@ -87,7 +87,7 @@ public class DailyGameService {
     @Transactional
     public GameView start(long userId, String language, LocalDate expectedDate) {
         // Capture the accepted Start instant once: waiting for a transaction cannot reassign its
-        // day.
+        // day. If a database wait outlasts that day, this Start rolls back as expired.
         Instant startedAt = clock.instant();
         LocalDate today = startedAt.atZone(zone).toLocalDate();
         String lang;
@@ -125,12 +125,16 @@ public class DailyGameService {
                         String.class,
                         userId,
                         puzzle.id());
-        return view(load(userId, id));
+        Game game = load(userId, id);
+        requirePlayableDay(game, clock.instant());
+        return view(game);
     }
 
     @Transactional(readOnly = true)
     public GameView get(long userId, String id) {
-        return view(load(userId, id));
+        Game game = load(userId, id);
+        requirePlayableDay(game, clock.instant());
+        return view(game);
     }
 
     @Transactional
@@ -143,6 +147,8 @@ public class DailyGameService {
                         userId);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         Game game = load(userId, id);
+        Instant acceptedAt = clock.instant();
+        requirePlayableDay(game, acceptedAt);
         String guess = dictionary.normalize(rawGuess, game.language());
         var guesses = new ArrayList<>(game.guesses());
         if (attempt <= guesses.size()) {
@@ -157,7 +163,7 @@ public class DailyGameService {
         guesses.add(guess);
         String status =
                 guess.equals(game.answer()) ? "won" : guesses.size() == 6 ? "lost" : "playing";
-        Instant finished = status.equals("playing") ? null : clock.instant();
+        Instant finished = status.equals("playing") ? null : acceptedAt;
         db.update(
                 "UPDATE daily_games SET guesses = ?, status = ?, finished_at = ? WHERE id = ?",
                 String.join(",", guesses),
@@ -190,6 +196,11 @@ public class DailyGameService {
                     status.equals("won"));
         }
         return view(load(userId, id));
+    }
+
+    private void requirePlayableDay(Game game, Instant now) {
+        if (game.status().equals("playing") && !game.date().equals(now.atZone(zone).toLocalDate()))
+            throw new ResponseStatusException(HttpStatus.GONE, "game_expired");
     }
 
     private Game load(long userId, String id) {

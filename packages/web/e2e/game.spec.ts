@@ -741,7 +741,7 @@ test.describe("midnight rollover", () => {
     expect(await error.json()).toEqual({ error: "day_changed" });
     await expect(
       page.getByText(
-        "A new puzzle day has begun. Check the date below and press Start again to begin it.",
+        "The game day has changed. Unfinished games from previous days can no longer be played. Review today’s game and press Start when ready.",
         { exact: true },
       ),
     ).toBeVisible();
@@ -811,7 +811,7 @@ test("changing the browser clock cannot move an active game to another puzzle da
   await expect(page.getByText(game.date, { exact: true })).toBeVisible();
   await expect(
     page.getByText(
-      "You can finish this puzzle after midnight. Your timer continues and your score belongs to the puzzle date shown above. A new day's game requires a separate Start.",
+      "Finish before midnight in the game time zone. Unfinished games expire when the day changes and cannot be resumed. Each new day requires an explicit Start.",
       { exact: true },
     ),
   ).toBeVisible();
@@ -964,4 +964,38 @@ test("language streaks stay independent in daily results and the profile", async
       .locator("..")
       .locator(".stat-value-g"),
   ).toHaveText("1");
+});
+
+test.describe("expired daily games", () => {
+  test.use({ serviceWorkers: "block" });
+  test("expired daily game returns to Start without starting automatically", async ({ page }) => {
+    await register(page);
+    let starts = 0;
+    let expired = false;
+    await page.route("**/api/v1/daily/games?*", async (route) => {
+      if (route.request().method() === "POST") {
+        starts++;
+        return route.continue();
+      }
+      const response = await route.fetch();
+      const status = await response.json();
+      if (!expired) return route.fulfill({ response });
+      const nextDay = new Date(status.date + "T12:00:00Z");
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      return route.fulfill({ response, json: { ...status, date: nextDay.toISOString().slice(0, 10), state: "not_started", game: null } });
+    });
+    await page.goto("/daily");
+    await page.locator(".daily-start-card button").click();
+    await expect(page.locator(".board")).toBeVisible();
+    await page.route("**/api/v1/daily/games/*/guesses", async (route) => {
+      expired = true;
+      await route.fulfill({ status: 410, contentType: "application/json", body: JSON.stringify({ error: "game_expired" }) });
+    });
+    await page.keyboard.type("apple");
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".daily-start-card")).toContainText("Unfinished games from previous days can no longer be played");
+    await expect(page.getByRole("button", { name: "Start today's game", exact: true })).toBeEnabled();
+    await expect(page.locator(".board")).toHaveCount(0);
+    expect(starts).toBe(1);
+  });
 });

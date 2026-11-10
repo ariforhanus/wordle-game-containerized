@@ -89,6 +89,13 @@ export default function DailyPage() {
     return () => clearInterval(timer);
   }, [game]);
 
+  const handleExpired = useCallback(() => {
+    setGame(null);
+    setGuess("");
+    setDayChanged(true);
+    setLookupVersion((v) => v + 1);
+  }, []);
+
   async function start() {
     if (inFlight.current || lookup !== "ready" || alreadyPlayed) return;
     const requestedLang = i18n.language;
@@ -107,7 +114,9 @@ export default function DailyPage() {
         setGame(result);
     } catch (err) {
       if (requestedLang !== selectedLang.current) return;
-      if (
+      if (err instanceof ApiError && err.status === 410) {
+        handleExpired();
+      } else if (
         err instanceof ApiError &&
         err.status === 409 &&
         typeof err.body === "object" &&
@@ -161,8 +170,10 @@ export default function DailyPage() {
         setGuess("");
       }
     } catch (err) {
+      if (game.language !== selectedLang.current) return;
       if (err instanceof ApiError && err.status === 400)
         toast.warning(t("game.invalidWord"));
+      else if (err instanceof ApiError && err.status === 410) handleExpired();
       else if (err instanceof ApiError && err.status === 409) {
         try {
           const result = await dailyGameApi.load(game.id);
@@ -171,7 +182,9 @@ export default function DailyPage() {
             setGuess("");
           }
         } catch (err) {
-          if (err instanceof ApiError && err.status === 409)
+          if (game.language !== selectedLang.current) return;
+          if (err instanceof ApiError && err.status === 410) handleExpired();
+          else if (err instanceof ApiError && err.status === 409)
             setAlreadyPlayed(true);
           else if (err instanceof ApiError && err.status === 403)
             setVerificationNeeded(true);
@@ -183,7 +196,7 @@ export default function DailyPage() {
       inFlight.current = false;
       setBusy(false);
     }
-  }, [game, guess, toast, t]);
+  }, [game, guess, toast, t, handleExpired]);
   useEffect(() => {
     // Preserve native keyboard activation of Start/Resume/result buttons outside active play.
     if (!game || game.status !== "playing") return;

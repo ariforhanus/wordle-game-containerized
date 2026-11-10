@@ -445,4 +445,33 @@ describe("server-authoritative daily play", () => {
     );
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
+  it("drops an expired active game, refreshes today's status and requires another explicit Start", async () => {
+    const { ApiError } = await import("@wordle/api");
+    mount();
+    fireEvent.click(await screen.findByText("daily.start"));
+    await screen.findByText(initial.date);
+    vi.mocked(dailyGameApi.status).mockResolvedValue({ ...dayMetadata, date: NEXT_TEST_DAY, state: "not_started", game: null });
+    vi.mocked(dailyGameApi.guess).mockRejectedValue(new ApiError(410, { error: "game_expired" }));
+    typeWord();
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByText("daily.dayChanged");
+    await screen.findByText("daily.start");
+    expect(document.querySelector(".board")).toBeNull();
+    expect(dailyGameApi.start).toHaveBeenCalledTimes(1);
+    expect(dailyGameApi.status).toHaveBeenCalledTimes(2);
+    expect(dailyGameApi.load).not.toHaveBeenCalled();
+  });
+
+  it("does not resume a game whose day expired after the status lookup", async () => {
+    const { ApiError } = await import("@wordle/api");
+    vi.mocked(dailyGameApi.status).mockResolvedValueOnce({ ...dayMetadata, state: "playing", game: initial })
+      .mockResolvedValue({ ...dayMetadata, date: NEXT_TEST_DAY, state: "not_started", game: null });
+    vi.mocked(dailyGameApi.load).mockRejectedValue(new ApiError(410, { error: "game_expired" }));
+    mount();
+    fireEvent.click(await screen.findByText("daily.resume"));
+    await screen.findByText("daily.dayChanged");
+    await screen.findByText("daily.start");
+    expect(dailyGameApi.start).not.toHaveBeenCalled();
+  });
+
 });

@@ -115,3 +115,15 @@ yet exist. Do not rerun it on an already provisioned database or reset a volume
 containing application data. If the role already exists, investigate the current
 startup error and stored role credentials instead of deleting data. This fix does
 not reset existing database passwords. Fresh checkouts initialize normally.
+
+## Daily-game deadline (owner policy update)
+
+Deploy backend before the matching UI. Unfinished daily games expire at midnight
+in app.timezone (Europe/Istanbul by default); an owned old unfinished ID returns
+410 game_expired for GET and guesses. Server time is checked after acquiring the
+game lock. A blocked Start that outlasts its day rolls back. The UI refreshes
+status and requires an explicit new Start. Same-day Resume remains supported;
+no previous-day Resume selector will be added. Completed history remains readable,
+and expiration creates neither a score nor an automatic loss. No schema migration
+or historical rewrite is needed; older unfinished rows become inaccessible under
+this intentional rule change. Exact transaction timing is in OPERATIONS.md.

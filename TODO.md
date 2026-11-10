@@ -65,7 +65,7 @@ V6 dönem indeksi ve sentetik önce/sonra okuma planları tamamlandı (`docs/per
 
 ## P1.4 — Günlük oyun UX ve erişilebilirlik
 
-- [ ] Gece yarısından önce başlanıp sayfası kapanmış eski oyunlar için geçmiş/Resume seçicisi ekle; erişimi sunucuda kullanıcı ID'siyle doğrula ve bugünkü oyunu otomatik başlatma. Bilinen oyun ID'siyle devam etme mevcut.
+- [x] Kullanıcı kararı: önceki günün yarım oyunu devam ettirilemesin; gün sınırında sunucu GET/tahmin için `410 game_expired` dönsün. Eski oyunlar için Resume seçicisi eklenmeyecek; bugünün oyunu açık Start gerektirir.
 - [ ] Oyun sonunda seçili dilin istatistiklerini, tahmin dağılımını ve sunucunun gün/zaman dilimiyle uyumlu sonraki oyuna geri sayımı göster; gün değişiminde eski oyunu yanlışlıkla başlatma.
 - [ ] Günlük ve serbest oyunun farkını açıkla: sıralama, günlük hak, süre ve çevrimdışı kullanım kuralları.
 - [ ] Ağ hatasında yazılmış/iletilmiş tahminleri koru; retry sırasında çift tahmin oluşturma. Mevcut kayıp yanıt testine yazılmakta olan tahmin, offline/online geçişi ve yeniden bağlantı senaryolarını ekle.
@@ -149,7 +149,7 @@ Son koşu: **76 backend**, **20 frontend**, **8 build edilmiş worker** ve **6 h
 
 ### P0.1 / gece yarısı ve skor günü
 
-2026-11-09: eski oyunun gece yarısından sonra tamamlanabilmesi korundu; süre ilk Start'tan devam ediyor ve skor eski puzzle'ın `played_at` gününe yazılıyor. Yeni gün ayrı, açık Start istiyor. Start'ın günü ve başlangıç anı artık tek sunucu saat okumasından geliyor; veritabanında beklerken gece yarısını geçmek günü değiştirmiyor.
+Tarihsel not — aşağıdaki politika 2026-11-10 kullanıcı kararıyla kaldırıldı. 2026-11-09: eski oyunun gece yarısından sonra tamamlanabilmesi korundu; süre ilk Start'tan devam ediyor ve skor eski puzzle'ın `played_at` gününe yazılıyor. Yeni gün ayrı, açık Start istiyor. Start'ın günü ve başlangıç anı artık tek sunucu saat okumasından geliyor; veritabanında beklerken gece yarısını geçmek günü değiştirmiyor.
 
 Bulunan tutarsızlık giderildi: daily/weekly/monthly dönem sorguları bitiş zamanı `won_at` yerine puzzle günü `played_at` üzerinden seçiyor. Haftalık/aylık SUM sıralaması henüz yapılmadı. Durum API'si gün/zaman dilimini veriyor; frontend tarihi gösteriyor ve Start'a beklenen günü ekliyor. Eski ekranın günü geçmişse sunucu kayıt oluşturmadan `409 day_changed` dönüyor; ekran tarihi yenileyip tekrar tıklama istiyor. Metadata vermeyen eski backend yanıtında başlangıç kapalı kalıyor. Süre göstergesi cihaz duvar saati yerine monoton saat kullanıyor.
 
