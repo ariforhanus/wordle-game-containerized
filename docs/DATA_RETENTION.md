@@ -27,6 +27,7 @@ password leaves the account intact and allows explicit retry.
 | --- | --- |
 | Account/profile, password hash and avatar | Retained while the account exists; the user row is deleted in the password-checked transaction |
 | Daily games, historical scores and verification/reset tokens | Foreign keys cascade on user deletion, including unfinished and completed games in every language |
+| Encrypted mail outbox (V9) | User/token deletion cascades linked jobs. Token consumption cancels active jobs and wipes ciphertext atomically. Worker success/failure/expiry clears payloads; terminal metadata is eligible for deletion after 24 hours. No-op rows contain no address/capability and are processed/deleted or cleaned 24 hours after expiry |
 | Shared daily puzzle/answer | Preserved independently of the user; no profile fields or user ID are stored in that row |
 | Security audit | Actor/target foreign keys become NULL on deletion. Action/time can remain; rows older than 90 × 24 hours are eligible for cleanup |
 | Authentication rate-limit buckets | Not deleted with the account, preventing deletion/re-registration from resetting limits. Window starts older than 24 hours are eligible for cleanup |
@@ -35,7 +36,7 @@ password leaves the account intact and allows explicit retry.
 `RetentionTasks` captures one injected server-clock instant and uses strict
 `< cutoff` predicates. A row exactly at a cutoff remains until a later run.
 The scheduled task starts after one hour and runs with one-hour delay after the
-previous execution. Cleanup is one transaction: failure rolls back all three
+previous execution. Cleanup is one transaction: failure rolls back all cleanup
 categories and a later run can retry. Eligibility is not an exact destruction
 deadline; downtime, clock skew, locks or job failures delay physical removal.
 
@@ -70,7 +71,7 @@ previously consumed recovery tokens. `restore-check.sh` validates archive
 restorability in a disposable database; it does **not** reconcile later deletion
 requests or certify privacy readiness.
 
-1. Stop public traffic, writes and outbound mail. Verify checksum and restore to
+1. Stop public traffic, writes and outbound mail, including **every** outbox worker. Restore initially with MAIL_ENABLED=false, MAIL_OUTBOX_ENABLED=false and MAIL_OUTBOX_WORKER_ENABLED=false. Verify checksum and restore to
    an isolated target. Rehearse the current schema/preflight before any cutover.
 2. Obtain a protected deletion-request journal independent of the database being
    restored. The current application does **not** automatically export such a
@@ -94,7 +95,7 @@ requests or certify privacy readiness.
 5. Rotate the signing key and invalidate every unconsumed restored verification/
    reset token before enabling mail or traffic. An old snapshot can make a link
    appear unused again even if its wall-clock expiry has not passed. Do not
-   assume JWT rotation also revokes email links.
+   assume JWT rotation also revokes email links. With V9, consuming these tokens cancels active outbox jobs and clears their ciphertext atomically; verify no restored live payload can dispatch. No old decryption key is needed to revoke work. Keep workers disabled until reconciliation completes.
 6. Run/review retention cleanup with a correct server clock. Verify deleted
    profiles, avatars, games, scores and tokens are absent; audit references are
    NULL; unrelated users and shared answers are preserved. Verify old sessions,
@@ -125,3 +126,15 @@ post-deletion login rejection. Script tests use real filesystem age/`find` to
 verify whole-day expiry, filename/directory boundaries, private output modes and
 deferred cleanup after backup failure. Counts and runtime limits are recorded in
 `VALIDATION.md`; this does not test an actual production restore journal.
+
+## Encrypted delivery capabilities and keys
+
+Unlike hash-only account_tokens, pending outbox work contains an authenticated
+encrypted recipient/raw link. A DB backup plus the independently managed key ring
+can recover those capabilities. Protect and retain both under the deployment's
+explicit custody/expiry policy; encryption does not make backups anonymous.
+Restore-time revocation above takes priority over resending historical mail.
+See `MAIL_OUTBOX.md` for rotation, cleanup timing and the opt-in real dump/restore
+test. Tests verify pending ciphertext survives restore and token invalidation
+wipes it without touching source data; they do not establish a production deletion
+journal or actual off-host/provider retention.

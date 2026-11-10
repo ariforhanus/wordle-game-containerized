@@ -76,8 +76,10 @@ export function RecoveryPage({
             {mode === "forgot" && (
               <>
                 <label htmlFor="recovery-email">{t("auth.email")}</label>
+                <p id="recovery-link-rule">{t("account.newLinkRule")}</p>
                 <input
                   id="recovery-email"
+                  aria-describedby="recovery-link-rule"
                   type="email"
                   autoComplete="email"
                   required
@@ -195,12 +197,16 @@ export function AccountSecurityPage() {
               )}
             </p>
             {!profile.emailVerified && (
+              <>
+              <p id="verification-link-rule">{t("account.newLinkRule")}</p>
               <button
+                aria-describedby="verification-link-rule"
                 disabled={busy}
                 onClick={() => void action(authApi.requestVerification)}
               >
                 {t("account.sendVerification")}
               </button>
+              </>
             )}
           </>
         )}

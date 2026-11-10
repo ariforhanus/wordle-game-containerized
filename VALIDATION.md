@@ -1,6 +1,84 @@
 # Validation of the readiness changes
 
-## Latest checkpoint — SMTP failure privacy and outbox decision, 2026-11-10
+## Latest checkpoint — encrypted transactional mail outbox, 2026-11-10
+
+| Check | Result |
+| --- | --- |
+| Full Java 21 / real PostgreSQL `mvn verify` | 245 passed; zero skips/failures/errors |
+| Frontend unit/component suite | 101 passed; no unhandled errors |
+| TypeScript / release Vite build and built-worker tests | Build passed; 8 tests passed |
+| EN/TR outbox outage → application restart → SMTP recovery E2E | 1 combined Chromium scenario passed; four queued messages delivered |
+| Healthy queued verification/reset/single-use/session revocation E2E | 2 desktop/mobile Chromium + 1 Firefox passed |
+| Actual encrypted pending-mail custom-format backup/isolated restore | 1 opt-in test passed; source unchanged; restored revocation cleared ciphertext |
+| Local env and private outbox key setup | 9 Node tests passed |
+| Default operator suite | 19 cases: 15 passed, 4 fixture-gated skips; the outbox restore case also ran explicitly above |
+| Actual internal Prometheus | active=1, retry=1, no-op=1, reset failure=1; enabled/fresh worker and no account labels verified |
+| Base and preview Compose configuration | Both `config --quiet` checks passed; private default key files ignored |
+
+Fresh JaCoCo: 80.71% lines / 69.21% branches. Frontend V8: 64.92% lines / 61.04% branches.
+Unit coverage excludes browser execution. Four selected E2E scenarios passed
+without skips against release assets, real authentication/rate limits and a real
+loopback SMTP capture; no provider or real mailbox was contacted. Existing
+synchronous account/game/retention/security regressions remain enabled.
+
+V9 adds encrypted jobs and composite token identity constraints without changing
+historical records. A fixture upgrades V8, forces failure after ALTER TABLE, checks
+complete rollback/version 8, removes the injected collision and upgrades cleanly;
+old token rows and puzzle history remain identical. The first draft omitted a
+required created_at on its synthetic user; the fixture was corrected before the
+successful full rerun. No production data or old migration was edited.
+
+Backend cases cover fresh nonces/authenticated metadata/tamper detection, separate
+key/JWT rejection, startup version coverage, rotation and old-worker key skipping,
+wrong-key BLOCKED recovery, safe admin authorization/inspection/audit/retry,
+capacity/unknown-address no-op privacy and atomic enqueue failure rollback. A
+sub-microsecond Clock fixture proves issuance expiry is normalized before GCM AAD
+and PostgreSQL storage. Two workers skip held jobs; expired leases recover the
+same capability/Message-ID, stale workers cannot overwrite newer state and a
+last-attempt crash becomes terminal. Worker SMTP holds no transaction, DB
+connection or user lock. Revocation, expiry, new issuance, password change/reset,
+verification, delete/re-register and logout semantics are tested. Hourly cleanup
+includes outbox/no-op rows and rollback of every cleanup category on failure.
+
+Review found a potential inverse lock order in manual retry versus account/token
+mutation. Retry now locks original user and audit actor in ID order before the
+job; the regression holds the account lock and proves a waiting retry leaves the
+job available for token cancellation, then checks user locks before audit FK
+insertion. This prevents introducing that deadlock path without holding any user
+lock across worker SMTP.
+
+The strengthened lock-order integration class was rerun separately after the full suite; 25 cases passed.
+
+Actual local SMTP transport covers 450 retryable / 550 permanent recipient errors,
+stalled greeting/refused connection, accepted DATA/lost final ACK and two queued
+sends preserving the actual Message-ID and capability. Backoff/attempt/TTL and
+sanitized provider-code persistence are tested in the worker. The browser restart
+test queues EN/TR verification/reset requests against refused SMTP, checks neutral
+acceptance and accessible replacement guidance, and writes a no-PII harness marker.
+Only the owned backend is restarted with the same DB/keys and healthy SMTP; all
+four persisted messages arrive and remain single-use with session revocation.
+
+The opt-in Docker/Node restore test reads only the owned wordle_test fixture,
+checks decrypted tokens never occur in a real SQL dump, restores a custom-format
+archive into its random isolated DB, authenticates unchanged ciphertext/AAD and
+consumes restored tokens. The trigger clears all live known-job ciphertext;
+source rows are unchanged and the isolated restore DB is dropped. No worker or
+outbound SMTP points at the restored copy. This is not the actual production
+privacy journal/retention/restore or capacity rehearsal.
+
+Mode is disabled by default. Enqueue success replaces old links even if later
+SMTP fails, unlike synchronous rollback. AES key custody/rotation, real provider,
+actual ingress, notification receivers, production-sized migration/throughput and
+staging rollout remain open in TODO.md and docs/MAIL_OUTBOX.md. SMTP can duplicate
+accepted emails after crash/ack loss and does not guarantee inbox delivery.
+Jenkins/CI configuration, root .env, main and production were not changed.
+
+Raw logs: `/workspace/work/outbox/{backend-final,frontend,production,env-tests,ops,restore,metrics,e2e-recovery,e2e-healthy-chromium,e2e-healthy-firefox}.log`.
+Firefox used the established command-sandbox escalation with its normal browser
+security. No new Docker image/container was built; the owned PG fixture was reused.
+
+
+## Previous checkpoint — SMTP failure privacy and outbox decision, 2026-11-10
 
 | Check | Result |
 | --- | --- |

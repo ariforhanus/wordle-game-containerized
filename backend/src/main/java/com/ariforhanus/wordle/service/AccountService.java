@@ -20,6 +20,7 @@ public class AccountService {
     private final AccountMail mail;
     private final AuditService audit;
     private final Clock clock;
+    private final MailOutbox outbox;
     private final SecureRandom random = new SecureRandom();
 
     public AccountService(
@@ -27,12 +28,14 @@ public class AccountService {
             PasswordEncoder encoder,
             AccountMail mail,
             AuditService audit,
-            Clock clock) {
+            Clock clock,
+            MailOutbox outbox) {
         this.db = db;
         this.encoder = encoder;
         this.mail = mail;
         this.audit = audit;
         this.clock = clock;
+        this.outbox = outbox;
     }
 
     public static String digest(String text) {
@@ -54,6 +57,7 @@ public class AccountService {
     @Transactional
     public void requestReset(String email) {
         mail.requireAvailable();
+        outbox.guardEnqueue();
         var ids =
                 db.queryForList(
                         "SELECT id FROM users WHERE lower(email)=lower(?) ORDER BY id",
@@ -61,11 +65,13 @@ public class AccountService {
                         email.trim());
         // Same HTTP response for unknown addresses, and no token in any API response or log.
         for (Long id : ids) issue(id, "RESET");
+        if (ids.isEmpty() && outbox.enabled()) outbox.enqueueNoop();
     }
 
     @Transactional
     public void requestVerification(long id) {
         mail.requireAvailable();
+        outbox.guardEnqueue();
         lockUser(id);
         issue(id, "VERIFY");
     }
@@ -81,10 +87,12 @@ public class AccountService {
         random.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         String email = db.queryForObject("SELECT email FROM users WHERE id=?", String.class, id);
+        Instant issued = clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        Instant expires = issued.plus(Duration.ofMinutes(kind.equals("RESET") ? 30 : 1440));
         db.update(
                 "UPDATE account_tokens SET consumed_at=? WHERE user_id=? AND kind=? AND consumed_at"
-                    + " IS NULL",
-                Timestamp.from(clock.instant()),
+                        + " IS NULL",
+                Timestamp.from(issued),
                 id,
                 kind);
         db.update(
@@ -92,10 +100,10 @@ public class AccountService {
                 digest(token),
                 id,
                 kind,
-                Timestamp.from(
-                        clock.instant()
-                                .plus(Duration.ofMinutes(kind.equals("RESET") ? 30 : 1440))));
-        mail.send(email, kind, token);
+                Timestamp.from(expires));
+        if (outbox.enabled())
+            outbox.enqueue(id, kind, digest(token), email, token, issued, expires);
+        else mail.send(email, kind, token);
     }
 
     @Transactional
@@ -114,7 +122,7 @@ public class AccountService {
         int consumed =
                 db.update(
                         "UPDATE account_tokens SET consumed_at=? WHERE token_hash=? AND kind=? AND"
-                            + " consumed_at IS NULL AND expires_at>?",
+                                + " consumed_at IS NULL AND expires_at>?",
                         Timestamp.from(clock.instant()),
                         hash,
                         kind,
@@ -128,12 +136,12 @@ public class AccountService {
             validatePassword(newPassword);
             db.update(
                     "UPDATE users SET password_hash=?, auth_version=auth_version+1,"
-                        + " version=version+1 WHERE id=?",
+                            + " version=version+1 WHERE id=?",
                     encoder.encode(newPassword),
                     id);
             db.update(
                     "UPDATE account_tokens SET consumed_at=? WHERE user_id=? AND consumed_at IS"
-                        + " NULL",
+                            + " NULL",
                     Timestamp.from(clock.instant()),
                     id);
             audit.record(id, "PASSWORD_RESET", id);
@@ -150,7 +158,7 @@ public class AccountService {
         validatePassword(next);
         db.update(
                 "UPDATE users SET password_hash=?, auth_version=auth_version+1, version=version+1"
-                    + " WHERE id=?",
+                        + " WHERE id=?",
                 encoder.encode(next),
                 id);
         db.update(

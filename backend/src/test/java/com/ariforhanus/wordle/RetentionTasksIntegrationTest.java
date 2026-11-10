@@ -52,6 +52,13 @@ class RetentionTasksIntegrationTest {
                     Integer.toString(seconds + 2).repeat(64),
                     securityDate);
             db.update(
+                    "INSERT INTO mail_outbox(id,purpose,created_at,next_attempt_at,expires_at)"
+                        + " VALUES (?,'RESET',?,?,?)",
+                    java.util.UUID.randomUUID(),
+                    Timestamp.from(securityDate.toInstant().minusSeconds(60)),
+                    securityDate,
+                    securityDate);
+            db.update(
                     "INSERT INTO security_audit(actor_id,target_id,action,occurred_at) VALUES"
                             + " (1,1,'SESSIONS_REVOKED',?)",
                     Timestamp.from(
@@ -62,12 +69,18 @@ class RetentionTasksIntegrationTest {
     @Test
     void usesInjectedTimeAndStrictCutoffsForEveryRetentionCategory() {
         retention.purgeExpiredSecurityData();
-        for (String table : new String[] {"auth_rate_limits", "account_tokens", "security_audit"})
+        for (String table :
+                new String[] {
+                    "auth_rate_limits", "account_tokens", "mail_outbox", "security_audit"
+                })
             assertEquals(2, db.queryForObject("SELECT count(*) FROM " + table, Integer.class));
         assertEquals(1, db.queryForObject("SELECT count(*) FROM users", Integer.class));
         clock.advance(Duration.ofSeconds(1));
         retention.purgeExpiredSecurityData();
-        for (String table : new String[] {"auth_rate_limits", "account_tokens", "security_audit"})
+        for (String table :
+                new String[] {
+                    "auth_rate_limits", "account_tokens", "mail_outbox", "security_audit"
+                })
             assertEquals(1, db.queryForObject("SELECT count(*) FROM " + table, Integer.class));
         retention.purgeExpiredSecurityData();
         assertEquals(1, db.queryForObject("SELECT count(*) FROM security_audit", Integer.class));
@@ -84,14 +97,19 @@ class RetentionTasksIntegrationTest {
         try {
             assertThrows(DataAccessException.class, retention::purgeExpiredSecurityData);
             for (String table :
-                    new String[] {"auth_rate_limits", "account_tokens", "security_audit"})
+                    new String[] {
+                        "auth_rate_limits", "account_tokens", "mail_outbox", "security_audit"
+                    })
                 assertEquals(3, db.queryForObject("SELECT count(*) FROM " + table, Integer.class));
         } finally {
             db.execute("DROP TRIGGER reject_retention_fixture ON security_audit");
             db.execute("DROP FUNCTION reject_retention_fixture()");
         }
         retention.purgeExpiredSecurityData();
-        for (String table : new String[] {"auth_rate_limits", "account_tokens", "security_audit"})
+        for (String table :
+                new String[] {
+                    "auth_rate_limits", "account_tokens", "mail_outbox", "security_audit"
+                })
             assertEquals(2, db.queryForObject("SELECT count(*) FROM " + table, Integer.class));
     }
 }

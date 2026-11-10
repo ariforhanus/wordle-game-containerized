@@ -283,6 +283,7 @@
     "verifyTitle": "E-postayı doğrula",
     "continue": "Devam et",
     "emailSent": "İsteğiniz alındı. Uygun adresler için e-posta gönderimi denenir. E-posta gelmezse spam klasörünü kontrol edin veya daha sonra tekrar deneyin.",
+    "newLinkRule": "Yeni oluşturulan bağlantı, aynı amaçla gönderilen önceki bağlantıların yerini alır. Teslimat gecikebilir; tekrar istemeden önce spam klasörünü kontrol edin.",
     "completed": "İşlem tamamlandı. Giriş yapabilirsiniz.",
     "newPassword": "Yeni şifre (en az 12 karakter)",
     "currentPassword": "Mevcut şifre",

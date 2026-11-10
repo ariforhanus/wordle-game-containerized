@@ -30,6 +30,11 @@ public class RetentionTasks {
         db.update("DELETE FROM auth_rate_limits WHERE window_start < ?", securityCutoff);
         db.update("DELETE FROM account_tokens WHERE expires_at < ?", securityCutoff);
         db.update(
+                "DELETE FROM mail_outbox WHERE completed_at < ? OR (token_hash IS NULL AND"
+                    + " expires_at < ?)",
+                securityCutoff,
+                securityCutoff);
+        db.update(
                 "DELETE FROM security_audit WHERE occurred_at < ?",
                 Timestamp.from(now.minus(AUDIT_RETENTION)));
     }

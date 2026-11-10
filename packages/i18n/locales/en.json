@@ -283,6 +283,7 @@
     "verifyTitle": "Verify email",
     "continue": "Continue",
     "emailSent": "Request received. Email delivery is attempted for eligible addresses. If no email arrives, check spam or try again later.",
+    "newLinkRule": "A newly issued link replaces earlier links for the same purpose. Delivery can be delayed; check spam before requesting again.",
     "completed": "Completed. You can now sign in.",
     "newPassword": "New password (at least 12 characters)",
     "currentPassword": "Current password",

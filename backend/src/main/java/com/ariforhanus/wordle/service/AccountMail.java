@@ -3,8 +3,10 @@ package com.ariforhanus.wordle.service;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.mail.MailPreparationException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -80,5 +82,32 @@ public class AccountMail {
                                 : "/reset-password#token=")
                         + token);
         senders.getObject().send(message);
+    }
+
+    public void sendQueued(String email, String kind, String token, String messageId) {
+        requireAvailable();
+        var sender = senders.getObject();
+        var message = sender.createMimeMessage();
+        try {
+            var helper = new MimeMessageHelper(message, "UTF-8");
+            helper.setFrom(from);
+            helper.setTo(email);
+            helper.setSubject(
+                    kind.equals("VERIFY")
+                            ? "Verify your Wordle email"
+                            : "Reset your Wordle password");
+            helper.setText(
+                    "Open this link to continue. If you did not request it, ignore this email.\n\n"
+                            + baseUrl.replaceAll("/+$", "")
+                            + (kind.equals("VERIFY")
+                                    ? "/verify-email#token="
+                                    : "/reset-password#token=")
+                            + token,
+                    false);
+            message.setHeader("Message-ID", messageId);
+        } catch (jakarta.mail.MessagingException ex) {
+            throw new MailPreparationException("Cannot prepare account email");
+        }
+        sender.send(message);
     }
 }

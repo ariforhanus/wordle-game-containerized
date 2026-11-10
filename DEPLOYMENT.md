@@ -141,3 +141,16 @@ no previous-day Resume selector will be added. Completed history remains readabl
 and expiration creates neither a score nor an automatic loss. No schema migration
 or historical rewrite is needed; older unfinished rows become inaccessible under
 this intentional rule change. Exact transaction timing is in OPERATIONS.md.
+
+## Opt-in durable account mail (V9)
+
+The default mail path is synchronous. `MAIL_OUTBOX_ENABLED=true` enables encrypted
+transactional enqueue and the scheduled worker in this monolith, with independent
+AES-256 keys and bounded retries. A committed request replaces the previous link
+even if subsequent delivery fails. This mode is off by default; do not enable it
+without key custody/rotation, actual provider/queue/capacity tests and receiver
+alerts. `docs/MAIL_OUTBOX.md` covers all variables, migration/rollback, admin retry,
+metrics and backup/restore. Restore with outbound mail and all workers disabled;
+reconcile deletions and invalidate restored account tokens before any dispatch.
+V9 is additive but creates constraints/indexes: measure its lock window on an
+authorized production-sized copy. No production activation was performed here.

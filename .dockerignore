@@ -1,5 +1,6 @@
 .git
 .env
+.mail-outbox*.env
 .env.*
 !.env.example
 **/node_modules

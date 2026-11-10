@@ -29,6 +29,12 @@ async function mount(language: "en" | "tr", account = false) {
 }
 
 for (const language of ["en", "tr"] as const) {
+  it(`explains replacement and delivery delay before a new-link request in ${language}`, async () => {
+    const text=await mount(language);
+    const email=screen.getByLabelText(text.auth.email);
+    expect(document.getElementById(email.getAttribute("aria-describedby")!)?.textContent).toBe(text.account.newLinkRule);
+    expect(authApi.forgotPassword).not.toHaveBeenCalled();
+  });
   it(`shows neutral request acceptance instead of confirming an account or delivery in ${language}`, async () => {
     vi.mocked(authApi.forgotPassword).mockResolvedValue(undefined);
     const text = await mount(language);

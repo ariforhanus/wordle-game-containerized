@@ -33,6 +33,7 @@ Import `.github/rulesets/main.json` under GitHub Settings → Rules → Rulesets
 1. Build and scan release images; record immutable image digests, commit, schema version, and the exact environment configuration.
 2. Stop writes, take a backup, copy it to protected off-host storage, and restore it into an isolated staging database.
 3. Follow `DEPLOYMENT.md` for legacy baseline version 0 and preflight. Resolve inconsistent historical data explicitly. V4 adds account token/version/audit/rate-limit tables. V5 prevents case-only duplicate email identities; resolve any legacy conflicts before upgrading. Never automatically delete duplicates to make a migration pass.
+   V9 adds encrypted mail work and token-cancellation triggers without rewriting existing tokens/games. Rehearse its constraint/index locks on an authorized copy; upgrade every node before opt-in activation and retain V9 schema/keys on rollback. Keep all workers and outbound mail disabled on restore until token invalidation and deletion reconciliation finish (`docs/MAIL_OUTBOX.md`).
    V8 preserves shared daily puzzles against row updates/deletion and adds the rotation index. Reserve a measured migration/write window and upgrade all puzzle writers together; old instances do not honor the language advisory lock. New creation requires READ COMMITTED. See `docs/WORD_ROTATION.md` for the 30-day preference, small-pool fallback, immutable history and exceptional-repair limits.
 4. Start the candidate on staging with separate secrets/SMTP settings. Verify login, daily play, reset/verification, revocation, readiness, and audit records. Record row counts and backup checksum.
 5. Obtain release approval before applying migrations or switching production traffic.
@@ -62,7 +63,7 @@ SMTP delivery is disabled by default until a provider is selected. Set `MAIL_ENA
 
 For local testing, point SMTP to a local capture service, use `PUBLIC_URL=http://localhost:3000`, and disable SMTP authentication/STARTTLS only on that local server. The app never logs reset links as a mail fallback. If mail is disabled, email requests return a clear 503. Configure connection/read/write timeouts and delivery monitoring at the provider.
 
-Verification links expire after 24 hours; password-reset links after 30 minutes. Tokens contain 256 random bits, are stored only as SHA-256 digests, are single-use, and are bound to a purpose. A successfully committed newer issuance consumes older links. Fragments keep link secrets out of HTTP access logs and referrers, and the UI removes fragments from history after reading them. Opening a GET does not consume a token; a user must submit the form. Public reset returns the same accepted response for known/unknown addresses even on an SMTP MailException, after service rollback preserves the old link. Disabled mail remains 503 for both; authenticated verification transport failure is retryable 503. Receipt of a request is not a delivery confirmation.
+Verification links expire after 24 hours; password-reset links after 30 minutes. Tokens contain 256 random bits, are stored as SHA-256 digests in account_tokens (opt-in delivery work separately encrypts the raw capability), are single-use, and are bound to a purpose. A successfully committed newer issuance consumes older links. Fragments keep link secrets out of HTTP access logs and referrers, and the UI removes fragments from history after reading them. Opening a GET does not consume a token; a user must submit the form. Public reset returns the same accepted response for known/unknown addresses even on an SMTP MailException, after service rollback preserves the old link. Disabled mail remains 503 for both; authenticated verification transport failure is retryable 503. Receipt of a request is not a delivery confirmation.
 
 Submission failures increment internal `wordle_mail_delivery_failures_total` with
 only reset/verification purpose labels and fixed warning events without provider
@@ -72,14 +73,16 @@ rejects missing hosts, opaque/relative URLs, user info, query/fragment and bad p
 HTTP is accepted only for literal loopback test roots. Sender existence at startup
 does not prove actual delivery/TLS/authentication.
 
-SMTP is still synchronous, inside the user-row transaction. Per-operation 5s
-timeouts are not an overall deadline; known/unknown timing differences, held
-connections/locks, lost acknowledgements and send-versus-commit gaps remain.
-`docs/SMTP_DELIVERY_DECISION.md` records the tested limits and concrete next
-outbox implementation in this monolith, including key management, leases,
-at-least-once retries, expiry/cancellation and explicit issuance-semantics changes.
-No durable queue or automatic retry was added here. Validate those controls and
-the actual provider before public mail activation.
+Default synchronous mail retains request-held locks and SMTP/commit ambiguity.
+Opt-in durable delivery is now implemented in the same application/database:
+`MAIL_OUTBOX_ENABLED=true` commits encrypted jobs atomically and sends outside
+transactions, with leases, bounded retries and expiry/cancellation. This changes
+issuance semantics: once enqueue commits, older same-purpose links are invalid,
+even if later delivery fails. Default remains off. Follow
+`docs/MAIL_OUTBOX.md` for private key setup, rotation, reviewed admin retry,
+metrics, worker pause/rollback and restore safety; compare modes in
+`docs/SMTP_DELIVERY_DECISION.md`. Actual provider/alarms/key custody and staged
+activation remain uncompleted release gates.
 
 Password change/reset and logout-all increment an account authentication version; old JWTs are rejected immediately. A normal local logout only removes the current browser token. Password changes sign the user out, requiring login with the new password. Set `REQUIRE_VERIFIED_EMAIL=true` only after delivery has been configured and tested; it is a useful barrier against casual multi-account ranking abuse, not proof of unique human identity.
 
@@ -101,9 +104,9 @@ multi-account/automation risks and the required staging matrix.
 
 ## Deletion and audit retention
 
-Self-service deletion requires the current password and explicit UI confirmation. EN/TR notices explain active deletion, retained security events and backup limits before consent. Users, avatars, games, scores, and recovery tokens are deleted atomically; audit actor/target references become null and shared puzzles remain. Audit rows older than 90 × 24 hours, rate windows older than 24 hours and tokens expired for over 24 hours become eligible for hourly best-effort cleanup using the injected Clock. All cleanup categories share one transaction; outages/failures can delay removal. NULL audit references and hashed rate keys are not a complete-anonymity promise.
+Self-service deletion requires the current password and explicit UI confirmation. EN/TR notices explain active deletion, retained security events and backup limits before consent. Users, avatars, games, scores, and recovery tokens are deleted atomically; audit actor/target references become null and shared puzzles remain. Audit rows older than 90 × 24 hours, rate windows older than 24 hours, tokens expired for over 24 hours, terminal outbox metadata older than 24 hours and expired no-op work older than 24 hours become eligible for hourly best-effort cleanup using the injected Clock. All cleanup categories share one transaction; outages/failures can delay removal. NULL audit references and hashed rate keys are not a complete-anonymity promise.
 
-Before restoring public traffic, reconcile later deletions using a protected journal stored independently of the restored database, verify identities/children/unaffected users, rotate JWT signing keys and invalidate restored email tokens. JWT rotation alone does not revoke recovery links. The application does not yet export an external deletion journal automatically; establish/test the process and publish actual backup/provider retention before production. The detailed runbook and remaining operational gates are in `docs/DATA_RETENTION.md`. A successful `restore-check.sh` verifies restorability, not this privacy reconciliation.
+Before restoring public traffic, reconcile later deletions using a protected journal stored independently of the restored database, verify identities/children/unaffected users, rotate JWT signing keys and invalidate restored email tokens. Stop every outbox worker first; V9 token revocation cancels active jobs and wipes ciphertext before mail/traffic resumes. JWT rotation alone does not revoke recovery links. The application does not yet export an external deletion journal automatically; establish/test the process and publish actual backup/provider retention before production. The detailed runbook and remaining operational gates are in `docs/DATA_RETENTION.md`. A successful `restore-check.sh` verifies restorability, not this privacy reconciliation.
 
 ## Tests and performance
 

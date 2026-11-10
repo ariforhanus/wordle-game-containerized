@@ -3,6 +3,7 @@ package com.ariforhanus.wordle;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.ariforhanus.wordle.service.AccountMail;
+import com.ariforhanus.wordle.service.MailFailurePolicy;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
@@ -98,16 +99,21 @@ class AccountMailTransportTest {
 
     @Test
     void temporaryRecipientRejectionDoesNotAutomaticallyRetryOrSendData() throws Exception {
-        exerciseAmbiguousDelivery(true);
+        exerciseAmbiguousDelivery(450);
     }
 
     @Test
     void missingFinalAcknowledgementCanFailAfterTheServerAlreadyAcceptedTheMessage()
             throws Exception {
-        exerciseAmbiguousDelivery(false);
+        exerciseAmbiguousDelivery(0);
     }
 
-    private void exerciseAmbiguousDelivery(boolean rejectRecipient) throws Exception {
+    @Test
+    void permanentRecipientRejectionIsNotRetryable() throws Exception {
+        exerciseAmbiguousDelivery(550);
+    }
+
+    private void exerciseAmbiguousDelivery(int rejectionCode) throws Exception {
         try (var server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
                 var pool = Executors.newSingleThreadExecutor()) {
             server.setSoTimeout(3000);
@@ -135,8 +141,8 @@ class AccountMailTransportTest {
                                     writer.flush();
                                     String command;
                                     while ((command = reader.readLine()) != null) {
-                                        if (command.startsWith("RCPT TO:") && rejectRecipient)
-                                            writer.print("450 temporary recipient failure\r\n");
+                                        if (command.startsWith("RCPT TO:") && rejectionCode != 0)
+                                            writer.print(rejectionCode + " recipient failure\r\n");
                                         else if (command.equals("DATA")) {
                                             writer.print("354 send data\r\n");
                                             writer.flush();
@@ -177,13 +183,89 @@ class AccountMailTransportTest {
                                                                         "fixture@example.test",
                                                                         "RESET",
                                                                         "fixture-token")));
-                if (rejectRecipient) assertTrue(error.getMessage().contains("450"));
-                else assertTrue(hasTimeout(error));
-                assertEquals(rejectRecipient ? 0 : 1, received.get());
+                if (rejectionCode != 0) {
+                    assertTrue(error.getMessage().contains(Integer.toString(rejectionCode)));
+                    assertEquals(
+                            new MailFailurePolicy.Failure(
+                                    rejectionCode == 450 ? "temporary" : "permanent",
+                                    rejectionCode == 450),
+                            MailFailurePolicy.classify(error));
+                } else {
+                    assertTrue(hasTimeout(error));
+                    assertTrue(MailFailurePolicy.classify(error).retryable());
+                }
+                assertEquals(rejectionCode != 0 ? 0 : 1, received.get());
                 assertEquals(1, connections.get());
             } finally {
                 release.countDown();
                 peer.get(4, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    @Test
+    void queuedRetriesPreserveTheActualSmtpMessageIdAndCapability() throws Exception {
+        try (var server = new ServerSocket(0, 2, InetAddress.getLoopbackAddress());
+                var pool = Executors.newSingleThreadExecutor()) {
+            server.setSoTimeout(5000);
+            var received = new java.util.ArrayList<String>();
+            var peer =
+                    pool.submit(
+                            () -> {
+                                for (int attempt = 0; attempt < 2; attempt++) {
+                                    try (var socket = server.accept();
+                                            var reader =
+                                                    new BufferedReader(
+                                                            new InputStreamReader(
+                                                                    socket.getInputStream(),
+                                                                    StandardCharsets.UTF_8));
+                                            var writer =
+                                                    new PrintWriter(
+                                                            new OutputStreamWriter(
+                                                                    socket.getOutputStream(),
+                                                                    StandardCharsets.UTF_8),
+                                                            true)) {
+                                        socket.setSoTimeout(5000);
+                                        writer.print("220 localhost fixture\r\n");
+                                        writer.flush();
+                                        String command;
+                                        while ((command = reader.readLine()) != null) {
+                                            if (command.equals("DATA")) {
+                                                writer.print("354 send data\r\n");
+                                                writer.flush();
+                                                var body = new StringBuilder();
+                                                String line;
+                                                while ((line = reader.readLine()) != null
+                                                        && !line.equals("."))
+                                                    body.append(line).append("\n");
+                                                if (line == null)
+                                                    throw new EOFException(
+                                                            "Incomplete fixture message");
+                                                received.add(body.toString());
+                                                writer.print("250 accepted\r\n");
+                                            } else if (command.equals("QUIT")) {
+                                                writer.print("221 bye\r\n");
+                                                writer.flush();
+                                                break;
+                                            } else writer.print("250 OK\r\n");
+                                            writer.flush();
+                                        }
+                                    } catch (IOException ex) {
+                                        throw new UncheckedIOException(ex);
+                                    }
+                                }
+                            });
+            String messageId = "<wordle-stable-fixture@localhost>";
+            var mail = transport(server.getLocalPort(), 2000);
+            mail.sendQueued("fixture@example.test", "RESET", "fixture-token", messageId);
+            mail.sendQueued("fixture@example.test", "RESET", "fixture-token", messageId);
+            peer.get(5, TimeUnit.SECONDS);
+            assertEquals(2, received.size());
+            for (String body : received) {
+                assertTrue(body.contains("Message-ID: " + messageId + "\n"));
+                assertTrue(
+                        body.contains("http://localhost:8080/reset-password#token=fixture-token"));
+                assertTrue(body.contains("To: fixture@example.test"));
             }
         }
     }
