@@ -648,6 +648,10 @@ test("verification and password reset use single-use email links", async ({
               m.to === email && m.body.includes("/" + kind),
           )
           .at(-1);
+        if (message && process.env.E2E_SMTP_TLS === "true") {
+          expect(message.secure).toBe(true);
+          expect(message.authenticated).toBe(true);
+        }
         link =
           message?.body.match(
             new RegExp("https?://[^\\s]+/" + kind + "#token=[A-Za-z0-9_-]+"),

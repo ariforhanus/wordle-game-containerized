@@ -59,7 +59,7 @@ The application emits structured JSON to stdout without logging passwords, beare
 
 ## SMTP and account links
 
-SMTP delivery is disabled by default until a provider is selected. Set `MAIL_ENABLED`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_AUTH`, `SMTP_STARTTLS`, `MAIL_FROM`, and `PUBLIC_URL` using secret configuration. Require TLS/authentication for a public SMTP provider. `PUBLIC_URL` must use HTTPS outside localhost; it is configuration, never taken from a request Host header. No provider-specific service is required.
+SMTP delivery is disabled by default until a provider is selected. Set `MAIL_ENABLED`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_AUTH`, `SMTP_STARTTLS`, `MAIL_FROM`, and `PUBLIC_URL` using secret configuration. Require TLS/authentication for a public SMTP provider. Peer hostname verification is explicitly enabled with mail.smtp.ssl.checkserveridentity=true (also the current Angus default); never use a trust-all factory or ssl.trust=*. Local real TLS/AUTH and no-downgrade acceptance is documented in docs/SMTP_SECURITY_VALIDATION.md; actual provider acceptance remains required. `PUBLIC_URL` must use HTTPS outside localhost; it is configuration, never taken from a request Host header. No provider-specific service is required.
 
 For local testing, point SMTP to a local capture service, use `PUBLIC_URL=http://localhost:3000`, and disable SMTP authentication/STARTTLS only on that local server. The app never logs reset links as a mail fallback. If mail is disabled, email requests return a clear 503. Configure connection/read/write timeouts and delivery monitoring at the provider.
 

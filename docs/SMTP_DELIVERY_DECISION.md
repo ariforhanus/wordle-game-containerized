@@ -36,7 +36,9 @@ identity/purpose, single use, expiry and password/session revocation rules.
 AES-256-GCM uses independent versioned keys, nonce and authenticated job/token
 metadata. Leases with SKIP LOCKED permit concurrent instances and bounded crash
 recovery. Transient/uncertain submission retries reuse the capability and stable
-Message-ID, never renew expiry; permanent/auth/TLS failures stop. Crypto failure
+Message-ID, never renew expiry; permanent/auth/typed SSL failures stop. Generic
+STARTTLS negotiation rejection follows bounded uncertain retry without downgrade;
+see docs/SMTP_SECURITY_VALIDATION.md for tested classification. Crypto failure
 blocks safely for reviewed recovery; terminal/cancelled/expired payloads are
 cleared. Token consumption triggers atomic cancellation and deletion cascades.
 SMTP still permits duplicates after acceptance/crash/ack loss; there is no

@@ -94,8 +94,7 @@ Message-ID is not a provider deduplication guarantee.
 
 Numeric temporary 4xx, connection I/O and uncertain outcomes retry at roughly
 30, 60, 120… seconds with up to 25% jitter, capped at 600 seconds. Permanent 5xx,
-authentication, TLS and malformed-message failures stop immediately. TLS repair
-requires operator action; certificate verification is not bypassed. Only bounded
+authentication, typed SSL/certificate and malformed-message failures stop immediately. Generic STARTTLS negotiation rejection follows uncertain retry; handshake timeout follows connection retry. Neither downgrades to plaintext. TLS/credential repair requires operator action; terminal wiped jobs require a new issuance. Certificate and hostname checks remain enabled. Only bounded
 failure codes are retained, never exception/provider text. Reaching the attempt
 limit or expiry stops work and clears payloads. Leases are not heartbeats: an
 SMTP operation exceeding the lease can overlap recovery and cause duplicates.
@@ -185,3 +184,8 @@ well below reset expiry. Check scheduling/pool/provider throughput and saturatio
 on staging, actual TLS/auth/DNS/SPF/DKIM/DMARC/bounces and secret rotation/restore.
 No alarm receiver or provider has been activated by this change. Mail acceptance
 is not proof of inbox delivery, unique humans, or complete timing resistance.
+
+
+Local real-transport TLS/AUTH acceptance and its precise error classification,
+fixture isolation and provider limits are documented in
+[SMTP_SECURITY_VALIDATION.md](SMTP_SECURITY_VALIDATION.md).

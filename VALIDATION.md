@@ -1,6 +1,64 @@
 # Validation of the readiness changes
 
-## Latest checkpoint — encrypted transactional mail outbox, 2026-11-10
+## Latest checkpoint — real SMTP TLS/AUTH acceptance, 2026-11-10
+
+| Check | Result |
+| --- | --- |
+| Full Java 21 / real PostgreSQL `mvn verify` | 262 passed; zero skips/failures/errors |
+| New real TLS/AUTH transport and worker integration subset | 17 passed: 10 transport + 7 real DB/worker cases |
+| Frontend unit/component coverage suite | 101 passed; no unhandled errors |
+| TypeScript / release Vite build and built-worker tests | Build passed; 8 passed |
+| Actual TLS/AUTH verification/reset/single-use/session revocation E2E | 2 desktop/mobile Chromium + 1 Firefox passed; six messages, all secure/authenticated |
+| Original plaintext-local capture compatibility | 1 Chromium E2E passed; two local messages without TLS/AUTH |
+
+Fresh JaCoCo remains 80.71% lines / 69.21% branches; frontend 64.92% lines /
+61.04% branches. These metrics exclude browser execution. All four selected E2E
+runs used the real isolated backend, enabled authentication limits and release
+assets; no skips, mocked transport or real mailboxes/provider. No dependency,
+root .env, CI/Jenkins, production or migration changes were made.
+
+The application explicitly pins mail.smtp.ssl.checkserveridentity=true. Inspection
+of the actual Angus 2.0.5 dependency confirmed its default is already true;
+this guards policy across upgrades and is not a claim that the prior version
+accepted wrong hostnames. Tests load actual application.properties/Boot mail
+configuration, without a trust-all factory or global trust-store modification.
+
+Fresh JDK-keytool EC identities use relative validity in temporary directories.
+With both self-signed identities explicitly trusted, the wrong SAN is rejected;
+a matching SAN with an untrusted identity is also rejected. Neither sends AUTH
+or DATA. Matching identity succeeds for both synchronous and queued methods.
+Fixtures intentionally offer AUTH before STARTTLS: missing STARTTLS, 454 refusal
+and a stalled handshake cannot downgrade or send credentials/message plaintext.
+AUTH rejection happens only after a valid handshake and sends no DATA.
+
+Seven worker cases use actual SMTP plus PostgreSQL, without mocking AccountMail:
+certificate/auth failures produce first-attempt FAILED with sanitized tls/
+authentication codes and ciphertext cleanup; committed issuance stays committed.
+Generic negotiation errors use uncertain retry, handshake timeout uses connection
+retry, preserving the same encrypted token/expiry with backoff. Successful TLS
+submission uses the persisted Message-ID; the captured capability consumes once.
+The initial fixture assumed empty SASL PLAIN authzid; it was corrected to RFC 4616
+empty-or-matching identity before the successful subset/full runs.
+
+The Node capture fixture now supports optional TLS/AUTH while preserving default
+plaintext behavior. Actual browser flow assertions require secure/authenticated
+capture metadata when E2E_SMTP_TLS=true, for verification and reset emails. The
+backend JVM used a private fixture truststore; Maven/system trust was unchanged.
+A second app/capture phase explicitly tested original local AUTH/STARTTLS=false.
+Fixtures and PG were stopped after testing; generated certificates/keys stayed
+outside Git and expire, with no real credential or certificate added to source.
+
+Real-provider public PKI/expired/intermediate/revocation behavior, domain/DNS/
+delivery/bounces, alarms, key operations, capacity and staging activation remain
+open. Outbox remains disabled by default. See docs/SMTP_SECURITY_VALIDATION.md
+for exact policy, fixture reproduction and remaining boundaries.
+
+Raw logs: `/workspace/work/smtp-tls/{selected,backend,frontend,production,e2e-tls-chromium,e2e-tls-firefox,e2e-plain}.log`.
+Firefox used the existing command-sandbox escalation with normal browser security.
+No new Docker image/container was built; the owned PostgreSQL fixture was reused.
+
+
+## Previous checkpoint — encrypted transactional mail outbox, 2026-11-10
 
 | Check | Result |
 | --- | --- |
