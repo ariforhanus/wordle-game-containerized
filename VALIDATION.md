@@ -1,6 +1,60 @@
 # Validation of the readiness changes
 
-## Latest checkpoint — existing-language rotation and account/themed flows, 2026-11-10
+## Latest checkpoint — deletion disclosure and retention correctness, 2026-11-10
+
+This is the latest local evidence; prior checkpoint counts below are historical.
+Jenkins setup was deferred to the owner. No GitHub/Jenkins workflow was modified
+or successful remote CI claimed in this checkpoint.
+
+| Check | Result |
+| --- | --- |
+| Full Java 21 / PostgreSQL `mvn verify` | 165 passed, zero skips/failures/errors |
+| Frontend component/unit suite with V8 | 85 passed, no unhandled errors |
+| TypeScript / release Vite build and built-worker tests | Build passed; 8 tests passed |
+| Backup failure/retention script suite | 13 passed |
+| Selected desktop and mobile Chromium E2E | 8 passed, zero skips |
+| Same selected Firefox E2E | 4 passed, zero skips |
+
+JaCoCo, from a fresh execution-data file: 75.74% lines / 61.13% branches.
+Frontend V8: 58.75% lines / 57.53% branches. E2E does not contribute to unit
+coverage. These are local release assets through Vite Preview and the real
+isolated backend/PostgreSQL, not production Nginx or physical devices.
+
+The expanded deletion regression first creates an avatar, a completed English
+game/score, an unfinished Turkish game and tokens. It checks wrong-password
+preservation, erasure, both NULL audit-reference directions, another user's
+unchanged game/token/session and shared puzzle preservation. A restrictive
+test-only FK injects a real deletion failure and proves the user, avatar,
+children and audit roll back together. No production deletion logic/permissions
+were relaxed. New retention tests exercise before/exact/after cutoffs with the
+injected Clock, one-transaction rollback on the last category and successful retry.
+
+Frontend tests use the actual EN/TR translations and check notices associated
+with consent, no deletion on opening/checking, no-consent rejection, duplicate
+submit suppression and wrong-password retry. The two new browser cases per
+engine prepare a real won game/score and unfinished game, check the notice and
+light/dark scoped Axe, reject a wrong password, then delete through the UI.
+Both original and separately logged-in sessions are rejected afterward, as is
+login with the deleted account. Existing logout-all and account-error-focus
+regressions also passed. The initial E2E collection required Node's explicit JSON
+import attribute; after fixing that test import, the complete selection passed.
+
+The script suite uses actual filesystem age/find semantics to prove that the
+default `-mtime +14` retains a 14.5-day-old backup, removes a 15.5-day-old one,
+preserves unrelated/nested/outside files and emits private archive/checksum
+permissions. A failed backup defers retention cleanup. Consequently neither UI
+nor runbook promises immediate backup erasure or an exact 14-day deadline.
+
+Logs: `/workspace/work/retention/{backend,frontend,production,backup-tests,e2e-chromium,e2e-firefox}.log`.
+Firefox uses the previously verified command-sandbox escalation, preserving its
+default browser security settings. WebKit was not rerun because its disposable
+cache had been removed after the prior passing checkpoint. New operational
+requirements and unimplemented external deletion-journal export are explicit in
+`docs/DATA_RETENTION.md`. No production journal, live backup/provider policy or
+privacy restore rehearsal was activated; those remain release gates. No schema
+migration, new language, microservice, production deployment or main merge.
+
+## Previous checkpoint — existing-language rotation and account/themed flows, 2026-11-10
 
 This section supersedes older counts and the local Firefox blocker below. Older
 sections retain historical evidence, not the current acceptance status.

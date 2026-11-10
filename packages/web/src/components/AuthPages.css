@@ -95,6 +95,8 @@
 
 .auth-card-section { display:flex; flex-direction:column; gap:10px; }
 .auth-card details form { display:flex; flex-direction:column; gap:10px; }
+.deletion-retention { padding-inline-start: 1.3em; }
+.deletion-retention li + li { margin-top: 8px; }
 
 .auth-switch a { color: var(--auth-link, #1d4ed8); }
 [data-theme="dark"] .auth-switch a { --auth-link: #93c5fd; }

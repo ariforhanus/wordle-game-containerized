@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import en from "../../i18n/locales/en.json" with { type: "json" };
+import tr from "../../i18n/locales/tr.json" with { type: "json" };
 async function register(page: import("@playwright/test").Page) {
   const suffix = Date.now().toString() + Math.floor(Math.random() * 1000);
   await page.goto("/register");
@@ -43,6 +45,61 @@ async function secondSession(
     throw error;
   }
 }
+
+test.describe("account deletion and retention disclosure", () => {
+  for (const language of ["en", "tr"] as const) {
+    test(`explains retention before consent and revokes deleted-account sessions in ${language}`, async ({ page, browser }) => {
+      await register(page);
+      const token = await page.evaluate(() => localStorage.getItem("jwtToken"));
+      const headers = { Authorization: "Bearer " + token };
+      const profile = await page.context().request.get("/api/v1/auth/me", { headers });
+      const username = (await profile.json()).username;
+      const other = await secondSession(page, browser);
+      try {
+        const answers = await fixtureDailyWords(page.context());
+        const start = await page.context().request.post("/api/v1/daily/games?lang=en", { headers });
+        expect(start.status()).toBe(200);
+        const game = await start.json();
+        const win = await page.context().request.post(`/api/v1/daily/games/${game.id}/guesses`, {
+          headers, data: { guess: answers.en.word, attempt: 1 },
+        });
+        expect(win.status()).toBe(200);
+        expect((await win.json()).status).toBe("won");
+        const unfinished = await page.context().request.post("/api/v1/daily/games?lang=tr", { headers });
+        expect(unfinished.status()).toBe(200);
+        await page.evaluate((value) => localStorage.setItem("wordle_lang", value), language);
+        await page.goto("/account");
+        const text = (language === "en" ? en : tr).account;
+        await page.locator("summary").filter({ hasText: text.deleteTitle }).click();
+        const consent = page.getByRole("checkbox", { name: text.deleteConfirm, exact: true });
+        await expect(consent).toHaveAccessibleDescription(
+          [text.deleteWarning, text.deleteSecurityRetention, text.deleteBackupRetention].join(" "),
+        );
+        const remove = page.getByRole("button", { name: text.deleteTitle, exact: true });
+        await expect(remove).toBeDisabled();
+        for (const theme of ["light", "dark"]) {
+          await page.evaluate((value) => document.documentElement.setAttribute("data-theme", value), theme);
+          const scan = await new AxeBuilder({ page }).include(".auth-card").withTags(["wcag2a", "wcag2aa"]).analyze();
+          expect(scan.violations).toEqual([]);
+        }
+        await consent.check();
+        await page.locator("#delete-password").fill("wrong-fixture-password");
+        await remove.click();
+        await expect(page.getByRole("alert")).toHaveText(text.failed);
+        expect((await page.context().request.get("/api/v1/auth/me", { headers })).status()).toBe(200);
+        await page.locator("#delete-password").fill("browser-password-123");
+        await remove.click();
+        await expect(page).toHaveURL(/\/login$/);
+        expect(await page.evaluate(() => localStorage.getItem("jwtToken"))).toBeNull();
+        expect((await page.context().request.get("/api/v1/auth/me", { headers })).status()).toBe(401);
+        expect((await other.context.request.get("/api/v1/auth/me", { headers: { Authorization: "Bearer " + other.token } })).status()).toBe(401);
+        expect((await page.context().request.post("/api/v1/auth/login", {
+          data: { username, password: "browser-password-123" },
+        })).status()).toBe(401);
+      } finally { await other.context.close(); }
+    });
+  }
+});
 
 test("daily visits, reloads, language changes and status reads do not start the timer", async ({
   page,

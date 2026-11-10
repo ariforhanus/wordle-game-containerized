@@ -35,6 +35,10 @@ import java.util.concurrent.*;
 @ActiveProfiles("test")
 @Import(TestClockConfiguration.class)
 class AccountSecurityIntegrationTest {
+    private static final byte[] AVATAR_FIXTURE =
+            Base64.getDecoder()
+                    .decode(
+                            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8m0AAAAASUVORK5CYII=");
     @Autowired MockMvc http;
     @Autowired JdbcTemplate db;
     @Autowired UserRepository users;
@@ -42,6 +46,8 @@ class AccountSecurityIntegrationTest {
     @org.springframework.test.context.bean.override.mockito.MockitoSpyBean PasswordEncoder encoder;
     @Autowired ObjectMapper json;
     @Autowired AccountService accounts;
+    @Autowired DailyGameService games;
+    @Autowired AuditService audit;
     @Autowired MutableClock clock;
     @MockitoBean AccountMail mail;
     User user;
@@ -242,6 +248,20 @@ class AccountSecurityIntegrationTest {
 
     @Test
     void deletionRequiresPasswordAndErasesLinkedData() throws Exception {
+        seedDeletionHistory();
+        User other = new User();
+        other.setCreatedAt(clock.instant());
+        other.setUsername("other-player");
+        other.setEmail("other@example.test");
+        other.setPasswordHash(encoder.encode("other-password-123"));
+        other = users.save(other);
+        games.start(other.getId(), "en");
+        accounts.requestVerification(other.getId());
+        audit.record(user.getId(), "SESSIONS_REVOKED", other.getId());
+        audit.record(other.getId(), "SESSIONS_REVOKED", user.getId());
+        var otherGames =
+                db.queryForList("SELECT * FROM daily_games WHERE user_id=?", other.getId());
+        var puzzles = db.queryForList("SELECT * FROM daily_puzzles ORDER BY id");
         accounts.requestReset(user.getEmail());
         http.perform(
                         post("/api/v1/account/delete")
@@ -249,18 +269,127 @@ class AccountSecurityIntegrationTest {
                                 .contentType("application/json")
                                 .content("{\"password\":\"wrong\"}"))
                 .andExpect(status().isBadRequest());
-        assertEquals(1, users.count());
+        assertEquals(2, users.count());
+        assertEquals(
+                2,
+                db.queryForObject(
+                        "SELECT count(*) FROM daily_games WHERE user_id=?",
+                        Integer.class,
+                        user.getId()));
+        assertEquals(
+                1,
+                db.queryForObject(
+                        "SELECT count(*) FROM scores WHERE user_id=?",
+                        Integer.class,
+                        user.getId()));
         http.perform(
                         post("/api/v1/account/delete")
                                 .header("Authorization", "Bearer " + token)
                                 .contentType("application/json")
                                 .content("{\"password\":\"original-password-123\"}"))
                 .andExpect(status().isOk());
-        assertEquals(0, users.count());
-        assertEquals(0, db.queryForObject("SELECT count(*) FROM account_tokens", Integer.class));
+        assertEquals(1, users.count());
+        assertTrue(users.findById(user.getId()).isEmpty());
+        assertTrue(users.findById(other.getId()).isPresent());
+        for (String table : List.of("daily_games", "scores", "account_tokens"))
+            assertEquals(
+                    0,
+                    db.queryForObject(
+                            "SELECT count(*) FROM " + table + " WHERE user_id=?",
+                            Integer.class,
+                            user.getId()));
+        assertEquals(
+                1,
+                db.queryForObject(
+                        "SELECT count(*) FROM account_tokens WHERE user_id=?",
+                        Integer.class,
+                        other.getId()));
+        assertEquals(
+                otherGames,
+                db.queryForList("SELECT * FROM daily_games WHERE user_id=?", other.getId()));
+        assertEquals(puzzles, db.queryForList("SELECT * FROM daily_puzzles ORDER BY id"));
+        assertEquals(
+                0,
+                db.queryForObject(
+                        "SELECT count(*) FROM security_audit WHERE actor_id=? OR target_id=?",
+                        Integer.class,
+                        user.getId(),
+                        user.getId()));
+        assertEquals(
+                1,
+                db.queryForObject(
+                        "SELECT count(*) FROM security_audit WHERE actor_id=? AND target_id IS"
+                                + " NULL",
+                        Integer.class,
+                        other.getId()));
+        assertEquals(
+                1,
+                db.queryForObject(
+                        "SELECT count(*) FROM security_audit WHERE target_id=? AND actor_id IS"
+                                + " NULL",
+                        Integer.class,
+                        other.getId()));
         assertNull(
                 db.queryForMap("SELECT actor_id FROM security_audit WHERE action='ACCOUNT_DELETED'")
                         .get("actor_id"));
+        assertNull(
+                db.queryForMap(
+                                "SELECT target_id FROM security_audit WHERE"
+                                        + " action='ACCOUNT_DELETED'")
+                        .get("target_id"));
+        http.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+        String otherToken = jwt.generateToken(other.getId(), other.getUsername(), "USER");
+        http.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk());
+    }
+
+    private void seedDeletionHistory() {
+        db.update(
+                "UPDATE users SET avatar=?,avatar_content_type='image/png',avatar_size=? WHERE"
+                        + " id=?",
+                AVATAR_FIXTURE,
+                AVATAR_FIXTURE.length,
+                user.getId());
+        var completed = games.start(user.getId(), "en");
+        String answer =
+                db.queryForObject(
+                        "SELECT p.answer FROM daily_puzzles p JOIN daily_games g ON"
+                                + " g.puzzle_id=p.id WHERE g.id=?",
+                        String.class,
+                        completed.id());
+        assertEquals("won", games.guess(user.getId(), completed.id(), answer, 1).status());
+        games.start(user.getId(), "tr");
+        accounts.requestVerification(user.getId());
+    }
+
+    @Test
+    void failedDeletionRollsBackUserChildrenAndAudit() {
+        seedDeletionHistory();
+        var beforeGames = db.queryForList("SELECT * FROM daily_games ORDER BY id");
+        var beforeScores = db.queryForList("SELECT * FROM scores ORDER BY id");
+        var beforeTokens = db.queryForList("SELECT * FROM account_tokens ORDER BY token_hash");
+        var beforeAudit = db.queryForList("SELECT * FROM security_audit ORDER BY id");
+        db.execute("CREATE TABLE deletion_failure_fixture(user_id BIGINT REFERENCES users(id))");
+        try {
+            db.update("INSERT INTO deletion_failure_fixture VALUES (?)", user.getId());
+            assertThrows(
+                    org.springframework.dao.DataIntegrityViolationException.class,
+                    () -> accounts.delete(user.getId(), "original-password-123"));
+            assertTrue(users.findById(user.getId()).isPresent());
+            assertArrayEquals(
+                    AVATAR_FIXTURE,
+                    db.queryForObject(
+                            "SELECT avatar FROM users WHERE id=?", byte[].class, user.getId()));
+            assertEquals(beforeGames, db.queryForList("SELECT * FROM daily_games ORDER BY id"));
+            assertEquals(beforeScores, db.queryForList("SELECT * FROM scores ORDER BY id"));
+            assertEquals(
+                    beforeTokens,
+                    db.queryForList("SELECT * FROM account_tokens ORDER BY token_hash"));
+            assertEquals(beforeAudit, db.queryForList("SELECT * FROM security_audit ORDER BY id"));
+        } finally {
+            db.execute("DROP TABLE deletion_failure_fixture");
+        }
     }
 
     @Test

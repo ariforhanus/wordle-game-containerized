@@ -20,12 +20,14 @@ Bu maddeler geliştirme sırasında izlenir; production çıkışı tamamı doğ
 
 - [ ] Açığa çıkmış canlı veritabanı, yönetici ve JWT kimlik bilgilerini yetkili production ortamında döndür; eski bilgilerin artık çalışmadığını doğrula.
 - [ ] GitHub runner sorununu çöz ve backend/frontend/E2E/security işlerinin gerçekten çalışıp geçtiğini doğrula. Son gözlenen uzak koşu hiçbir adım başlamadan başarısız oldu.
+  Kullanıcı Jenkins kurulumunu daha sonra kendisinin ele alacağını belirtti; bu tur CI/Jenkins yapılandırması değiştirilmedi. Çalışan ve başarılı CI koşusu yayın şartı olarak açık.
 - [ ] `.github/rulesets/main.json` kurallarını GitHub ayarlarında etkinleştir; PR incelemesi ve başarılı zorunlu kontroller olmadan main'e birleşmeyi engelle. Yönetim erişimi gerekir.
 - [ ] Gerçek production verisinin yetkili bir kopyasıyla migration/preflight ve rollback provasını tamamla; eski kayıtları silmeden uyumsuzlukları gider.
 - [ ] Alan adı, DNS ve HTTPS yapılandırmasını belirle ve doğrula.
 - [ ] Release imajlarını staging'de doğrula; high/critical imaj taramaları, Compose/health/readiness, Nginx ve migration sonuçlarını kaydet.
 - [ ] Production SMTP sağlayıcısı ve public URL'yi seç/yapılandır; gerçek sağlayıcıyla teslimat ve reset/doğrulama akışını doğrula. Sonra sıralı oyun için doğrulanmış e-posta şartını etkinleştir.
 - [ ] Production backup/restore ve monitoring'i devreye al; şifreli ortam dışı yedek, alarm alıcısı/log hedefi ve ölçülmüş kurtarma hedefleriyle geri yükleme provasını tamamla.
+- [ ] Gerçek yedek/provider saklama sürelerini ve iletişim yolunu belirle/yayımla; geri yüklenen DB'den bağımsız silme kayıt defteri sürecini kur, eski talepleri eşleştirme ve mail token/session iptalini yetkili restore provasında doğrula. Hazırlanan runbook `docs/DATA_RETENTION.md`; otomatik dış journal ihracı henüz yok.
 
 ## P1.1 — Leaderboard kuralları
 
@@ -92,7 +94,7 @@ Kullanıcı kararı: **yeni dil ekleme kapsam dışı**. Aşağıdaki dil/sözl�
 
 Production'ı engelleyen uygulama/aktivasyon işleri P0.2'de; burası ek politika ve ölçek gereksinimleridir.
 
-- [ ] Hesap silme ve veri saklama politikasını kullanıcıya açıkla: bağlı kayıtlar, anonimleşen audit kayıtları, yedeklerin saklama süresi ve geri yükleme sonrası silme taleplerinin tekrar uygulanması.
+- [x] Hesap silme/saklama davranışını EN/TR onay ekranında açıkla; aktif veri, bağlantısı kaldırılmış audit, geçici güvenlik kayıtları ve yedek sınırlarını ayır. Silme cascade/rollback/diğer kullanıcı izolasyonu, Clock tabanlı temizlik sınırları ve gerçek yedek mtime davranışı test edildi. Restore sonrası talepleri tekrar uygulama ve token iptali runbook'u hazır; gerçek süre/journal aktivasyonu P0.2'de açık.
 - [ ] Bot ve çoklu hesap suistimali için yarışma politikasını ve ek sinyalleri değerlendir; mevcut doğrulanmış e-posta/hesap-IP limitlerini koru. Güvenilir proxy/client-IP yapılandırmasını gerçek ingress için doğrula.
 - [ ] SMTP teslimat gecikmesi, timing farkları, retry ve transaction etkileri için dayanıklı mail outbox ihtiyacını değerlendir; gerçek sağlayıcı arızalarını staging'de test et.
 - [ ] Production büyüklüğünde staging kapasite testleri, yedek geri dönüş tatbikatı, alarm teslimatı ve release/rollback provalarını düzenli işlet. Yerel smoke testini kapasite garantisi olarak sunma.

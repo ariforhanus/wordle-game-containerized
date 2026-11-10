@@ -31,6 +31,13 @@ password when its length is invalid. Inputs/selects have visible focus outlines;
 account links use contrasting light/dark colors. Browser checks cover account
 security and recovery forms with scoped Axe in both themes.
 
+Deletion consent now references the active-data warning and security/backup
+retention notices via aria-describedby, in both real EN/TR translations. Notices
+are inside the native expandable section and precede the confirmation/password
+submission. Actual Chromium/mobile Chromium/Firefox checks expand it, inspect
+the accessible description and scan the account card in both themes before
+executing deletion; a wrong password preserves the account for explicit retry.
+
 Themed play now labels loading, validates/deduplicates the existing static word
 list, and offers an explicit retry for failed/empty data instead of a dead board.
 The existing English keyboard remains English even with Turkish UI. A repeated

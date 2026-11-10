@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -142,6 +143,46 @@ class BackupFailures(unittest.TestCase):
     def test_checksum_tool_failure_keeps_last_success(self):
         self.command("sha256sum", "exit 1")
         self.assertNotEqual(self.run_script("backup.sh").returncode, 0)
+        self.assertEqual(self.marker.read_text(), "previous-success")
+
+    def test_retention_uses_whole_days_and_only_top_level_reserved_files(self):
+        # Real find/mtime behavior; half-day margins avoid a clock-boundary race.
+        now = time.time()
+        nested = self.backups / "nested"
+        nested.mkdir()
+        cases = [
+            (self.backups / "wordle-recent.dump", 14.5, True),
+            (self.backups / "wordle-expired.dump", 15.5, False),
+            (self.backups / "unrelated.dump", 30, True),
+            (nested / "wordle-nested.dump", 30, True),
+            (self.root / "wordle-outside.dump", 30, True),
+        ]
+        for path, age, _ in cases:
+            for file in (path, Path(str(path) + ".sha256")):
+                file.write_text("retention fixture")
+                stamp = now - age * 86400
+                os.utime(file, (stamp, stamp))
+        result = self.run_script("backup.sh", BACKUP_RETENTION_DAYS="14")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for path, _, retained in cases:
+            self.assertEqual(path.exists(), retained, str(path))
+            self.assertEqual(Path(str(path) + ".sha256").exists(), retained)
+        published = [
+            p
+            for p in self.backups.glob("wordle-*.dump")
+            if p.name != "wordle-recent.dump"
+        ]
+        self.assertEqual(len(published), 1)
+        for file in (published[0], Path(str(published[0]) + ".sha256")):
+            self.assertEqual(file.stat().st_mode & 0o777, 0o600)
+
+    def test_failed_backup_defers_retention_cleanup(self):
+        old = self.archive()
+        stamp = time.time() - 30 * 86400
+        os.utime(old, (stamp, stamp))
+        result = self.run_script("backup.sh", BACKUP_RETENTION_DAYS="14", DUMP_FAIL="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertTrue(old.exists())
         self.assertEqual(self.marker.read_text(), "previous-success")
 
 

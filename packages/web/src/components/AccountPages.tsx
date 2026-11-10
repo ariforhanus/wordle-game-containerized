@@ -259,7 +259,11 @@ export function AccountSecurityPage() {
                 void action(() => authApi.deleteAccount(deletePassword), true);
             }}
           >
-            <p>{t("account.deleteWarning")}</p>
+            <p id="delete-warning">{t("account.deleteWarning")}</p>
+            <ul id="delete-retention" className="deletion-retention">
+              <li>{t("account.deleteSecurityRetention")}</li>
+              <li>{t("account.deleteBackupRetention")}</li>
+            </ul>
             <label htmlFor="delete-password">
               {t("account.currentPassword")}
             </label>
@@ -275,6 +279,7 @@ export function AccountSecurityPage() {
               <input
                 type="checkbox"
                 required
+                aria-describedby="delete-warning delete-retention"
                 checked={agree}
                 onChange={(e) => setAgree(e.target.checked)}
               />
