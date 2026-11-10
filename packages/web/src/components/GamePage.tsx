@@ -7,6 +7,7 @@ import { useToast } from "./Toast";
 import { usePageTitleKey } from "../hooks/usePageTitle";
 import { buildShareText, copyToClipboard } from "../utils/shareResult";
 import { TOAST_DURATION_LONG } from "../constants";
+import GameModeInfo from "./GameModeInfo";
 import Confetti from "./Confetti";
 import HowToPlayModal from "./HowToPlayModal";
 import Board from "./Board";
@@ -203,6 +204,7 @@ export default function GamePage() {
 
   return (
     <div className="game-page">
+      <GameModeInfo />
       <Confetti active={showConfetti} />
       <HowToPlayModal
         forceOpen={showHowToPlay}

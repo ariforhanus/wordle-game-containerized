@@ -27,7 +27,13 @@
     "themes": "Temalar",
     "backToGame": "Ana sayfaya dön",
     "switchLang": "EN",
-    "menu": "Menü"
+    "menu": "Menü",
+    "language": "Dil"
+  },
+  "modes": {
+    "compare": "Günlük oyun mu, serbest oyun mu?",
+    "daily": "Her dilde günde bir sıralamalı oyun. Başlat ile süre başlar ve sen yokken de devam eder. Oyun zaman diliminde gece yarısından önce bitirmelisin. Başlamak ve tahmin göndermek için bağlantı gerekir.",
+    "practice": "Sıralama süresi veya liderlik tablosu puanı olmadan sınırsız serbest oyun. Uygulama ve kelime listeleri çevrimiçi yüklendikten sonra önbellekteki serbest oyun çevrimdışı çalışabilir; ilk ziyaret bağlantı gerektirir."
   },
   "game": {
     "congrats": "Tebrikler!",

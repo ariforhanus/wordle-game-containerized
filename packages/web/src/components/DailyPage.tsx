@@ -15,6 +15,7 @@ import Board from "./Board";
 import Keyboard from "./Keyboard";
 import Confetti from "./Confetti";
 import DailyResultStats from "./DailyResultStats";
+import GameModeInfo from "./GameModeInfo";
 import DailyCountdown from "./DailyCountdown";
 import { buildShareText, copyToClipboard } from "../utils/shareResult";
 import "./GamePage.css";
@@ -234,6 +235,7 @@ export default function DailyPage() {
             )}
           </h1>
           <p>{t("daily.desc")}</p>
+          <GameModeInfo />
           {lookup === "loading" && <p role="status">{t("daily.loading")}</p>}
           {dayChanged && <p role="status">{t("daily.dayChanged")}</p>}
           {lookup === "ready" && available && (
@@ -311,6 +313,7 @@ export default function DailyPage() {
     .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
   return (
     <div className="game-page">
+      <GameModeInfo />
       <Confetti active={game.status === "won"} />
       <p>{game.date}</p>
       <p>{t("daily.rolloverRule")}</p>

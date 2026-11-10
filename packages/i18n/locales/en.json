@@ -27,7 +27,13 @@
     "themes": "Themes",
     "backToGame": "Back to game",
     "switchLang": "TR",
-    "menu": "Menu"
+    "menu": "Menu",
+    "language": "Language"
+  },
+  "modes": {
+    "compare": "Daily or practice?",
+    "daily": "One ranked game per language each day. Start begins the timer, which keeps running while you are away. Finish before midnight in the game time zone. A connection is required to start and submit guesses.",
+    "practice": "Unlimited practice rounds without a ranked timer or leaderboard points. After the app and word lists have loaded online, cached practice can work offline; the first visit needs a connection."
   },
   "game": {
     "congrats": "Congratulations!",

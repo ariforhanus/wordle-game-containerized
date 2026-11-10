@@ -1060,3 +1060,37 @@ test.describe("daily result countdown", () => {
     expect(starts).toBe(0);
   });
 });
+
+test("native language names persist and mode rules explain daily versus practice", async ({ page }, testInfo) => {
+  await page.goto("/game");
+  const mobile = (page.viewportSize()?.width ?? 1280) <= 640;
+  if (mobile) await page.getByRole("button", { name: "Menu", exact: true }).click();
+  const language = page.locator(mobile ? "#mobile-nav-menu .language-select" : ".desktop-actions .language-select");
+  await expect(language).toBeVisible();
+  await expect(language.locator("option")).toHaveText(["English", "Türkçe"]);
+  await language.selectOption("tr");
+  expect(await page.evaluate(() => localStorage.getItem("wordle_lang"))).toBe("tr");
+  if (mobile) await expect(page.getByRole("button", { name: "Menü", exact: true })).toHaveAttribute("aria-expanded", "false");
+  const comparison = page.locator(".game-mode-info");
+  await comparison.locator("summary").click();
+  await expect(comparison).toContainText("Her dilde günde bir sıralamalı oyun");
+  await expect(comparison).toContainText("ilk ziyaret bağlantı gerektirir");
+  await page.reload();
+  await expect(page.locator(".desktop-actions .language-select")).toHaveValue("tr");
+  await page.locator(".game-mode-info summary").click();
+  await page.screenshot({ path: testInfo.outputPath("language-mode-info.png"), fullPage: true, animations: "disabled" });
+  if (mobile) {
+    await page.getByRole("button", { name: "Menü", exact: true }).click();
+    await expect(language).toBeVisible();
+    await expect(language).toHaveValue("tr");
+    await page.screenshot({ path: testInfo.outputPath("language-mobile-menu.png"), fullPage: true, animations: "disabled" });
+    await language.selectOption("en");
+  } else await language.selectOption("en");
+  await expect(page.locator(".game-mode-info summary")).toHaveText("Daily or practice?");
+  await register(page);
+  await page.goto("/daily");
+  await page.locator(".game-mode-info summary").click();
+  await expect(page.locator(".game-mode-info")).toContainText("A connection is required to start and submit guesses");
+  await expect(page.getByRole("button", { name: "Start today's game", exact: true })).toBeEnabled();
+  await expect(page.locator(".board")).toHaveCount(0);
+});
