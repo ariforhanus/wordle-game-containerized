@@ -48,6 +48,105 @@ class SecurityAndGameIntegrationTest {
     User user;
     String token;
 
+    @Test
+    void renamedUsernameKeepsOldJwtBoundToItsImmutableOwnerEvenWhenNameIsReused() throws Exception {
+        var game = startApple();
+        String originalName = user.getUsername();
+        String renamed = "renamed_player";
+        http.perform(
+                        post("/api/v1/auth/profile")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType("application/json")
+                                .content(
+                                        json.writeValueAsString(
+                                                java.util.Map.of("username", renamed))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value(renamed));
+        assertEquals(originalName, jwt.extractUsername(token)); // informational issuance snapshot
+        assertEquals(user.getId(), jwt.extractUserId(token));
+
+        var replacement = new User();
+        replacement.setUsername(originalName);
+        replacement.setEmail("replacement@example.test");
+        replacement.setPasswordHash(encoder.encode("different-owner-password"));
+        replacement.setCreatedAt(clock.instant());
+        users.save(replacement);
+        http.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value(renamed))
+                .andExpect(jsonPath("$.email").value(user.getEmail()));
+        http.perform(
+                        get("/api/v1/daily/games/" + game.id())
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(game.id()));
+        http.perform(
+                        post("/api/v1/auth/login")
+                                .contentType("application/json")
+                                .content(
+                                        json.writeValueAsString(
+                                                java.util.Map.of(
+                                                        "username",
+                                                        originalName,
+                                                        "password",
+                                                        "a-long-test-password"))))
+                .andExpect(status().isUnauthorized());
+        var signedIn =
+                http.perform(
+                                post("/api/v1/auth/login")
+                                        .contentType("application/json")
+                                        .content(
+                                                json.writeValueAsString(
+                                                        java.util.Map.of(
+                                                                "username",
+                                                                renamed,
+                                                                "password",
+                                                                "a-long-test-password"))))
+                        .andExpect(status().isOk())
+                        .andReturn();
+        String newToken =
+                json.readTree(signedIn.getResponse().getContentAsString()).get("token").asText();
+        assertEquals(renamed, jwt.extractUsername(newToken));
+        assertEquals(user.getId(), jwt.extractUserId(newToken));
+        http.perform(post("/api/v1/account/logout-all").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+        for (String session : java.util.List.of(token, newToken)) {
+            http.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + session))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Test
+    void adminRenameUsesTheCurrentDatabasePrincipalForAuthorizationAndAudit() throws Exception {
+        user.setRole("ADMIN");
+        users.save(user);
+        String session = jwt.generateToken(user.getId(), user.getUsername(), "ADMIN");
+        http.perform(
+                        post("/api/v1/auth/profile")
+                                .header("Authorization", "Bearer " + session)
+                                .contentType("application/json")
+                                .content("{\"username\":\"renamed_admin\"}"))
+                .andExpect(status().isOk());
+        var target = new User();
+        target.setUsername("target_player");
+        target.setEmail("target@example.test");
+        target.setPasswordHash("unused");
+        target.setCreatedAt(clock.instant());
+        target = users.save(target);
+        http.perform(
+                        put("/api/v1/admin/users/" + target.getId() + "/role")
+                                .header("Authorization", "Bearer " + session)
+                                .contentType("application/json")
+                                .content("{\"role\":\"ADMIN\"}"))
+                .andExpect(status().isOk());
+        assertEquals(
+                user.getId(),
+                db.queryForObject(
+                        "SELECT actor_id FROM security_audit WHERE action='ADMIN_ROLE_ADMIN'",
+                        Long.class));
+        assertEquals("ADMIN", users.findById(target.getId()).orElseThrow().getRole());
+    }
+
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.ValueSource(strings = {"role", "delete"})
     void adminMutationsLockActorBeforeHigherIdTarget(String operation) throws Exception {
@@ -94,7 +193,7 @@ class SecurityAndGameIntegrationTest {
                             Boolean.TRUE.equals(
                                     db.queryForObject(
                                             "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE ?"
-                                                + " = ANY(pg_blocking_pids(pid)))",
+                                                    + " = ANY(pg_blocking_pids(pid)))",
                                             Boolean.class,
                                             blockerId));
                     if (waiting) break;

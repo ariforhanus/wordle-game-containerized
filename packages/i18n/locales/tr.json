@@ -71,6 +71,7 @@
     "hardModeLocked": "Modlar sadece oyun başında değiştirilebilir",
     "hardModeCorrect": "{{pos}}. harf {{letter}} olmalı",
     "hardModePresent": "Tahmin {{letter}} harfini içermeli",
+    "hardModeCount": "Tahmin en az {{count}} tane {{letter}} içermeli",
     "blindMode": "Kör",
     "blindModeOn": "Kör Mod AÇIK",
     "blindModeOff": "Kör Mod KAPALI",

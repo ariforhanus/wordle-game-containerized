@@ -48,7 +48,8 @@ export function isAuthenticated(): boolean {
   } catch { return false; }
 }
 
-/** Read the display username claim; authorization always belongs to the server. */
+/** Issuance-time display snapshot. Read getMe() for the current username after a
+ * rename; authorization always belongs to the server's immutable user ID. */
 export function getTokenUsername(): string | null {
   const token = getToken();
   if (!token) return null;

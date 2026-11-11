@@ -71,6 +71,7 @@
     "hardModeLocked": "Modes can only be changed at the start of a game",
     "hardModeCorrect": "{{pos}}. letter must be {{letter}}",
     "hardModePresent": "Guess must contain {{letter}}",
+    "hardModeCount": "Guess must contain at least {{count}} copies of {{letter}}",
     "blindMode": "Blind",
     "blindModeOn": "Blind Mode ON",
     "blindModeOff": "Blind Mode OFF",

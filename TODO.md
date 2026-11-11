@@ -4,6 +4,16 @@ Bu liste `fix/security-game-integrity` dalının mevcut kodu ve `VALIDATION.md` 
 
 Önerilen geliştirme sırası: **süre adaleti → toplam puan sıralaması → dil bazlı streak → veri modeli/performans → günlük oyun UX/erişilebilirlik → mevcut dillerin kelime rotasyonu → hesap/operasyon politikaları**. Kullanıcının son kararıyla yeni dil ekleme ertelendi. CI ve yayın güvenliği engelleri bu sıraya paralel çözülür ve production çıkışını engeller. Yerel uygulama/test adımları ile dış ortamda gereken doğrulamaları ayrı izliyoruz.
 
+## Son odaklı PR inceleme düzeltmeleri — 2026-11-11
+
+Bu tur yalnızca A–D inceleme bulguları ve yakın entegrasyonları kapsar. CI bütçesi/runner araştırması talep dışıdır; aşağıdaki eski altyapı kapıları bu tur uygulama hatası olarak değerlendirilmez.
+
+- [x] **A:** Practice kelime/sözlük yanıtlarını aynı request generation ile sınırla; eski success/error/finally yanıtlarını, dil/round değişimini ve unmount'u koru. Seçili dilde offline fallback/retry ve aynı cevapla yeni tur test edildi.
+- [x] **B:** useGame submit ve mode toggle yan etkilerini state updater dışına taşı; Strict Mode tekil callback/bildirim, timer reset/unmount temizliği ve fiziksel klavye dil değişimini test et.
+- [x] **C:** Hard Mode'da yeşil/sarı kopyalardan öğrenilen minimum harf sayısını uygula; satırlar arasında maksimumu al, grileri sayma. Mevcut konum kurallarını koru; EN/TR regresyonları eklendi.
+- [x] **D:** Rename/JWT yetki/UI hatası yeniden üretilemedi. Immutable ID, DB'den güncel principal/rol/authVersion ve getMe akışı korunuyor; iki gerçek DB/HTTP testi eski adın tekrar kullanımını, audit ve oturum iptalini doğruladı. Token yenileme/ek davranış eklenmedi.
+- [x] Tam backend 267, frontend 134 ve build/worker 8 geçti. Güncel hedefli E2E sonucu ve tam komutlar VALIDATION.md'de; eski geniş koşular bu tur yeniden çalışmış sayılmaz.
+
 ## Son teknik kabul — 2026-11-11
 
 Kapsam: kalan hesap/tema erişilebilirliği, yerel teknik doğrulama ve `fix/security-game-integrity` dalının tamamının son incelemesi. Yeni dil, tanım, tema, mobil uygulama veya mikroservis eklenmez. PR hedefi **develop**; main'e otomatik merge ve deploy yapılmaz. Production çalışmaları kullanıcı kararıyla **ertelendi**; aşağıdaki açık altyapı işleri tamamlanmış sayılmaz.

@@ -1,6 +1,88 @@
 # Validation of the readiness changes
 
-## Latest checkpoint — final branch acceptance, 2026-11-11
+## Latest checkpoint — focused PR review remediation, 2026-11-11
+
+Scope: existing PR #1, `fix/security-game-integrity` → `develop`, following checkpoint
+`b368508`. This pass addresses only the four reported findings and nearby integration.
+No merge, deployment, dependency upgrade, SQL migration, secret/production-infrastructure
+change or CI billing/runner investigation was performed.
+
+| Finding | Status / root cause / correction |
+| --- | --- |
+| A — stale practice responses (Medium) | **Fixed.** Independent unguarded word/dictionary requests let older language/round results overwrite newer data; stale catch/finally handlers could notify or end loading. `GamePage.tsx:18` and `:87` now load one selected-language dictionary and word under one request generation, checked before success/error/finally updates, invalidated on replacement/unmount. Offline selection and validation use the same dictionary; a missing Turkish list cannot silently create an English game. Current failures show explicit retry; identical next answers reset the round. |
+| B — updater side effects (Medium) | **Fixed.** Strict Mode replay duplicated work scheduled inside submit's functional updater; unowned timers survived resets/unmount. `useGame.ts:89` serializes handlers against the latest requested state and passes state values to React. Notifications/timers run outside updaters; committed callback refs avoid obsolete closures; owned shake/terminal timers are replaced or canceled on reset, language/answer change and unmount. The physical keyboard also refreshes its language when status remains playing. Nearby hard/blind toggle storage/toasts were moved out of state updaters (`GamePage.tsx:133`). Hook return/setState/reset API and gameplay timing/attempt rules are retained. |
+| C — repeated Hard Mode letters (Low) | **Fixed.** includes(letter) accepted one occurrence even after multiple colored copies. `useGame.ts:35` takes the maximum colored count per letter across prior rows, counts green/yellow copies only, and enforces that minimum. Green positions and the existing yellow-anywhere rule remain; no new yellow-position ban or gray-derived maximum is introduced. Existing EN/TR messages gain hardModeCount. |
+| D — rename/JWT consistency (Low) | **Not reproducible as an authorization or visible-UI defect.** JWT subject is immutable user ID; SecurityConfig reads current username, role and authVersion from DB on every request. AuthController profile/me use that ID. Profile/leaderboard read getMe/current DB names; the issuance-snapshot helper has no production web caller. Two new real-PostgreSQL HTTP regressions prove old-token owner isolation even after reuse of the old username, current profile/login, admin principal/audit and session revocation. Only the helper's snapshot semantics were documented (`packages/api/src/client.ts:51`); no token refresh, TTL extension, claim trust or authentication relaxation was added. |
+
+Regression proof: the initial hook suite failed **8 of 10** against the old hook,
+and all **5 initial practice race tests** failed before the loader correction.
+The final additions total **23 frontend tests** (12 hook + 11 component cases),
+**2 backend HTTP tests** and **3 E2E scenarios** run in desktop/mobile Chromium.
+Tests cover out-of-order success/failure/dictionaries, same-language overlapping
+Play Again, language switches, unmount, fallback/retry, same-answer rounds, Strict
+Mode callbacks/toasts, timer cleanup, batched typing, mixed duplicate feedback,
+max-not-sum counting, gray duplicates and dotted/dotless Turkish I.
+
+| Current command / actual execution | Verified result |
+| --- | --- |
+| `JAVA_HOME=/workspace/work/tools/jdk21 MAVEN_OPTS=-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts /workspace/work/tools/apache-maven-3.9.11/bin/mvn -B -s /workspace/work/maven-settings.xml -Dmaven.repo.local=/workspace/work/m2 -f backend/pom.xml verify` | **267 passed**, zero failures/errors/skips; real owned PostgreSQL, all backend/security/integration/race/migration/TLS cases; build passed |
+| `npm run test:coverage -w @wordle/web` | **134 passed**, 27 files; no unhandled errors |
+| `npm run test:production -w @wordle/web` | TypeScript `tsc -b`, release Vite build and **8 built-worker tests passed** |
+| Final targeted Playwright command below | **18 passed**, zero failures/skips; 6 new regression + 12 nearby/header/offline scenarios on desktop/mobile Chromium |
+| `npm run test -w @wordle/web -- src/hooks/useGameReview.test.tsx src/components/GamePageRace.test.tsx` | **23 passed** on restored workspace before publication |
+| `node_modules/.bin/tsc --project /workspace/work/pr-remediation/tsconfig.review.json --noEmit` | Passed on restored workspace; one-off strict config includes the 3 new test files and vite-env, clears normal test exclusion; not a full pre-existing-test type check |
+| `git diff --check` | Passed |
+| Lint | No lint script/config is configured in the repository. No ESLint/Biome result is claimed or new linter introduced. |
+
+The final targeted browser invocation uses the existing private runtime harness
+with release assets served through the unchanged production Nginx configuration:
+
+```sh
+E2E_PRODUCTION=true FIXTURE_E2E_BASE_URL=http://localhost:18080 \
+python3 /workspace/work/final-review/run-browser.py remediation-final-e2e.log \
+  practice-review.spec.ts game.spec.ts \
+  --grep 'late English practice|same-answer Play Again|hard mode rejects|production Nginx|production offline practice|native language names|feedback has symbols|small, landscape|themed word failures' \
+  --project=chromium --project=mobile-chromium --trace off
+```
+
+The harness invokes `npm run e2e -w @wordle/web -- ...` with E2E_BASE_URL and
+CHROMIUM_PATH=/usr/bin/chromium. It supplies only private local fixture settings,
+not root .env or production secrets. New response-ordering scenarios block the
+service worker explicitly for interception; separate real worker tests keep it
+enabled and check offline practice/API cache exclusion. Nearby scenarios cover
+native language persistence, reduced motion/feedback, help/result focus, small/
+landscape layouts and themed retry/same-answer rounds. No engine security flags
+were disabled. No Firefox/WebKit/full four-project rerun is claimed in this pass.
+
+An initial nearby invocation through Vite Preview returned **8 passed / 2 offline
+failures**: cached JS/CSS could not be loaded offline, before application code ran.
+Preview emits Vary: Origin for assets, which affects Cache API matching for module
+requests. No SW/Preview workaround was added. Both offline cases and security-header
+cases then **passed through actual Nginx** (4 passed); the final combined run above
+uses that production serving contract. This fixture failure is not hidden or
+counted as a successful Preview offline test.
+
+Coverage: JaCoCo **82.73% lines / 70.79% branches**; frontend V8 **76.64% lines /
+72.06% branches**. These exclude browser execution. Dependencies, JWT/server
+behavior, endpoint shapes, migrations, word lists/themes and CI configuration
+remain unchanged. Historical test/security/container-image counts below belong
+to earlier checkpoints and are not presented as newly executed checks.
+
+**Remaining code-level blockers:** none known after the focused corrections and
+local regression checks. **Recommendation: READY FOR REVIEW.** The existing PR
+continues targeting develop; no duplicate PR, automatic merge or deployment.
+Hosted CI billing/spending/runner availability is explicitly outside this request;
+no troubleshooting, budget request or application-defect inference was made.
+
+Publication retry after the workspace connection returned: original changes/logs were retained. The 23-case focused suite, separate test-file type check, release build/8 worker tests and whitespace checks were rerun successfully; the full 267/134 and 18 E2E results above are the earlier actually executed runs, not claimed as rerun in this retry. Retry logs: `/workspace/work/pr-remediation/{retry-regression,retry-test-types,retry-build}.log`.
+
+Raw current logs: `/workspace/work/pr-remediation/{hook-before,practice-before,regression-final,backend,frontend-final,build-final,offline-diagnosis}.log` and
+`/workspace/work/final-review/{remediation-e2e,remediation-nearby-e2e,remediation-offline-nginx,remediation-final-e2e}.log`.
+The earlier focused regression command logged 20 passing cases before three further
+fallback/dictionary cases were added; the full 134-case run includes all 23 new tests.
+
+
+## Previous checkpoint — final branch acceptance, 2026-11-11
 
 | Check actually executed | Result |
 | --- | --- |
