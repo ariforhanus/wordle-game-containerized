@@ -1,5 +1,63 @@
 # Validation of the readiness changes
 
+## Latest checkpoint — curated offline practice answers, 2026-11-11
+
+Post-merge scope: `fix/offline-curated-answers` starts from `develop@7d70f57`
+after PR #1. Only offline practice answer selection, its public assets, and
+regression coverage change. Backend code, daily games, accepted-guess lists,
+dependencies, languages, definitions and themes are unchanged.
+
+Fallback now loads `/words_<lang>.txt` only when the practice API fails or returns
+an unusable answer. Entries are trimmed, uppercased using the selected locale,
+filtered to valid five-letter words, and deduplicated before random selection.
+Guess validation still uses `/words_<lang>_possible.txt`; the selected answer is
+also included so it remains solvable across dictionary versions. A missing,
+unreachable, empty or wholly invalid answer file displays the existing retry
+screen, never selects from the guess pool, and never switches languages. A valid
+online answer does not request or depend on the offline answer file. Request
+generation checks also cover the new asynchronous fallback load.
+
+The new public EN/TR answer files are exact copies of the existing backend answer
+files (2,315 / 4,583 entries); no words were added or edited. The release worker
+precaches both. When answer lists change, update these copies too: production
+artifact tests compare their bytes with the backend sources. General content-only
+cache versioning, source/provenance work and a generated content pipeline remain
+separate audit follow-ups, not implementations in this PR.
+
+| Command / actual execution | Result |
+| --- | --- |
+| `npm run test -w @wordle/web -- src/components/GamePageRace.test.tsx` | **24 passed**, including 13 new cases for EN/TR pool separation, Turkish casing, normalized duplicates, missing/empty/malformed/unreachable answers, retry, online independence and stale fallback completion |
+| `npm run test:coverage -w @wordle/web` | **147 passed**, 27 files; no failures; V8 lines **76.70%**, branches **72.24%** |
+| `npm run test:production -w @wordle/web` | TypeScript `tsc -b`, release build and **12 built-worker/artifact tests passed**, including exact EN/TR backend pool equivalence and cached answer-file responses |
+| `node_modules/.bin/tsc --project /workspace/work/premerge-smoke/offline-types.json --noEmit` | Passed; task-local strict config extends web tsconfig, includes all four changed test files and vite-env, clears test exclusions and explicitly resolves root Node types |
+| Targeted Playwright command below | **20 passed**, no skips/failures, desktop and mobile Chromium; **8 executions of new scenarios** |
+| `git diff --check` and source/public file byte comparisons | Passed |
+
+```sh
+E2E_PRODUCTION=true FIXTURE_E2E_BASE_URL=http://localhost:18080 \
+python3 /workspace/work/final-review/run-browser.py offline-curated-e2e.log \
+  practice-review.spec.ts game.spec.ts \
+  --grep 'unavailable API uses only curated|late English practice|same-answer Play Again|hard mode rejects|production offline practice|production Nginx|daily visits, reloads' \
+  --project=chromium --project=mobile-chromium --trace off
+```
+
+The runner invokes the repository's `npm run e2e -w @wordle/web` with
+`E2E_BASE_URL=http://localhost:18080` and `CHROMIUM_PATH=/usr/bin/chromium`.
+The two new fixture scenarios abort the API and supply separate answer/guess
+lists to verify normalization, deduplication and acceptance of guess-only words.
+The two new production scenarios use the actual release worker and word files
+through Nginx, switch the browser offline, reload, then win with the deterministic
+first curated answer. They use no response interception. Existing online practice,
+language-race, Hard Mode, daily timer, headers and API-cache exclusion checks also
+pass. These are automated browser tests, not physical-device/manual verification.
+
+An initial extra test-typecheck config could not resolve Node types from its
+task-local directory; explicitly resolving repository Node types corrected that
+check without changing application config. Backend suites were not rerun because
+no backend source or resources changed; the isolated existing backend JAR/DB was
+used for nearby browser checks. No full Firefox/WebKit run, hosted CI result,
+production validation, merge or deployment is claimed.
+
 ## Latest checkpoint — focused PR review remediation, 2026-11-11
 
 Scope: existing PR #1, `fix/security-game-integrity` → `develop`, following checkpoint

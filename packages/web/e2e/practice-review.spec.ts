@@ -18,6 +18,27 @@ async function guess(page: Page, word: string) {
   await page.keyboard.press("Enter");
 }
 
+for (const fixture of [
+  { lang: "en", answers: " apple \nAPPLE\nrebut\n12345", word: "REBUT", guess: "cigar" },
+  { lang: "tr", answers: " kalem \nKALEM\nincir\n12345", word: "İNCİR", guess: "elmas" },
+]) {
+  test(`unavailable API uses only curated ${fixture.lang} answers and still accepts guess-only words`, async ({ page, context }) => {
+    await context.addInitScript(({ lang }) => {
+      localStorage.setItem("wordle_lang", lang);
+      Math.random = () => 0.5;
+    }, { lang: fixture.lang });
+    await page.route("**/api/v1/word/random?lang=*", route => route.abort("failed"));
+    await page.route(`**/words_${fixture.lang}_possible.txt`, route => route.fulfill({ contentType: "text/plain", body: fixture.guess }));
+    await page.route(`**/words_${fixture.lang}.txt`, route => route.fulfill({ contentType: "text/plain", body: fixture.answers }));
+    await page.goto("/game"); await expect(page.getByRole("grid")).toBeVisible();
+    await guess(page, fixture.guess);
+    await expect(page.locator(".board-row").first().locator(".cell-correct,.cell-present,.cell-absent").first()).toBeVisible();
+    for (const letter of fixture.word) await page.locator(".keyboard").getByRole("button", { name: letter, exact: true }).click();
+    await page.locator(".keyboard").getByRole("button", { name: "ENTER", exact: true }).click();
+    await expect(page.getByRole("dialog")).toContainText(fixture.word);
+  });
+}
+
 test("late English practice reply cannot replace a newer Turkish answer or hint", async ({ page }) => {
   let release!: () => void;
   const held = new Promise<void>(resolve => { release = resolve; });

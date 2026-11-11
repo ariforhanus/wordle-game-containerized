@@ -781,6 +781,33 @@ test("production offline practice keeps every API response out of caches", async
   ).toBe(true);
 });
 
+for (const lang of ["en", "tr"]) {
+  test(`production offline practice wins with the first curated ${lang} answer`, async ({ page, context }) => {
+    test.skip(!process.env.E2E_PRODUCTION, "Requires the release service worker and Nginx");
+    await context.addInitScript(({ lang }) => {
+      localStorage.setItem("wordle_lang", lang);
+      Math.random = () => 0;
+    }, { lang });
+    await page.goto("/game");
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+    await expect(page.getByRole("grid")).toBeVisible();
+    await context.setOffline(true);
+    await page.reload();
+    await expect(page.getByRole("grid")).toBeVisible();
+    // Read the actual cached artifact after going offline; no route interception.
+    const answer = await page.evaluate(async lang => {
+      const response = await fetch(`/words_${lang}.txt`);
+      if (!response.ok) throw new Error("Curated answer file is not cached");
+      return (await response.text()).split("\n").map(word => word.trim().toLocaleUpperCase(lang === "tr" ? "tr-TR" : "en-US"))
+        .find(word => (lang === "tr" ? /^[A-ZÇĞİÖŞÜ]{5}$/ : /^[A-Z]{5}$/).test(word));
+    }, lang);
+    expect(answer).toBeTruthy();
+    for (const letter of answer!) await page.locator(".keyboard").getByRole("button", { name: letter, exact: true }).click();
+    await page.locator(".keyboard").getByRole("button", { name: "ENTER", exact: true }).click();
+    await expect(page.getByRole("dialog")).toContainText(answer!);
+  });
+}
+
 test("completed daily games offer a read-only result instead of Start or Resume", async ({
   page,
   context,
