@@ -1,6 +1,6 @@
 package com.ariforhanus.wordle.dto;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
@@ -23,7 +23,7 @@ class ScoreRequestTest {
                 }
                 """;
 
-        var  mapper = new ObjectMapper();
+        var  mapper = tools.jackson.databind.json.JsonMapper.builder().build();
         ScoreRequest dto = mapper.readValue(json, ScoreRequest.class);
 
         assertEquals(1, dto.getAttempts());

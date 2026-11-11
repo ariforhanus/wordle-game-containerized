@@ -5,20 +5,17 @@ import com.ariforhanus.wordle.dto.LoginRequest;
 import com.ariforhanus.wordle.entity.User;
 import com.ariforhanus.wordle.jwt.JwtUtil;
 import com.ariforhanus.wordle.repository.UserRepository;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,40 +26,47 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500", "http://localhost", "http://localhost:80", "http://wordle-frontend"})
 public class AuthController {
 
     private final UserRepository users;
     private final PasswordEncoder encoder;
 
-    private final AuthenticationManager authManager;
+    private final String dummyPasswordHash;
     private final JwtUtil jwt;
+    private final java.time.Clock clock;
 
-    public AuthController(UserRepository users, PasswordEncoder encoder, AuthenticationManager authManager, JwtUtil jwt) {
+    public AuthController(
+            UserRepository users, PasswordEncoder encoder, JwtUtil jwt, java.time.Clock clock) {
         this.users = users;
         this.encoder = encoder;
-        this.authManager = authManager;
+        this.dummyPasswordHash = encoder.encode(java.util.UUID.randomUUID().toString());
         this.jwt = jwt;
+        this.clock = clock;
     }
 
     @Value("${jwt.expiration}")
     private long jwtExpMs;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody Map<String, String> request) {
-        String username = request.get("username");
-        String email = request.get("email");
-        String password = request.get("password");
+    public ResponseEntity<?> register(
+            @jakarta.validation.Valid @RequestBody
+                    com.ariforhanus.wordle.dto.RegisterRequest request) {
+        String username = request.username();
+        String email = request.email();
+        String password = request.password();
 
-        String firstName = request.get("firstName");
-        String lastName = request.get("lastName");
-        String nationality = request.get("nationality");
+        String firstName = request.firstName();
+        String lastName = request.lastName();
+        String nationality = request.nationality();
 
         Map<String, Object> response = new HashMap<>();
 
-        if(username == null || username.isBlank() ||
-                email == null || email.isBlank() ||
-                password == null || password.isBlank()) {
+        if (username == null
+                || username.isBlank()
+                || email == null
+                || email.isBlank()
+                || password == null
+                || password.isBlank()) {
             response.put("success", false);
             response.put("error", "required_fields");
             return ResponseEntity.badRequest().body(response);
@@ -81,7 +85,12 @@ public class AuthController {
             return ResponseEntity.badRequest().body(response);
         }
 
+        if (password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            return ResponseEntity.badRequest().body(Map.of("error", "password_too_long"));
+        }
+        email = email.trim().toLowerCase(java.util.Locale.ROOT);
         User u = new User();
+        u.setCreatedAt(clock.instant());
         u.setUsername(username);
         u.setEmail(email);
         u.setPasswordHash(encoder.encode(password));
@@ -98,7 +107,8 @@ public class AuthController {
 
         try {
             users.save(u);
-            String token = jwt.generateToken(u.getId(), u.getUsername(), u.getRole());
+            String token =
+                    jwt.generateToken(u.getId(), u.getUsername(), u.getRole(), u.getAuthVersion());
             response.put("success", true);
             response.put("token", token);
             response.put("expiresIn", jwtExpMs);
@@ -114,24 +124,25 @@ public class AuthController {
             path = "/login",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<JwtResponse> apiLogin(@RequestBody LoginRequest req){
-        try{
-            UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(req.getUsername(),req.getPassword());
-            authManager.authenticate(authToken);
-
-            var user = users.findByUsername(req.getUsername())
-                    .orElseThrow(() -> new UsernameNotFoundException("user_not_found"));
-            String token = jwt.generateToken(user.getId(), user.getUsername(), user.getRole());
-            return ResponseEntity.ok(new JwtResponse(token, jwtExpMs));
-
-        } catch (BadCredentialsException ex){
-            return ResponseEntity.status(401).build();
-        }
+    public ResponseEntity<JwtResponse> apiLogin(
+            @jakarta.validation.Valid @RequestBody LoginRequest req) {
+        // Authenticate and mint the token from the same user snapshot. A concurrent password
+        // reset must not let an old password acquire the new authentication version.
+        var user = users.findByUsername(req.getUsername()).orElse(null);
+        boolean matches =
+                encoder.matches(
+                        req.getPassword(),
+                        user == null ? dummyPasswordHash : user.getPasswordHash());
+        if (user == null || !matches) return ResponseEntity.status(401).build();
+        String token =
+                jwt.generateToken(
+                        user.getId(), user.getUsername(), user.getRole(), user.getAuthVersion());
+        return ResponseEntity.ok(new JwtResponse(token, jwtExpMs));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> me(@RequestHeader(value = "Authorization", required = false) String authHeader){
+    public ResponseEntity<?> me(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
@@ -141,26 +152,29 @@ public class AuthController {
             if (userId == null) {
                 return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
             }
-            var user = users.findById(userId)
-                    .orElseThrow(()-> new UsernameNotFoundException("user_not_found"));
+            var user =
+                    users.findById(userId)
+                            .orElseThrow(() -> new UsernameNotFoundException("user_not_found"));
 
             Map<String, Object> body = new HashMap<>();
             body.put("username", user.getUsername());
             body.put("email", user.getEmail());
             body.put("role", user.getRole());
+            body.put("emailVerified", user.isEmailVerified());
             body.put("firstName", user.getFirstName());
             body.put("lastName", user.getLastName());
             body.put("nationality", user.getNationality());
             // Avatar varsa base64 encode edip gönder
             if (user.getAvatar() != null && user.getAvatar().length > 0) {
-                String base64Avatar = java.util.Base64.getEncoder().encodeToString(user.getAvatar());
+                String base64Avatar =
+                        java.util.Base64.getEncoder().encodeToString(user.getAvatar());
                 body.put("avatar", base64Avatar);
                 body.put("avatarContentType", user.getAvatarContentType());
             } else {
                 body.put("avatar", null);
             }
             return ResponseEntity.ok(body);
-        }catch(Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
         }
     }
@@ -168,8 +182,7 @@ public class AuthController {
     @PostMapping("/profile")
     public ResponseEntity<?> updateProfile(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestBody Map<String, String> req
-    ) {
+            @jakarta.validation.Valid @RequestBody com.ariforhanus.wordle.dto.ProfileRequest req) {
         try {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
@@ -180,13 +193,14 @@ public class AuthController {
                 return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
             }
 
-            User user = users.findById(userId)
-                    .orElseThrow(() -> new UsernameNotFoundException("user_not_found"));
+            User user =
+                    users.findById(userId)
+                            .orElseThrow(() -> new UsernameNotFoundException("user_not_found"));
 
-            String username = req.get("username");
-            String firstName = req.get("firstName");
-            String lastName = req.get("lastName");
-            String nationality = req.get("nationality");
+            String username = req.username();
+            String firstName = req.firstName();
+            String lastName = req.lastName();
+            String nationality = req.nationality();
 
             // Update username if provided and different
             if (username != null && !username.isBlank()) {
@@ -223,13 +237,15 @@ public class AuthController {
             body.put("username", user.getUsername());
             body.put("email", user.getEmail());
             body.put("role", user.getRole());
+            body.put("emailVerified", user.isEmailVerified());
             body.put("firstName", user.getFirstName());
             body.put("lastName", user.getLastName());
             body.put("nationality", user.getNationality());
 
             return ResponseEntity.ok(body);
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            throw e;
         } catch (Exception e) {
-            e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of("error", "profile_update_failed"));
         }
     }
@@ -237,8 +253,7 @@ public class AuthController {
     @PostMapping(path = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadAvatar(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @org.springframework.web.bind.annotation.RequestParam("file") MultipartFile file
-    ) {
+            @org.springframework.web.bind.annotation.RequestParam("file") MultipartFile file) {
         try {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 return ResponseEntity.status(401).body(Map.of("error", "invalid_token"));
@@ -259,33 +274,37 @@ public class AuthController {
             }
 
             String contentType = file.getContentType();
-            if (contentType == null ||
-                    !(contentType.equalsIgnoreCase("image/jpeg")
+            if (contentType == null
+                    || !(contentType.equalsIgnoreCase("image/jpeg")
                             || contentType.equalsIgnoreCase("image/png")
                             || contentType.equalsIgnoreCase("image/webp"))) {
                 return ResponseEntity.badRequest().body(Map.of("error", "invalid_file_type"));
             }
 
-            User user = users.findById(userId)
-                    .orElseThrow(() -> new UsernameNotFoundException("user_not_found"));
+            User user =
+                    users.findById(userId)
+                            .orElseThrow(() -> new UsernameNotFoundException("user_not_found"));
 
             user.setAvatar(file.getBytes());
             user.setAvatarContentType(contentType);
             user.setAvatarSize(file.getSize());
-            
+
             try {
                 users.save(user);
+            } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+                throw e;
             } catch (Exception e) {
-                e.printStackTrace();
                 return ResponseEntity.status(500).body(Map.of("error", "save_failed"));
             }
 
             return ResponseEntity.ok(Map.of("success", true));
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            throw e;
         } catch (IOException e) {
-            e.printStackTrace();
+
             return ResponseEntity.status(500).body(Map.of("error", "upload_failed"));
         } catch (Exception e) {
-            e.printStackTrace();
+
             return ResponseEntity.status(500).body(Map.of("error", "unexpected_error"));
         }
     }

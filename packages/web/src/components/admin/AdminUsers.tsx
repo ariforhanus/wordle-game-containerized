@@ -1,22 +1,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { adminApi } from "@wordle/api";
+import { useDialogFocus } from "../../hooks/useDialogFocus";
 import type { AdminUser } from "@wordle/api";
 
 export default function AdminUsers() {
   const { t } = useTranslation();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<AdminUser | null>(null);
+  const confirmRef = useDialogFocus(Boolean(confirmDelete), () => setConfirmDelete(null));
 
   const fetchUsers = useCallback((q?: string) => {
     setLoading(true);
-    adminApi.getUsers(q || undefined)
+    adminApi.getUsers(q || undefined, page)
       .then(setUsers)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     fetchUsers();
@@ -67,18 +70,18 @@ export default function AdminUsers() {
       <h1 className="admin-page-title">{t("admin.users")}</h1>
 
       <div className="admin-search-bar">
-        <i className="fas fa-search" style={{ color: "var(--text-muted, #888)" }} />
+        <i aria-hidden="true" className="fas fa-search" style={{ color: "var(--text-muted, #888)" }} />
         <input
           type="text"
           className="admin-search-input"
-          placeholder={t("admin.searchUsers")}
+          aria-label={t("admin.searchUsers")} placeholder={t("admin.searchUsers")}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
         />
       </div>
 
       {loading ? (
-        <div className="admin-loading"><div className="spinner" /></div>
+        <div className="admin-loading"><div className="spinner" role="status" aria-label={t("a11y.loading")} /></div>
       ) : (
         <div className="admin-table-wrap">
           <table className="admin-table">
@@ -115,14 +118,14 @@ export default function AdminUsers() {
                         className="admin-btn role-btn"
                         onClick={() => handleRoleChange(u)}
                       >
-                        <i className={`fas ${u.role === "ADMIN" ? "fa-user" : "fa-shield-alt"}`} />
+                        <i aria-hidden="true" className={`fas ${u.role === "ADMIN" ? "fa-user" : "fa-shield-alt"}`} />
                         {u.role === "ADMIN" ? t("admin.makeUser") : t("admin.makeAdmin")}
                       </button>
                       <button
                         className="admin-btn delete-btn"
                         onClick={() => setConfirmDelete(u)}
                       >
-                        <i className="fas fa-trash" />
+                        <i aria-hidden="true" className="fas fa-trash" />
                         {t("admin.deleteUser")}
                       </button>
                     </div>
@@ -141,11 +144,16 @@ export default function AdminUsers() {
         </div>
       )}
 
+      <div className="admin-actions">
+        <button disabled={page === 0 || loading} onClick={() => setPage(p => p - 1)} aria-label={t("account.previous")}>←</button>
+        <span>{page + 1}</span>
+        <button disabled={users.length < 50 || loading} onClick={() => setPage(p => p + 1)} aria-label={t("account.next")}>→</button>
+      </div>
       {/* Delete confirmation */}
       {confirmDelete && (
         <div className="admin-confirm-overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="admin-confirm-box" onClick={(e) => e.stopPropagation()}>
-            <p>{t("admin.confirmDelete")}</p>
+          <div ref={confirmRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="admin-delete-title" className="admin-confirm-box" onClick={(e) => e.stopPropagation()}>
+            <p id="admin-delete-title">{t("admin.confirmDelete")}</p>
             <p style={{ fontWeight: 700, fontSize: "1.1rem" }}>
               {confirmDelete.username}
             </p>
@@ -154,7 +162,7 @@ export default function AdminUsers() {
                 {t("profile.cancel")}
               </button>
               <button className="admin-btn delete-btn" onClick={handleDelete}>
-                <i className="fas fa-trash" />
+                <i aria-hidden="true" className="fas fa-trash" />
                 {t("admin.deleteUser")}
               </button>
             </div>

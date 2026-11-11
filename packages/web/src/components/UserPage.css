@@ -33,6 +33,7 @@
   font-weight: 900;
   margin: 0;
   color: var(--text-primary, #1a1a2e);
+  overflow-wrap: anywhere;
 }
 
 .nationality {
@@ -66,21 +67,26 @@
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 32px;
 }
 
 @media (max-width: 500px) {
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 .stat-card-gradient {
+  min-width: 0;
   border-radius: 14px;
   padding: 18px 14px;
-  color: white;
+  color: #101010;
+  border: 0;
+  font: inherit;
+  text-align: start;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -113,9 +119,7 @@
   font-weight: 600;
   opacity: 0.9;
   text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .stat-value-g {
@@ -201,7 +205,7 @@
   font-size: 1.3rem;
   font-weight: 900;
   padding: 12px 0 8px;
-  color: var(--accent, #3b82f6);
+  color: var(--text-primary);
 }
 
 .achievements-list {
@@ -228,9 +232,8 @@
   background: var(--accent-soft, rgba(59, 130, 246, 0.1));
 }
 
-.achievement-locked {
-  opacity: 0.4;
-}
+.achievement-locked { border-style: dashed; }
+.achievement-status { color: var(--text-primary); font-size: 0.8rem; font-weight: 700; }
 
 .achievement-icon-wrap {
   width: 40px;
@@ -307,8 +310,9 @@
 }
 
 .input-readonly {
-  opacity: 0.6;
-  cursor: not-allowed;
+  opacity: 1;
+  background: var(--timer-bg);
+  cursor: default;
 }
 
 .edit-row {
@@ -351,6 +355,7 @@
 }
 
 .edit-avatar-btn {
+  background: var(--input-bg);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -411,3 +416,12 @@
 .btn-cancel:hover {
   border-color: var(--text-secondary, #888);
 }
+
+.edit-form :is(input, select):focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+.edit-form :is(input:not([type="file"]), select) { min-width: 0; width: 100%; }
+@media (max-width: 420px) { .edit-row { grid-template-columns: 1fr; } }
+
+@media (max-width: 420px) { .stats-grid { grid-template-columns: 1fr; } }
+.modal-header { gap: 8px; }
+.modal-header h2 { min-width: 0; overflow-wrap: anywhere; }
+.modal-close { flex-shrink: 0; }

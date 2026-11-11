@@ -8,15 +8,19 @@ import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 
 @Entity
-@Table(name = "scores", indexes = {
-        @Index(name = "idx_scores_score_desc", columnList = "score"),
-        @Index(name = "idx_scores_won_at", columnList = "wonAt"),
-        @Index(name = "idx_scores_user_date_lang", columnList = "userId, playedAt, language")
-})
+@Table(
+        name = "scores",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_score_daily",
+                        columnNames = {"userId", "playedAt", "language"}),
+        indexes = {
+            @Index(name = "idx_scores_score_desc", columnList = "score"),
+            @Index(name = "idx_scores_won_at", columnList = "wonAt"),
+            @Index(name = "idx_scores_user_date_lang", columnList = "userId, playedAt, language")
+        })
 public class Score {
 
     @Id
@@ -27,16 +31,17 @@ public class Score {
     private Long userId;
 
     @NotBlank
-    @Size(min = 2, max = 20)
-    @Column(nullable = false, length = 20)
+    @Size(min = 2, max = 64)
+    @Column(nullable = false, length = 64)
     private String username;
 
     @NotBlank
     @Size(min = 2, max = 5)
     @Column(nullable = false, length = 5)
-    private String language = "en";  // en, tr
+    private String language = "en"; // en, tr
 
-    @Min(1) @Max(6)
+    @Min(1)
+    @Max(6)
     @Column(nullable = false)
     private int attempts;
 
@@ -44,10 +49,10 @@ public class Score {
     private long durationMs;
 
     @Column(nullable = false)
-    private Instant wonAt = Instant.now();
+    private Instant wonAt;
 
     @Column(nullable = false)
-    private LocalDate playedAt = LocalDate.now();
+    private LocalDate playedAt;
 
     @Column(nullable = false)
     private int score;
@@ -55,24 +60,13 @@ public class Score {
     @Size(max = 5)
     private String word;
 
-    /** Whether the player won (true) or lost (false). Defaults to true for backward compatibility. */
+    /**
+     * Whether the player won (true) or lost (false). Defaults to true for backward compatibility.
+     */
     @Column(nullable = false)
     private boolean won = true;
 
-    public Score(){}
-
-    public Score(Long userId, String username, String language, int attempts, long durationMs, int score, String word, boolean won, ZoneId zone) {
-        this.userId = userId;
-        this.username = username;
-        this.language = language;
-        this.attempts = attempts;
-        this.durationMs = durationMs;
-        this.score = score;
-        this.word = word;
-        this.won = won;
-        this.wonAt = Instant.now();
-        this.playedAt = ZonedDateTime.now(zone).toLocalDate();
-    }
+    public Score() {}
 
     public String getLanguage() {
         return language;

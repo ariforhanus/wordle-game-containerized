@@ -154,10 +154,10 @@
   align-items: center;
   gap: 6px;
   padding: 12px 22px;
-  border: 2px solid var(--accent, #3b82f6);
+  border: 2px solid var(--share-color, #1d4ed8);
   border-radius: 12px;
   background: transparent;
-  color: var(--accent, #3b82f6);
+  color: var(--share-color, #1d4ed8);
   font-size: 1rem;
   font-weight: 800;
   font-family: "Nunito", sans-serif;
@@ -166,9 +166,13 @@
 }
 
 .btn-share:hover {
-  background: var(--accent, #3b82f6);
+  background: #1d4ed8;
   color: white;
   transform: translateY(-1px);
+}
+
+[data-theme="dark"] .btn-share {
+  --share-color: #93c5fd;
 }
 
 .btn-share:active {
@@ -260,3 +264,5 @@
   margin-bottom: 20px;
   color: var(--text-primary, #1a1a2e);
 }
+
+.result-card[role="dialog"] { max-height: calc(100dvh - 40px); overflow-y: auto; }

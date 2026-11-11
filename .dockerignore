@@ -1,0 +1,16 @@
+.git
+.env
+.mail-outbox*.env
+.env.*
+!.env.example
+**/node_modules
+**/target
+**/dist
+.docker
+.idea
+work
+
+**/test-results
+**/playwright-report
+
+.preview

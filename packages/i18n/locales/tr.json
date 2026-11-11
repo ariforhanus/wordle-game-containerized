@@ -27,7 +27,22 @@
     "themes": "Temalar",
     "backToGame": "Ana sayfaya dön",
     "switchLang": "EN",
-    "menu": "Menü"
+    "menu": "Menü",
+    "language": "Dil"
+  },
+  "feedback": {
+    "backspace": "Son harfi sil",
+    "correct": "doğru yerde",
+    "present": "kelimede var, başka yerde",
+    "absent": "kelimede yok",
+    "hidden": "Geri bildirim oyun bitene kadar gizli",
+    "row": "Tahmin {{row}}",
+    "legend": "✓ Doğru yerde · • Başka yerde · × Kelimede yok"
+  },
+  "modes": {
+    "compare": "Günlük oyun mu, serbest oyun mu?",
+    "daily": "Her dilde günde bir sıralamalı oyun. Başlat ile süre başlar ve sen yokken de devam eder. Oyun zaman diliminde gece yarısından önce bitirmelisin. Başlamak ve tahmin göndermek için bağlantı gerekir.",
+    "practice": "Sıralama süresi veya liderlik tablosu puanı olmadan sınırsız serbest oyun. Uygulama ve kelime listeleri çevrimiçi yüklendikten sonra önbellekteki serbest oyun çevrimdışı çalışabilir; ilk ziyaret bağlantı gerektirir."
   },
   "game": {
     "congrats": "Tebrikler!",
@@ -44,7 +59,7 @@
     "share": "Sonucu Paylaş",
     "copied": "Panoya kopyalandı!",
     "howToPlay": "Nasıl Oynanır",
-    "howToPlayDesc": "Kelimeyi 6 denemede tahmin edin. Her tahminden sonra kutucukların rengi, tahmininizin kelimeye ne kadar yakın olduğunu gösterecektir.",
+    "howToPlayDesc": "Kelimeyi 6 denemede bul. Geri bildirim renk, sembol ve metinle gösterilir: ✓ doğru yerde, • başka yerde, × kelimede yok.",
     "howCorrect": "harfi kelimede var ve doğru yerde.",
     "howPresent": "harfi kelimede var ama yanlış yerde.",
     "howAbsent": "harfi kelimede yok.",
@@ -56,6 +71,7 @@
     "hardModeLocked": "Modlar sadece oyun başında değiştirilebilir",
     "hardModeCorrect": "{{pos}}. harf {{letter}} olmalı",
     "hardModePresent": "Tahmin {{letter}} harfini içermeli",
+    "hardModeCount": "Tahmin en az {{count}} tane {{letter}} içermeli",
     "blindMode": "Kör",
     "blindModeOn": "Kör Mod AÇIK",
     "blindModeOff": "Kör Mod KAPALI",
@@ -66,6 +82,9 @@
     "loadError": "Kelime yüklenemedi. Bağlantınızı kontrol edin."
   },
   "daily": {
+    "languageStats": "{{lang}} istatistikleri",
+    "statsUnavailable": "İstatistikler şu anda alınamıyor. Oyun sonucun kaydedildi.",
+    "statsLoading": "İstatistikler yükleniyor…",
     "title": "Günlük Meydan Okuma",
     "desc": "Her gün yeni bir kelime. Herkes aynı kelimeyi tahmin eder — 6 denemede bul ve sıralamada yarış!",
     "startGame": "Oyunu Başlat",
@@ -75,9 +94,44 @@
     "timer": "Süre",
     "goToLeaderboard": "Sıralamaya Git",
     "loginRequired": "Günlük meydan okumayı oynamak için giriş yapmalısın.",
-    "playTodayFirst": "Sıralamayı görmek için bugünkü meydan okumayı oyna."
+    "playTodayFirst": "Sıralamayı görmek için bugünkü meydan okumayı oyna.",
+    "start": "Bugünün oyununu başlat",
+    "resume": "Bugünün oyununa devam et",
+    "viewResult": "Bugünün sonucunu gör",
+    "resumeTitle": "Günlük oyunun devam ediyor",
+    "startRule": "Süre, Başlat'a bastığında başlar. Başladıktan sonra sayfayı kapatsan, bağlantın kesilse veya cihaz değiştirsen bile işlemeye devam eder. Süre puanını etkiler.",
+    "resumeRule": "Sen yokken süre işlemeye devam etti. Devam ettiğinde aynı oyun açılır; süre sıfırlanmaz.",
+    "finishedRule": "Bugünün oyunu tamamlandı. Kayıtlı sonucunu görebilirsin; süre ve puan değişmez.",
+    "loading": "Bugünün oyunu kontrol ediliyor…",
+    "statusError": "Bugünün oyunu kontrol edilemedi. Başlatmadan veya devam etmeden önce tekrar dene.",
+    "retryStatus": "Tekrar kontrol et",
+    "dayChanged": "Oyun günü değişti. Önceki günlerde tamamlanmayan oyunlar artık oynanamaz. Bugünün oyununu kontrol edip hazır olduğunda Başlat’a bas.",
+    "puzzleDay": "Oyun günü: {{date}} ({{timeZone}})",
+    "nextGame": "Sonraki günlük oyun",
+    "nextGameLoading": "Sunucu takvimi kontrol ediliyor…",
+    "nextGameUnavailable": "Sonraki oyun zamanı kontrol edilemedi. Sonucun kayıtlı.",
+    "nextGameCheck": "Bugünün oyununu kontrol et",
+    "nextGameReady": "Geri sayım bitti. Bugünün oyununu kontrol et; yeni oyun yalnızca Başlat’a bastığında başlar.",
+    "nextGameZone": "Oyun zaman dilimi: {{timeZone}}",
+    "offlineRule": "Bağlantı yok. Süren işlemeye devam ediyor. Taslağın bu sekmede korunur; tahmin göndermek için bağlantı gerekir.",
+    "pendingRule": "Bu tahmin henüz doğrulanmadı. Sunucu doğrulayana kadar aynı kelime ve tur korunur; yeniden deneme yalnızca bu tahmini gönderir.",
+    "reconnected": "Kayıtlı oyun yenilendi. Göndermeden önce tahtayı kontrol et. Otomatik tahmin gönderilmedi.",
+    "checkSaved": "Kayıtlı oyunu kontrol et",
+    "rolloverRule": "Oyunu oyun zaman diliminde gece yarısından önce bitirmelisin. Gün değişince tamamlanmamış oyunlar kapanır ve devam ettirilemez. Yeni günün oyunu için ayrıca Başlat’a basmalısın.",
+    "startResume": "Bugünün oyununu başlat / devam et",
+    "saveError": "İstek onaylanamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+    "elapsed": "Geçen süre",
+    "retry": "Tahmini tekrar gönder",
+    "confirmedScore": "Kaydedilen puan: {{score}}"
   },
   "leaderboard": {
+    "dailyScore": "Günlük oyun skoru",
+    "totalPoints": "Toplam puan",
+    "wins": "Galibiyet",
+    "dailyExplanation": "Seçili dilde bugünün en yüksek oyun skorları.",
+    "weeklyExplanation": "Seçili dilde pazartesiden bugüne kazandığın oyunların toplam puanı. Her oyuncu bir kez listelenir.",
+    "monthlyExplanation": "Seçili dilde bu ay kazandığın oyunların toplam puanı. Her oyuncu bir kez listelenir.",
+    "totalTieRule": "Toplam puan eşitse dönemdeki son galibiyetini daha erken tamamlayan öne geçer; kalan eşitliklerde sıra sabittir.",
     "title": "Günlük Sıralama",
     "rank": "#",
     "player": "Oyuncu",
@@ -119,6 +173,7 @@
     "countryRequired": "Lütfen bir ülke seçin."
   },
   "profile": {
+    "statisticsScope": "Puan ve süre kartları tüm dilleri kapsar. Seri ve tahmin dağılımı: {{lang}}.",
     "title": "Profil",
     "stats": "İstatistikler",
     "achievements": "Başarılar",
@@ -156,6 +211,10 @@
     "lang_games_10": { "title": "Yerel Kahraman", "desc": "Bu dilde 10 oyun oynayın." }
   },
   "themes": {
+    "loading": "Tema kelimeleri yükleniyor",
+    "loadError": "Bu temanın kelime listesi yüklenemedi.",
+    "retry": "Kelime listesini yeniden dene",
+
     "title": "Temalar",
     "pickTheme": "Bir tema seç ve kelimeyi tahmin et!",
     "back": "Tüm Temalar",
@@ -167,6 +226,7 @@
     "light": "Açık Mod"
   },
   "api": {
+    "rate_limited": "Çok fazla deneme yaptınız. Bir süre bekleyin.",
     "required_fields": "Kullanıcı adı, e-posta ve şifre zorunlu.",
     "username_taken": "Bu kullanıcı adı zaten alınmış.",
     "email_taken": "Bu e-posta zaten kayıtlı.",
@@ -209,5 +269,49 @@
     "noAccess": "Admin erişiminiz yok.",
     "back": "Uygulamaya Dön",
     "nav": "Yönetim"
+  },
+  "account": {
+    "auditTitle": "Güvenlik kayıtları",
+    "auditWhen": "Zaman",
+    "auditAction": "İşlem",
+    "auditActor": "İşlemi yapan ID",
+    "auditTarget": "Hedef ID",
+    "previous": "Önceki sayfa",
+    "next": "Sonraki sayfa",
+    "title": "Hesap güvenliği",
+    "forgotTitle": "Şifremi unuttum",
+    "resetTitle": "Şifreyi sıfırla",
+    "verifyTitle": "E-postayı doğrula",
+    "continue": "Devam et",
+    "emailSent": "İsteğiniz alındı. Uygun adresler için e-posta gönderimi denenir. E-posta gelmezse spam klasörünü kontrol edin veya daha sonra tekrar deneyin.",
+    "newLinkRule": "Yeni oluşturulan bağlantı, aynı amaçla gönderilen önceki bağlantıların yerini alır. Teslimat gecikebilir; tekrar istemeden önce spam klasörünü kontrol edin.",
+    "completed": "İşlem tamamlandı. Giriş yapabilirsiniz.",
+    "newPassword": "Yeni şifre (en az 12 karakter)",
+    "currentPassword": "Mevcut şifre",
+    "passwordMismatch": "En az 12 karakter kullanın ve şifreleri aynı girin.",
+    "invalidLink": "Bağlantı eksik veya geçersiz. Yeni e-posta isteyin.",
+    "failed": "İşlem tamamlanamadı. Bilgilerinizi kontrol edin veya yeni bağlantı isteyin.",
+    "mailUnavailable": "E-posta gönderimi şu anda kullanılamıyor. Daha sonra tekrar deneyin.",
+    "rateLimited": "Çok fazla deneme yaptınız. Bir süre bekleyin.",
+    "changePassword": "Şifreyi değiştir",
+    "logoutAll": "Tüm cihazlardan çıkış yap",
+    "deleteTitle": "Hesabı sil",
+    "deleteWarning": "Profiliniz, avatarınız, oyunlarınız, puanlarınız ve kurtarma bağlantılarınız aktif hizmetten silinir. Mevcut oturumlarınız çalışmayı durdurur.",
+    "deleteSecurityRetention": "Güvenlik olayları, silinen hesabınızla bağlantıları kaldırılarak planlı 90 günlük temizliğe kadar tutulabilir. Geçici suistimal önleme kayıtları da kalabilir.",
+    "deleteBackupRetention": "Silme işlemi eski yedek kopyalarını hemen kaldırmaz. Saklama süresini hizmet işletmecisi belirler; işletmeci geri yüklenen hizmeti yeniden açmadan önce silme işlemlerini tekrar uygulamalıdır.",
+    "deleteConfirm": "Bu işlemin geri alınamayacağını anlıyorum.",
+    "verified": "E-posta doğrulandı",
+    "unverified": "E-posta doğrulanmadı",
+    "sendVerification": "Doğrulama e-postası gönder",
+    "verifyToPlay": "Sıralamalı oyun için e-postanızı doğrulayın"
+  },
+  "a11y": {
+    "close": "Kapat",
+    "loading": "Yükleniyor…",
+    "retry": "Tekrar dene",
+    "loadError": "Bu sayfa yüklenemedi. Lütfen tekrar deneyin.",
+    "skip": "İçeriğe geç",
+    "locked": "Kilitli",
+    "unlocked": "Kazanıldı"
   }
 }

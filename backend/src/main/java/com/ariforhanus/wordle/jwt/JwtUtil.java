@@ -2,15 +2,22 @@ package com.ariforhanus.wordle.jwt;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+import javax.crypto.SecretKey;
+
 @Component
 public class JwtUtil {
+    private final java.time.Clock clock;
+
+    public JwtUtil(java.time.Clock clock) {
+        this.clock = clock;
+    }
 
     @Value("${jwt.secret}")
     private String secretKey;
@@ -18,12 +25,27 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private String expirationTime;
 
-    private SecretKey signingKey(){
+    @jakarta.annotation.PostConstruct
+    public void validateConfiguration() {
+        if (secretKey == null
+                || secretKey.getBytes(StandardCharsets.UTF_8).length < 32
+                || secretKey.contains("changeme")) {
+            throw new IllegalStateException(
+                    "JWT_SECRET must contain at least 32 bytes of random secret material");
+        }
+        signingKey();
+    }
+
+    private SecretKey signingKey() {
         return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(Long userId, String username, String role){
-        Date now = new Date();
+    public String generateToken(Long userId, String username, String role) {
+        return generateToken(userId, username, role, 0);
+    }
+
+    public String generateToken(Long userId, String username, String role, long authVersion) {
+        Date now = Date.from(clock.instant());
         long expirationMs = Long.parseLong(expirationTime);
         Date exp = new Date(now.getTime() + expirationMs);
 
@@ -31,6 +53,7 @@ public class JwtUtil {
                 .subject(String.valueOf(userId))
                 .claim("username", username)
                 .claim("role", role)
+                .claim("authVersion", authVersion)
                 .issuedAt(now)
                 .expiration(exp)
                 .signWith(signingKey())
@@ -38,39 +61,45 @@ public class JwtUtil {
     }
 
     /** Backward-compatible overload (defaults to USER role) */
-    public String generateToken(Long userId, String username){
+    public String generateToken(Long userId, String username) {
         return generateToken(userId, username, "USER");
     }
 
-    public Long extractUserId(String token){
+    public Long extractUserId(String token) {
         String sub = claims(token).getSubject();
-        try{
+        try {
             return Long.parseLong(sub);
-        } catch (NumberFormatException e){
+        } catch (NumberFormatException e) {
             return null;
         }
     }
 
-    public String extractUsername(String token){
+    public String extractUsername(String token) {
         return claims(token).get("username", String.class);
     }
 
-    public String extractRole(String token){
+    public String extractRole(String token) {
         String role = claims(token).get("role", String.class);
         return role != null ? role : "USER";
     }
 
-    public boolean isValid(String token){
-        try{
-            return claims(token).getExpiration().after(new Date());
-        } catch (Exception e){
+    public long extractAuthVersion(String token) {
+        Number version = claims(token).get("authVersion", Number.class);
+        return version == null ? 0 : version.longValue();
+    }
+
+    public boolean isValid(String token) {
+        try {
+            return claims(token).getExpiration().after(Date.from(clock.instant()));
+        } catch (Exception e) {
             return false;
         }
     }
 
-    private Claims claims(String token){
+    private Claims claims(String token) {
         return Jwts.parser()
                 .verifyWith(signingKey())
+                .clock(() -> Date.from(clock.instant()))
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

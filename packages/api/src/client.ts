@@ -34,6 +34,7 @@ export function clearToken(): void {
 }
 
 export function isAuthenticated(): boolean {
+  try {
   const token = getToken();
   const expiry = localStorage.getItem(EXPIRY_KEY);
   if (token && expiry) {
@@ -44,16 +45,20 @@ export function isAuthenticated(): boolean {
     clearToken();
   }
   return false;
+  } catch { return false; }
 }
 
-/** Extract the username (sub) from the JWT without a library */
+/** Issuance-time display snapshot. Read getMe() for the current username after a
+ * rename; authorization always belongs to the server's immutable user ID. */
 export function getTokenUsername(): string | null {
   const token = getToken();
   if (!token) return null;
   try {
     const payload = token.split(".")[1];
-    const decoded = JSON.parse(atob(payload));
-    return decoded.sub ?? null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const bytes = Uint8Array.from(atob(normalized), character => character.charCodeAt(0));
+    const decoded = JSON.parse(new TextDecoder().decode(bytes));
+    return typeof decoded.username === "string" ? decoded.username : null;
   } catch {
     return null;
   }
@@ -74,7 +79,8 @@ export class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  opts: RequestInit = {}
+  opts: RequestInit = {},
+  timeoutMs?: number
 ): Promise<T> {
   const url = `${baseUrl}${path}`;
   const headers: Record<string, string> = {
@@ -86,28 +92,34 @@ async function request<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, { ...opts, headers });
+  const controller = timeoutMs && timeoutMs > 0 ? new AbortController() : undefined;
+  const timeout = controller ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
+  try {
+    const res = await fetch(url, { ...opts, headers, cache: "no-store", signal: controller?.signal ?? opts.signal });
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new ApiError(res.status, body, `API ${res.status}: ${path}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new ApiError(res.status, body, `API ${res.status}: ${path}`);
+    }
+
+    const text = await res.text();
+    if (!text) return undefined as T;
+    return JSON.parse(text) as T;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const text = await res.text();
-  if (!text) return undefined as T;
-  return JSON.parse(text) as T;
 }
 
-export function get<T>(path: string): Promise<T> {
-  return request<T>(path);
+export function get<T>(path: string, timeoutMs?: number): Promise<T> {
+  return request<T>(path, {}, timeoutMs);
 }
 
-export function post<T>(path: string, body?: unknown): Promise<T> {
+export function post<T>(path: string, body?: unknown, timeoutMs?: number): Promise<T> {
   return request<T>(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
-  });
+  }, timeoutMs);
 }
 
 export function put<T>(path: string, body?: unknown): Promise<T> {

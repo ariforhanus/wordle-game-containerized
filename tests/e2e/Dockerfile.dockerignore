@@ -1,0 +1,7 @@
+**
+!packages/
+!packages/web/
+!packages/web/dist/
+!packages/web/dist/**
+!packages/web/nginx.conf
+!packages/web/security-headers.conf

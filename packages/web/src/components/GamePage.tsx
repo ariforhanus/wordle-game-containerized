@@ -1,17 +1,29 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useLayoutEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { wordApi } from "@wordle/api";
-import { toUpperCase, getLanguage } from "@wordle/engine";
+import { toUpperCase, getLanguage, isValidLetter } from "@wordle/engine";
 import { useGame } from "../hooks/useGame";
 import { useToast } from "./Toast";
 import { usePageTitleKey } from "../hooks/usePageTitle";
 import { buildShareText, copyToClipboard } from "../utils/shareResult";
 import { TOAST_DURATION_LONG } from "../constants";
+import GameModeInfo from "./GameModeInfo";
 import Confetti from "./Confetti";
 import HowToPlayModal from "./HowToPlayModal";
 import Board from "./Board";
 import Keyboard from "./Keyboard";
 import "./GamePage.css";
+import { useDialogFocus } from "../hooks/useDialogFocus";
+
+async function loadDictionary(lang: string): Promise<string[]> {
+  const response = await fetch(`/words_${lang}_possible.txt`);
+  if (!response.ok) throw new Error("Practice dictionary unavailable");
+  const words = (await response.text()).split("\n")
+    .map(word => toUpperCase(word.trim(), lang))
+    .filter(word => word.length === 5 && Array.from(word).every(letter => isValidLetter(letter, lang)));
+  if (!words.length) throw new Error("Practice dictionary is empty");
+  return words;
+}
 
 export default function GamePage() {
   const { t, i18n } = useTranslation();
@@ -23,6 +35,8 @@ export default function GamePage() {
   const [definition, setDefinition] = useState("");
   const [validWords, setValidWords] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const wordRequest = useRef(0);
   const [resultMsg, setResultMsg] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
@@ -37,111 +51,7 @@ export default function GamePage() {
   const [showHintConfirm, setShowHintConfirm] = useState(false);
   const [showHintText, setShowHintText] = useState(false);
 
-  // Offline fallback: pick random word from local word list
-  const pickOfflineWord = useCallback(async () => {
-    try {
-      let res = await fetch(`/words_${lang}_possible.txt`);
-      if (!res.ok) res = await fetch("/words_en_possible.txt");
-      const text = await res.text();
-      const words = text
-        .split("\n")
-        .map((w) => toUpperCase(w.trim(), lang))
-        .filter((w) => w.length === 5);
-      if (words.length > 0) {
-        const word = words[Math.floor(Math.random() * words.length)];
-        setAnswer(word);
-        setDefinition("");
-        return true;
-      }
-    } catch {
-      // No fallback available
-    }
-    return false;
-  }, [lang]);
-
-  const loadWord = useCallback(async () => {
-    setLoading(true);
-    setResultMsg(null);
-    setShowConfetti(false);
-    setHintsEnabled(false);
-    setShowHintConfirm(false);
-    setShowHintText(false);
-    try {
-      const data = await wordApi.getRandomWord(lang);
-      setAnswer(toUpperCase(data.word, lang));
-      setDefinition(data.definition);
-    } catch (err) {
-      console.error("Failed to load word from API, trying offline fallback:", err);
-      const ok = await pickOfflineWord();
-      if (!ok) {
-        toastCtx.error(t("game.loadError"));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [lang, pickOfflineWord, toastCtx]);
-
-  // Load valid words list
-  useEffect(() => {
-    async function load() {
-      try {
-        let res = await fetch(`/words_${lang}_possible.txt`);
-        if (!res.ok) {
-          res = await fetch("/words_en_possible.txt");
-        }
-        const text = await res.text();
-        const words = text
-          .split("\n")
-          .map((w) => toUpperCase(w.trim(), lang))
-          .filter((w) => w.length === 5);
-        setValidWords(new Set(words));
-      } catch (err) {
-        console.error("Failed to load valid words:", err);
-      }
-    }
-    load();
-  }, [lang]);
-
-  useEffect(() => {
-    loadWord();
-  }, [loadWord]);
-
-  function toggleHardMode() {
-    if (state.guesses.length > 0) {
-      toastCtx.warning(t("game.hardModeLocked"));
-      return;
-    }
-    setHardMode((prev) => {
-      const next = !prev;
-      localStorage.setItem("wordle_hard_mode", next ? "1" : "0");
-      if (next && !localStorage.getItem("wordle_hard_intro_seen")) {
-        localStorage.setItem("wordle_hard_intro_seen", "1");
-        toastCtx.toast(t("game.hardModeFirstTime") as string, "info", TOAST_DURATION_LONG);
-      } else {
-        toastCtx.info(next ? t("game.hardModeOn") : t("game.hardModeOff"));
-      }
-      return next;
-    });
-  }
-
-  function toggleBlindMode() {
-    if (state.guesses.length > 0) {
-      toastCtx.warning(t("game.hardModeLocked"));
-      return;
-    }
-    setBlindMode((prev) => {
-      const next = !prev;
-      if (next && !localStorage.getItem("wordle_blind_intro_seen")) {
-        localStorage.setItem("wordle_blind_intro_seen", "1");
-        toastCtx.toast(t("game.blindModeFirstTime") as string, "info", TOAST_DURATION_LONG);
-      } else {
-        toastCtx.info(next ? t("game.blindModeOn") : t("game.blindModeOff"));
-      }
-      return next;
-    });
-  }
-
-  const { state, addLetter, removeLetter, submit, shakeRow } = useGame({
+  const { state, addLetter, removeLetter, submit, shakeRow, reset } = useGame({
     answer,
     definition,
     lang,
@@ -167,6 +77,89 @@ export default function GamePage() {
       toastCtx.warning(t(key, params) as string);
     },
   });
+
+  const hintConfirmRef = useDialogFocus(showHintConfirm, () => setShowHintConfirm(false));
+  const hintTextRef = useDialogFocus(showHintText, () => setShowHintText(false));
+  const resultRef = useDialogFocus(Boolean(resultMsg));
+  const loadErrorMessage = t("game.loadError");
+  const notifyLoadError = toastCtx.error;
+
+  const loadWord = useCallback(async () => {
+    const request = ++wordRequest.current;
+    reset("", "");
+    setAnswer("");
+    setDefinition("");
+    setValidWords(new Set());
+    setLoading(true);
+    setLoadError(false);
+    setResultMsg(null);
+    setShowConfetti(false);
+    setHintsEnabled(false);
+    setShowHintConfirm(false);
+    setShowHintText(false);
+    try {
+      // One generation owns the answer AND dictionary. An offline answer uses
+      // exactly the same selected-language word list as guess validation.
+      const [remote, words] = await Promise.all([
+        wordApi.getRandomWord(lang).catch(() => null),
+        loadDictionary(lang),
+      ]);
+      if (request !== wordRequest.current) return;
+      const candidate = typeof remote?.word === "string" ? toUpperCase(remote.word, lang) : "";
+      const online = candidate.length === 5 && Array.from(candidate).every(letter => isValidLetter(letter, lang));
+      const word = online ? candidate : words[Math.floor(Math.random() * words.length)];
+      const hint = online && typeof remote?.definition === "string" ? remote.definition : "";
+      setAnswer(word);
+      setDefinition(hint);
+      setValidWords(new Set([...words, word]));
+      reset(word, hint); // Also restart when the next answer/definition are identical.
+    } catch {
+      if (request === wordRequest.current) {
+        setLoadError(true);
+        notifyLoadError(loadErrorMessage);
+      }
+    } finally {
+      if (request === wordRequest.current) setLoading(false);
+    }
+  }, [lang, reset, notifyLoadError, loadErrorMessage]);
+
+  // Invalidate the old language/round before paint or input, including unmount
+  // and Strict Mode's effect replay. Only the newest request may publish state.
+  useLayoutEffect(() => {
+    void loadWord();
+    return () => { wordRequest.current++; };
+  }, [loadWord]);
+
+  function toggleHardMode() {
+    if (state.guesses.length > 0) {
+      toastCtx.warning(t("game.hardModeLocked"));
+      return;
+    }
+    const next = !hardMode;
+    setHardMode(next);
+    localStorage.setItem("wordle_hard_mode", next ? "1" : "0");
+    if (next && !localStorage.getItem("wordle_hard_intro_seen")) {
+      localStorage.setItem("wordle_hard_intro_seen", "1");
+      toastCtx.toast(t("game.hardModeFirstTime") as string, "info", TOAST_DURATION_LONG);
+    } else {
+      toastCtx.info(next ? t("game.hardModeOn") : t("game.hardModeOff"));
+    }
+  }
+
+  function toggleBlindMode() {
+    if (state.guesses.length > 0) {
+      toastCtx.warning(t("game.hardModeLocked"));
+      return;
+    }
+    const next = !blindMode;
+    setBlindMode(next);
+    if (next && !localStorage.getItem("wordle_blind_intro_seen")) {
+      localStorage.setItem("wordle_blind_intro_seen", "1");
+      toastCtx.toast(t("game.blindModeFirstTime") as string, "info", TOAST_DURATION_LONG);
+    } else {
+      toastCtx.info(next ? t("game.blindModeOn") : t("game.blindModeOff"));
+    }
+  }
 
   async function handleShare() {
     let text = buildShareText(state, "practice");
@@ -197,12 +190,20 @@ export default function GamePage() {
   const langConfig = getLanguage(lang);
   const hintAvailable = langConfig.hasHints && state.status === "playing";
 
-  if (loading && !answer) {
-    return <div className="page-center"><div className="spinner" /></div>;
+  if (loading) {
+    return <div className="page-center"><div className="spinner" role="status" aria-label={t("daily.loading")} /></div>;
+  }
+
+  if (loadError) {
+    return <div className="page-center"><div className="result-card">
+      <p role="alert">{loadErrorMessage}</p>
+      <button onClick={() => void loadWord()}>{t("a11y.retry")}</button>
+    </div></div>;
   }
 
   return (
     <div className="game-page">
+      <GameModeInfo />
       <Confetti active={showConfetti} />
       <HowToPlayModal
         forceOpen={showHowToPlay}
@@ -217,7 +218,7 @@ export default function GamePage() {
           onClick={toggleHardMode}
           title={t("game.hardMode")}
         >
-          <i className="fas fa-fire" />
+          <i aria-hidden="true" className="fas fa-fire" />
           <span className="toolbar-label">{t("game.hardMode")}</span>
         </button>
         <button
@@ -225,15 +226,16 @@ export default function GamePage() {
           onClick={toggleBlindMode}
           title={t("game.blindMode")}
         >
-          <i className="fas fa-eye-slash" />
+          <i aria-hidden="true" className="fas fa-eye-slash" />
           <span className="toolbar-label">{t("game.blindMode")}</span>
         </button>
         <button
           className="toolbar-btn"
           onClick={() => setShowHowToPlay(true)}
-          title={t("game.howToPlay")}
+          disabled={state.status !== "playing"}
+          aria-label={t("game.howToPlay")} title={t("game.howToPlay")}
         >
-          <i className="fas fa-question-circle" />
+          <i aria-hidden="true" className="fas fa-question-circle" />
         </button>
       </div>
 
@@ -244,7 +246,7 @@ export default function GamePage() {
           onClick={handleHintClick}
           title={t("game.hint")}
         >
-          <i className="fas fa-lightbulb" /> {t("game.hint")}
+          <i aria-hidden="true" className="fas fa-lightbulb" /> {t("game.hint")}
         </button>
       )}
 
@@ -261,7 +263,7 @@ export default function GamePage() {
       {/* Hint enable confirmation popup */}
       {showHintConfirm && (
         <div className="result-overlay" onClick={() => setShowHintConfirm(false)} role="presentation">
-          <div className="result-card hint-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("game.hintConfirmTitle") as string}>
+          <div ref={hintConfirmRef} tabIndex={-1} className="result-card hint-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("game.hintConfirmTitle") as string}>
             <p className="hint-confirm-text">
               {t("game.hintConfirmTitle")}
             </p>
@@ -283,7 +285,7 @@ export default function GamePage() {
       {/* Hint display popup */}
       {showHintText && (
         <div className="result-overlay" onClick={() => setShowHintText(false)} role="presentation">
-          <div className="result-card hint-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("game.hint") as string}>
+          <div ref={hintTextRef} tabIndex={-1} className="result-card hint-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t("game.hint") as string}>
             <div className="hint-display-icon">
               <i className="fas fa-lightbulb" aria-hidden="true" />
             </div>
@@ -298,7 +300,7 @@ export default function GamePage() {
       {/* Result popup */}
       {resultMsg && (
         <div className="result-overlay" role="presentation">
-          <div className="result-card" role="dialog" aria-modal="true" aria-label={t("game.word") as string}>
+          <div ref={resultRef} tabIndex={-1} className="result-card" role="dialog" aria-modal="true" aria-label={t("game.word") as string}>
             <p className="result-text">{resultMsg}</p>
             {definition && (
               <p className="result-def">
@@ -307,7 +309,7 @@ export default function GamePage() {
             )}
             <div className="result-actions">
               <button className="btn-share" onClick={handleShare}>
-                <i className="fas fa-share-alt" /> {t("game.share")}
+                <i aria-hidden="true" className="fas fa-share-alt" /> {t("game.share")}
               </button>
               <button className="btn-primary" onClick={handlePlayAgain}>
                 {t("game.playAgain")}

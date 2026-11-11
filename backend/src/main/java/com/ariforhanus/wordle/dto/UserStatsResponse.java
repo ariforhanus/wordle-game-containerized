@@ -10,6 +10,6 @@ public record UserStatsResponse(
         Map<String, Long> gamesPerLanguage,
         int currentStreak,
         int bestStreak,
-        Map<Integer, Long> guessDistribution
-) {}
-
+        Map<Integer, Long> guessDistribution,
+        String language,
+        Map<String, LanguageStatsResponse> byLanguage) {}

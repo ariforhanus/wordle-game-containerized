@@ -1,19 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { scoreApi, isAuthenticated, authApi, type ScoreResponse } from "@wordle/api";
+import { scoreApi, isAuthenticated, authApi } from "@wordle/api";
 import { usePageTitleKey } from "../hooks/usePageTitle";
 import { formatScore } from "../utils/formatScore";
 import "./LeaderboardPage.css";
 import "./DailyPage.css";
 
-function escapeHtml(str: string): string {
-  const el = document.createElement("span");
-  el.textContent = str;
-  return el.innerHTML;
-}
-
 type Period = "daily" | "weekly" | "monthly";
+type Entry = {
+  id: number;
+  username: string;
+  score: number;
+  currentStreak?: number;
+  wins?: number;
+};
 
 export default function LeaderboardPage() {
   const { t, i18n } = useTranslation();
@@ -21,62 +22,82 @@ export default function LeaderboardPage() {
   const lang = i18n.language;
 
   const [period, setPeriod] = useState<Period>("daily");
-  const [scores, setScores] = useState<ScoreResponse[]>([]);
+  const [scores, setScores] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [hasPlayed, setHasPlayed] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
 
-  // Initial auth check — does user qualify to see the leaderboard?
+  const [retryVersion, setRetryVersion] = useState(0);
+  const checkedLanguage = useRef<string | null>(null);
   useEffect(() => {
-    async function checkAccess() {
-      if (isAuthenticated()) {
-        try {
-          const [status, me] = await Promise.all([
-            scoreApi.getDailyStatus(lang),
-            authApi.getMe(),
-          ]);
-          setCurrentUser(me.username);
-          setHasPlayed(status.played);
-        } catch {
-          setHasPlayed(true);
-        }
-      } else {
-        setHasPlayed(false);
-      }
-      setInitialCheckDone(true);
+    let active = true;
+    setScores([]);
+    if (checkedLanguage.current !== lang) {
+      setHasPlayed(false);
+      setInitialCheckDone(false);
     }
-    checkAccess();
-  }, [lang]);
-
-  // Load scores for the selected period
-  const loadScores = useCallback(async () => {
-    if (!hasPlayed) return;
     setLoading(true);
     setError(false);
-    try {
-      let data: ScoreResponse[];
-      if (period === "daily") {
-        data = await scoreApi.getDailyLeaderboard(lang);
-      } else if (period === "weekly") {
-        data = await scoreApi.getWeeklyLeaderboard(lang);
-      } else {
-        data = await scoreApi.getMonthlyLeaderboard(lang);
+    async function load() {
+      let eligibilityChecked = false;
+      try {
+        if (!isAuthenticated()) return;
+        const [status, me] = await Promise.all([
+          scoreApi.getDailyStatus(lang),
+          authApi.getMe(),
+        ]);
+        if (!active) return;
+        eligibilityChecked = true;
+        checkedLanguage.current = lang;
+        setInitialCheckDone(true);
+        setCurrentUser(me.username);
+        setHasPlayed(status.played);
+        if (!status.played) return;
+        let rows: Entry[];
+        if (period === "daily") rows = await scoreApi.getDailyLeaderboard(lang);
+        else {
+          const totals = await (period === "weekly"
+            ? scoreApi.getWeeklyLeaderboard(lang)
+            : scoreApi.getMonthlyLeaderboard(lang));
+          rows = totals.map((row) => ({
+            id: row.userId,
+            username: row.username,
+            score: row.totalScore,
+            wins: row.wins,
+            currentStreak: row.currentStreak,
+          }));
+        }
+        if (active) setScores(rows);
+      } catch {
+        if (active) {
+          setError(true);
+          if (!eligibilityChecked) setHasPlayed(false);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+          setInitialCheckDone(true);
+        }
       }
-      setScores(data);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
     }
-  }, [period, lang, hasPlayed]);
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [lang, period, retryVersion]);
 
-  useEffect(() => {
-    if (initialCheckDone) {
-      loadScores();
-    }
-  }, [initialCheckDone, loadScores]);
+  const retry = () => setRetryVersion((version) => version + 1);
+  if (error && !hasPlayed)
+    return (
+      <div className="page-center">
+        <div role="alert">
+          <p>{t("leaderboard.error")}</p>
+          <button onClick={retry}>{t("daily.retryStatus")}</button>
+        </div>
+      </div>
+    );
 
   if (!initialCheckDone) {
     return (
@@ -113,6 +134,7 @@ export default function LeaderboardPage() {
           <button
             key={p}
             className={`lb-tab ${period === p ? "lb-tab-active" : ""}`}
+            aria-pressed={period === p}
             onClick={() => setPeriod(p)}
           >
             {t(`game.lb${p.charAt(0).toUpperCase() + p.slice(1)}`)}
@@ -120,22 +142,45 @@ export default function LeaderboardPage() {
         ))}
       </div>
 
+      <p>
+        {t(
+          period === "daily"
+            ? "leaderboard.dailyExplanation"
+            : period === "weekly"
+              ? "leaderboard.weeklyExplanation"
+              : "leaderboard.monthlyExplanation",
+        )}
+      </p>
+      {period !== "daily" && <p>{t("leaderboard.totalTieRule")}</p>}
       {loading ? (
         <div className="page-center" style={{ minHeight: 200 }}>
           <div className="spinner" />
         </div>
       ) : error ? (
-        <p className="lb-empty">{t("leaderboard.error")}</p>
+        <div role="alert">
+          <p className="lb-empty">{t("leaderboard.error")}</p>
+          <button onClick={retry}>{t("daily.retryStatus")}</button>
+        </div>
       ) : scores.length === 0 ? (
         <p className="lb-empty">{t("leaderboard.empty")}</p>
       ) : (
         <div className="lb-table-wrap">
-          <table className="lb-table" aria-label={t("leaderboard.title") as string}>
+          <table
+            className="lb-table"
+            aria-label={t("leaderboard.title") as string}
+          >
             <thead>
               <tr>
                 <th>{t("leaderboard.rank")}</th>
                 <th>{t("leaderboard.player")}</th>
-                <th>{t("leaderboard.score")}</th>
+                <th>
+                  {t(
+                    period === "daily"
+                      ? "leaderboard.dailyScore"
+                      : "leaderboard.totalPoints",
+                  )}
+                </th>
+                {period !== "daily" && <th>{t("leaderboard.wins")}</th>}
               </tr>
             </thead>
             <tbody>
@@ -153,9 +198,12 @@ export default function LeaderboardPage() {
                       )}
                     </td>
                     <td className="lb-player">
-                      {escapeHtml(s.username)}
+                      {s.username}
                       {isMe && (
-                        <span className="lb-you"> ({t("leaderboard.you")})</span>
+                        <span className="lb-you">
+                          {" "}
+                          ({t("leaderboard.you")})
+                        </span>
                       )}
                       {(s.currentStreak ?? 0) >= 2 && (
                         <span className="streak-badge">
@@ -164,6 +212,7 @@ export default function LeaderboardPage() {
                       )}
                     </td>
                     <td className="lb-score">{formatScore(s.score)}</td>
+                    {period !== "daily" && <td>{s.wins}</td>}
                   </tr>
                 );
               })}

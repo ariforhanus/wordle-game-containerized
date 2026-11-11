@@ -1,5 +1,5 @@
 # ── Stage 1: Build ──
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
@@ -21,14 +21,15 @@ COPY packages/ packages/
 RUN npm run build -w @wordle/web
 
 # ── Stage 2: Serve ──
-FROM nginx:alpine
+FROM nginxinc/nginx-unprivileged:alpine
 
 # Copy built assets
-COPY --from=build /app/packages/web/dist /usr/share/nginx/html
+COPY --from=build --chown=101:101 /app/packages/web/dist /usr/share/nginx/html
 
 # Copy nginx config
-COPY packages/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=101:101 packages/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=101:101 packages/web/security-headers.conf /etc/nginx/security-headers.conf
 
-EXPOSE 80
+EXPOSE 8080
 
 CMD ["nginx", "-g", "daemon off;"]

@@ -31,8 +31,8 @@ export function getStats(): Promise<AdminStats> {
   return get<AdminStats>("/api/v1/admin/stats");
 }
 
-export function getUsers(search?: string): Promise<AdminUser[]> {
-  const q = search ? `?search=${encodeURIComponent(search)}` : "";
+export function getUsers(search?: string, page = 0): Promise<AdminUser[]> {
+  const q = `?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}`;
   return get<AdminUser[]>(`/api/v1/admin/users${q}`);
 }
 
@@ -51,3 +51,6 @@ export function deleteUser(id: number): Promise<{ deleted: boolean; id: number }
 export function getDailyWord(): Promise<DailyWordInfo> {
   return get<DailyWordInfo>("/api/v1/admin/daily-word");
 }
+
+export interface AuditEntry { id:number; actor_id:number|null; action:string; target_id:number|null; occurred_at:string; }
+export function getAudit(page=0): Promise<AuditEntry[]> { return get(`/api/v1/admin/audit?page=${page}`); }

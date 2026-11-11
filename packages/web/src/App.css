@@ -18,11 +18,11 @@
   --key-text: #1a1a2e;
   --correct: #6aaa64;
   --present: #c9b458;
-  --absent: #787c7e;
+  --absent: #62676b;
   --accent: #3b82f6;
   --accent-soft: rgba(59, 130, 246, 0.1);
-  --accent-gradient: linear-gradient(135deg, #22c1c3, #5b86e5);
-  --header-bg: linear-gradient(135deg, #22c1c3 0%, #5b86e5 100%);
+  --accent-gradient: linear-gradient(135deg, #096669, #315bb2);
+  --header-bg: linear-gradient(135deg, #096669 0%, #315bb2 100%);
   --timer-bg: rgba(0, 0, 0, 0.05);
   --row-highlight: rgba(34, 193, 195, 0.1);
 }
@@ -41,14 +41,14 @@
   --cell-text: #e8e8e8;
   --cell-bg: transparent;
   --key-bg: #818384;
-  --key-text: #e8e8e8;
+  --key-text: #101010;
   --correct: #538d4e;
   --present: #b59f3b;
   --absent: #3a3a3c;
   --accent: #e84393;
   --accent-soft: rgba(232, 67, 147, 0.12);
-  --accent-gradient: linear-gradient(135deg, #e84393, #a855f7);
-  --header-bg: linear-gradient(135deg, #e84393 0%, #a855f7 50%, #6366f1 100%);
+  --accent-gradient: linear-gradient(135deg, #9c2160, #7043b6);
+  --header-bg: linear-gradient(135deg, #9c2160 0%, #7043b6 50%, #4e51b4 100%);
   --timer-bg: rgba(255, 255, 255, 0.06);
   --row-highlight: rgba(232, 67, 147, 0.12);
 }
@@ -85,7 +85,7 @@ body {
   left: 16px;
   z-index: 10000;
   padding: 8px 16px;
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
   border-radius: 0 0 8px 8px;
   font-weight: 700;
@@ -117,7 +117,7 @@ body {
 
 /* Buttons (shared) */
 .btn-primary {
-  background: var(--accent-gradient, linear-gradient(135deg, #22c1c3, #5b86e5));
+  background: var(--accent-gradient, linear-gradient(135deg, #096669, #315bb2));
   color: white;
   border: none;
   padding: 12px 32px;
@@ -183,4 +183,29 @@ a {
 ::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 3px;
+}
+
+/* Screen-reader text stays in the accessibility tree without affecting layout. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+:where(button, a, select, summary, input):focus-visible {
+  outline: 3px solid var(--text-primary);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .confetti-container { display: none !important; }
 }

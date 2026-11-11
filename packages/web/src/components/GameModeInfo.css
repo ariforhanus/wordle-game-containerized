@@ -1,0 +1,20 @@
+.game-mode-info {
+  width: 100%;
+  max-width: 32rem;
+  box-sizing: border-box;
+  text-align: left;
+  border: 1px solid var(--border-color, #8a919b);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 8px auto;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.game-mode-info summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.game-mode-info summary:focus-visible {
+  outline: 2px solid var(--accent, #3b82f6);
+  outline-offset: 4px;
+}

@@ -28,3 +28,18 @@ packages/web/vite.config.d.ts
 
 # Environment
 .env
+.mail-outbox*.env
+
+packages/web/test-results/
+packages/web/playwright-report/
+*.dump
+*.dump.sha256
+
+packages/web/coverage/
+
+# Python test bytecode
+__pycache__/
+
+# Disposable Codespaces preview credentials, state and logs
+.preview/
+work/

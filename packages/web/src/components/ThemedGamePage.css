@@ -6,7 +6,9 @@
   gap: 8px;
   padding: 6px 18px;
   border-radius: 20px;
-  color: white;
+  color: var(--text-primary);
+  background: var(--card-bg);
+  border: 2px solid;
   font-size: 0.9rem;
   font-weight: 800;
   font-family: "Nunito", sans-serif;

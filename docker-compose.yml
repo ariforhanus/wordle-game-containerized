@@ -1,82 +1,107 @@
 services:
   postgres:
-      image: "postgres:17.4"
-      container_name: postgres
-      hostname: "postgres"
-      volumes:
-          - ./.docker/postgres:/var/lib/postgresql/data
-      healthcheck:
-          test: ["CMD-SHELL", "pg_isready -U postgres -d PGDatabase"]
-          interval: 5s
-          timeout: 3s
-          retries: 10
-      ports:
-          - "5433:5432"
-      environment:
-          POSTGRES_USER: "postgres"
-          POSTGRES_PASSWORD: "admin@1234"
-          POSTGRES_DB: "PGDatabase"
-          ACCEPT_EULA: "Y"
-      restart: unless-stopped
-
-
+    image: postgres:17.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a unique database administrator password}
+      POSTGRES_DB: PGDatabase
+      WORDLE_DB_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?Set a unique application database password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/init-database.sh:/docker-entrypoint-initdb.d/10-wordle.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d PGDatabase"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    mem_limit: 512m
 
   backend:
-      build:
-          context: ./backend
-          dockerfile: Dockerfile
-      image: wordle-game-backend:latest
-      container_name: wordle-backend
-      depends_on:
-          postgres:
-              condition: service_healthy
-      ports:
-          - "8091:8091"
-      environment:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/PGDatabase
-          SPRING_DATASOURCE_USERNAME: postgres
-          SPRING_DATASOURCE_PASSWORD: admin@1234
-          JWT_SECRET: 3xF!2m$9kLq@7VrNpZt%8GhR^wXay0Bc
-          SPRING_PROFILES_ACTIVE: dev
-          ADMIN_USERNAME: admin
-          ADMIN_PASSWORD: admin123
-          ADMIN_EMAIL: admin@wordle.com
-      restart: unless-stopped
+    build: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/PGDatabase
+      SPRING_DATASOURCE_USERNAME: wordle
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?Set application database password}
+      JWT_SECRET: ${JWT_SECRET:?Set at least 32 bytes of random signing material}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_OUTBOX_ENABLED: ${MAIL_OUTBOX_ENABLED:-false}
+      MAIL_OUTBOX_WORKER_ENABLED: ${MAIL_OUTBOX_WORKER_ENABLED:-true}
+      MAIL_OUTBOX_ACTIVE_KEY_ID: ${MAIL_OUTBOX_ACTIVE_KEY_ID:-}
+      MAIL_OUTBOX_KEYS: ${MAIL_OUTBOX_KEYS:-}
+      MAIL_OUTBOX_MAX_PENDING: ${MAIL_OUTBOX_MAX_PENDING:-10000}
+      MAIL_OUTBOX_MAX_ATTEMPTS: ${MAIL_OUTBOX_MAX_ATTEMPTS:-6}
+      MAIL_OUTBOX_LEASE_SECONDS: ${MAIL_OUTBOX_LEASE_SECONDS:-120}
+      MAIL_OUTBOX_BATCH_SIZE: ${MAIL_OUTBOX_BATCH_SIZE:-10}
+      MAIL_OUTBOX_POLL_MILLIS: ${MAIL_OUTBOX_POLL_MILLIS:-5000}
+      MAIL_FROM: ${MAIL_FROM:-wordle@localhost}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-true}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-false}
+      ALLOW_INSECURE_LOCAL_ADMIN: ${ALLOW_INSECURE_LOCAL_ADMIN:-false}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:9091/actuator/health/readiness]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 768m
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
 
   frontend:
-      build:
-          context: .
-          dockerfile: packages/web/Dockerfile
-      image: wordle-game-frontend:latest
-      container_name: wordle-frontend
-      depends_on:
-          - backend
-      ports:
-          - "80:80"
-      volumes:
-          - ./packages/web/nginx.conf:/etc/nginx/conf.d/default.conf
-      restart: unless-stopped
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    # Local development only. Production ingress uses the internal service port.
+    ports: ["127.0.0.1:8080:8080"]
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/healthz]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 128m
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
 
-  pgadmin:
-      image: "dpage/pgadmin4:9.4.0"
-      container_name: pgadmin
-      depends_on: 
-          - postgres
-      environment:
-          PGADMIN_DEFAULT_EMAIL: postgres@pgadmin.org
-          PGADMIN_DEFAULT_PASSWORD: admin
-          PGADMIN_CONFIG_SERVER_MODE: 'False'
+  ingress:
+    image: caddy:2-alpine
+    profiles: [production]
+    environment:
+      WORDLE_DOMAIN: ${WORDLE_DOMAIN:-localhost}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 128m
 
-          POSTGRES_USER: "postgres"
-          POSTGRES_PASSWORD: "admin@1234"
-
-      volumes:
-          - ./.docker/pgadmin:/root/.pgadmin
-
-      ports:
-          - "5050:80"
-      restart: unless-stopped
-
-networks:
-  default: 
-    name: wordle-net
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

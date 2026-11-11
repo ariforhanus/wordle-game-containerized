@@ -21,13 +21,13 @@
 
 .themes-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
 @media (min-width: 520px) {
   .themes-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -39,7 +39,9 @@
   gap: 12px;
   padding: 32px 16px;
   border-radius: 16px;
-  color: white;
+  color: var(--text-primary);
+  background: var(--card-bg);
+  border: 3px solid;
   text-decoration: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   transition: transform 0.15s, box-shadow 0.15s;
@@ -65,3 +67,6 @@
   font-weight: 800;
   font-family: "Nunito", sans-serif;
 }
+
+.theme-card { min-width: 0; overflow-wrap: anywhere; }
+.theme-name { max-width: 100%; text-align: center; }

@@ -1,12 +1,12 @@
 package com.ariforhanus.wordle.entity;
 
+import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Basic;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -16,19 +16,34 @@ import java.time.Instant;
 @Table(
         name = "users",
         uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_user_username",
-                        columnNames = "username"
-                ),
-                @UniqueConstraint(
-                        name = "uk_user_email",
-                        columnNames = "email"
-                )
-        }
-)
-
-
+            @UniqueConstraint(name = "uk_user_username", columnNames = "username"),
+            @UniqueConstraint(name = "uk_user_email", columnNames = "email")
+        })
 public class User {
+    @jakarta.persistence.Version private long version;
+
+    @Column(nullable = false)
+    private long authVersion;
+
+    @Column(nullable = false)
+    private boolean emailVerified;
+
+    public long getAuthVersion() {
+        return authVersion;
+    }
+
+    public void setAuthVersion(long value) {
+        authVersion = value;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean value) {
+        emailVerified = value;
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -43,7 +58,7 @@ public class User {
     private String passwordHash;
 
     @Column(nullable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt;
 
     @Column(nullable = false, length = 20)
     private String role = "USER";
@@ -58,7 +73,8 @@ public class User {
     private String nationality;
 
     // IMPORTANT: Use bytea (not PostgreSQL Large Object/oid). oid requires special handling
-    // and breaks authentication queries outside a transaction ("Large Objects may not be used in auto-commit mode").
+    // and breaks authentication queries outside a transaction ("Large Objects may not be used in
+    // auto-commit mode").
     @Basic(fetch = FetchType.LAZY)
     @Column(columnDefinition = "bytea")
     private byte[] avatar;
@@ -66,9 +82,7 @@ public class User {
     @Column(length = 64)
     private String avatarContentType;
 
-    @Column
-    private Long avatarSize;
-
+    @Column private Long avatarSize;
 
     public static UserBuilder builder() {
         return new UserBuilder();
@@ -170,10 +184,15 @@ public class User {
         this.avatarSize = avatarSize;
     }
 
-    public User() {
-    }
+    public User() {}
 
-    public User(final Long id, final String username, final String email, final String passwordHash, final Instant createdAt, final String role) {
+    public User(
+            final Long id,
+            final String username,
+            final String email,
+            final String passwordHash,
+            final Instant createdAt,
+            final String role) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -190,8 +209,7 @@ public class User {
         private Instant createdAt;
         private String role;
 
-        UserBuilder() {
-        }
+        UserBuilder() {}
 
         public UserBuilder id(final Long id) {
             this.id = id;
@@ -224,12 +242,28 @@ public class User {
         }
 
         public User build() {
-            return new User(this.id, this.username, this.email, this.passwordHash, this.createdAt, this.role);
+            return new User(
+                    this.id,
+                    this.username,
+                    this.email,
+                    this.passwordHash,
+                    this.createdAt,
+                    this.role);
         }
 
         public String toString() {
             Long var10000 = this.id;
-            return "User.UserBuilder(id=" + var10000 + ", username=" + this.username + ", email=" + this.email + ", passwordHash=" + this.passwordHash + ", createdAt=" + String.valueOf(this.createdAt) + ", role=" + this.role + ")";
+            return "User.UserBuilder(id="
+                    + var10000
+                    + ", username="
+                    + this.username
+                    + ", email="
+                    + this.email
+                    + ", createdAt="
+                    + String.valueOf(this.createdAt)
+                    + ", role="
+                    + this.role
+                    + ")";
         }
     }
 }

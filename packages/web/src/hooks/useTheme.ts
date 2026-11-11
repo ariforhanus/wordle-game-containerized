@@ -4,8 +4,8 @@ type Theme = "light" | "dark";
 
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const saved = localStorage.getItem("theme");
-    return saved === "dark" ? "dark" : "light";
+    try { return localStorage.getItem("theme") === "dark" ? "dark" : "light"; }
+    catch { return "light"; }
   });
 
   useEffect(() => {
@@ -15,7 +15,7 @@ export function useTheme() {
   const toggleTheme = useCallback(() => {
     setThemeState((prev) => {
       const next = prev === "dark" ? "light" : "dark";
-      localStorage.setItem("theme", next);
+      try { localStorage.setItem("theme", next); } catch { /* Theme remains usable without persistence. */ }
       return next;
     });
   }, []);

@@ -1,0 +1,5 @@
+# Linux containers execute these files even when the checkout is on Windows.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+*.sql text eol=lf

@@ -1,0 +1,441 @@
+{
+  "fixture_day": "2030-01-01",
+  "metadata": {
+    "rows": 20000,
+    "version": "PostgreSQL 17.4 (Debian 17.4-1.pgdg120+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit"
+  },
+  "variants": {
+    "baseline": {
+      "storage": {
+        "variant": "baseline",
+        "index_bytes": 1236992
+      },
+      "queries": {
+        "20": {
+          "result_count": 20,
+          "result_sha256": "066a4ecd48b12d682e2e4e76ad3e941da87a5a273efa1abf6e88a7160039c8ca",
+          "representative_plan": {
+            "Plan": {
+              "Node Type": "Aggregate",
+              "Strategy": "Hashed",
+              "Partial Mode": "Simple",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 480.05,
+              "Total Cost": 481.87,
+              "Plan Rows": 182,
+              "Plan Width": 10,
+              "Actual Startup Time": 1.427,
+              "Actual Total Time": 1.43,
+              "Actual Rows": 20,
+              "Actual Loops": 1,
+              "Group Key": [
+                "answer"
+              ],
+              "Planned Partitions": 0,
+              "HashAgg Batches": 1,
+              "Peak Memory Usage": 40,
+              "Disk Usage": 0,
+              "Shared Hit Blocks": 0,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 128,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0,
+              "Plans": [
+                {
+                  "Node Type": "Seq Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Relation Name": "daily_puzzles",
+                  "Alias": "daily_puzzles",
+                  "Startup Cost": 0.05,
+                  "Total Cost": 478.05,
+                  "Plan Rows": 200,
+                  "Plan Width": 10,
+                  "Actual Startup Time": 0.005,
+                  "Actual Total Time": 1.394,
+                  "Actual Rows": 200,
+                  "Actual Loops": 1,
+                  "Filter": "(((language)::text = 'en'::text) AND ((answer)::text = ANY ('{AAAAA,AAAAB,AAAAC,AAAAD,AAAAE,AAAAF,AAAAG,AAAAH,AAAAI,AAAAJ,AAAAK,AAAAL,AAAAM,AAAAN,AAAAO,AAAAP,AAAAQ,AAAAR,AAAAS,AAAAT}'::text[])))",
+                  "Rows Removed by Filter": 19800,
+                  "Shared Hit Blocks": 0,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 128,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0
+                }
+              ]
+            },
+            "Planning": {
+              "Shared Hit Blocks": 0,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0
+            },
+            "Planning Time": 0.174,
+            "Triggers": [],
+            "Execution Time": 1.442
+          },
+          "sample_ms": [
+            1.442,
+            1.569,
+            1.853
+          ],
+          "median_ms": 1.569
+        },
+        "1000": {
+          "result_count": 1000,
+          "result_sha256": "ccd7767758d04a16106917699855a0f3c88c4a3333fb7e6ba90c23b20263ee28",
+          "representative_plan": {
+            "Plan": {
+              "Node Type": "Aggregate",
+              "Strategy": "Hashed",
+              "Partial Mode": "Simple",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 543.73,
+              "Total Cost": 553.72,
+              "Plan Rows": 999,
+              "Plan Width": 10,
+              "Actual Startup Time": 3.465,
+              "Actual Total Time": 3.546,
+              "Actual Rows": 1000,
+              "Actual Loops": 1,
+              "Group Key": [
+                "answer"
+              ],
+              "Planned Partitions": 0,
+              "HashAgg Batches": 1,
+              "Peak Memory Usage": 129,
+              "Disk Usage": 0,
+              "Shared Hit Blocks": 0,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 128,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0,
+              "Plans": [
+                {
+                  "Node Type": "Seq Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Relation Name": "daily_puzzles",
+                  "Alias": "daily_puzzles",
+                  "Startup Cost": 2.5,
+                  "Total Cost": 480.5,
+                  "Plan Rows": 6323,
+                  "Plan Width": 10,
+                  "Actual Startup Time": 0.027,
+                  "Actual Total Time": 1.851,
+                  "Actual Rows": 10000,
+                  "Actual Loops": 1,
+                  "Filter": "(((language)::text = 'en'::text) AND ((answer)::text = ANY ('{AAAAA,AAAAB,AAAAC,AAAAD,AAAAE,AAAAF,AAAAG,AAAAH,AAAAI,AAAAJ,AAAAK,AAAAL,AAAAM,AAAAN,AAAAO,AAAAP,AAAAQ,AAAAR,AAAAS,AAAAT,AAAAU,AAAAV,AAAAW,AAAAX,AAAAY,AAAAZ,AAABA,AAABB,AAABC,AAABD,AAABE,AAABF,AAABG,AAABH,AAABI,AAABJ,AAABK,AAABL,AAABM,AAABN,AAABO,AAABP,AAABQ,AAABR,AAABS,AAABT,AAABU,AAABV,AAABW,AAABX,AAABY,AAABZ,AAACA,AAACB,AAACC,AAACD,AAACE,AAACF,AAACG,AAACH,AAACI,AAACJ,AAACK,AAACL,AAACM,AAACN,AAACO,AAACP,AAACQ,AAACR,AAACS,AAACT,AAACU,AAACV,AAACW,AAACX,AAACY,AAACZ,AAADA,AAADB,AAADC,AAADD,AAADE,AAADF,AAADG,AAADH,AAADI,AAADJ,AAADK,AAADL,AAADM,AAADN,AAADO,AAADP,AAADQ,AAADR,AAADS,AAADT,AAADU,AAADV,AAADW,AAADX,AAADY,AAADZ,AAAEA,AAAEB,AAAEC,AAAED,AAAEE,AAAEF,AAAEG,AAAEH,AAAEI,AAAEJ,AAAEK,AAAEL,AAAEM,AAAEN,AAAEO,AAAEP,AAAEQ,AAAER,AAAES,AAAET,AAAEU,AAAEV,AAAEW,AAAEX,AAAEY,AAAEZ,AAAFA,AAAFB,AAAFC,AAAFD,AAAFE,AAAFF,AAAFG,AAAFH,AAAFI,AAAFJ,AAAFK,AAAFL,AAAFM,AAAFN,AAAFO,AAAFP,AAAFQ,AAAFR,AAAFS,AAAFT,AAAFU,AAAFV,AAAFW,AAAFX,AAAFY,AAAFZ,AAAGA,AAAGB,AAAGC,AAAGD,AAAGE,AAAGF,AAAGG,AAAGH,AAAGI,AAAGJ,AAAGK,AAAGL,AAAGM,AAAGN,AAAGO,AAAGP,AAAGQ,AAAGR,AAAGS,AAAGT,AAAGU,AAAGV,AAAGW,AAAGX,AAAGY,AAAGZ,AAAHA,AAAHB,AAAHC,AAAHD,AAAHE,AAAHF,AAAHG,AAAHH,AAAHI,AAAHJ,AAAHK,AAAHL,AAAHM,AAAHN,AAAHO,AAAHP,AAAHQ,AAAHR,AAAHS,AAAHT,AAAHU,AAAHV,AAAHW,AAAHX,AAAHY,AAAHZ,AAAIA,AAAIB,AAAIC,AAAID,AAAIE,AAAIF,AAAIG,AAAIH,AAAII,AAAIJ,AAAIK,AAAIL,AAAIM,AAAIN,AAAIO,AAAIP,AAAIQ,AAAIR,AAAIS,AAAIT,AAAIU,AAAIV,AAAIW,AAAIX,AAAIY,AAAIZ,AAAJA,AAAJB,AAAJC,AAAJD,AAAJE,AAAJF,AAAJG,AAAJH,AAAJI,AAAJJ,AAAJK,AAAJL,AAAJM,AAAJN,AAAJO,AAAJP,AAAJQ,AAAJR,AAAJS,AAAJT,AAAJU,AAAJV,AAAJW,AAAJX,AAAJY,AAAJZ,AAAKA,AAAKB,AAAKC,AAAKD,AAAKE,AAAKF,AAAKG,AAAKH,AAAKI,AAAKJ,AAAKK,AAAKL,AAAKM,AAAKN,AAAKO,AAAKP,AAAKQ,AAAKR,AAAKS,AAAKT,AAAKU,AAAKV,AAAKW,AAAKX,AAAKY,AAAKZ,AAALA,AAALB,AAALC,AAALD,AAALE,AAALF,AAALG,AAALH,AAALI,AAALJ,AAALK,AAALL,AAALM,AAALN,AAALO,AAALP,AAALQ,AAALR,AAALS,AAALT,AAALU,AAALV,AAALW,AAALX,AAALY,AAALZ,AAAMA,AAAMB,AAAMC,AAAMD,AAAME,AAAMF,AAAMG,AAAMH,AAAMI,AAAMJ,AAAMK,AAAML,AAAMM,AAAMN,AAAMO,AAAMP,AAAMQ,AAAMR,AAAMS,AAAMT,AAAMU,AAAMV,AAAMW,AAAMX,AAAMY,AAAMZ,AAANA,AAANB,AAANC,AAAND,AAANE,AAANF,AAANG,AAANH,AAANI,AAANJ,AAANK,AAANL,AAANM,AAANN,AAANO,AAANP,AAANQ,AAANR,AAANS,AAANT,AAANU,AAANV,AAANW,AAANX,AAANY,AAANZ,AAAOA,AAAOB,AAAOC,AAAOD,AAAOE,AAAOF,AAAOG,AAAOH,AAAOI,AAAOJ,AAAOK,AAAOL,AAAOM,AAAON,AAAOO,AAAOP,AAAOQ,AAAOR,AAAOS,AAAOT,AAAOU,AAAOV,AAAOW,AAAOX,AAAOY,AAAOZ,AAAPA,AAAPB,AAAPC,AAAPD,AAAPE,AAAPF,AAAPG,AAAPH,AAAPI,AAAPJ,AAAPK,AAAPL,AAAPM,AAAPN,AAAPO,AAAPP,AAAPQ,AAAPR,AAAPS,AAAPT,AAAPU,AAAPV,AAAPW,AAAPX,AAAPY,AAAPZ,AAAQA,AAAQB,AAAQC,AAAQD,AAAQE,AAAQF,AAAQG,AAAQH,AAAQI,AAAQJ,AAAQK,AAAQL,AAAQM,AAAQN,AAAQO,AAAQP,AAAQQ,AAAQR,AAAQS,AAAQT,AAAQU,AAAQV,AAAQW,AAAQX,AAAQY,AAAQZ,AAARA,AAARB,AAARC,AAARD,AAARE,AAARF,AAARG,AAARH,AAARI,AAARJ,AAARK,AAARL,AAARM,AAARN,AAARO,AAARP,AAARQ,AAARR,AAARS,AAART,AAARU,AAARV,AAARW,AAARX,AAARY,AAARZ,AAASA,AAASB,AAASC,AAASD,AAASE,AAASF,AAASG,AAASH,AAASI,AAASJ,AAASK,AAASL,AAASM,AAASN,AAASO,AAASP,AAASQ,AAASR,AAASS,AAAST,AAASU,AAASV,AAASW,AAASX,AAASY,AAASZ,AAATA,AAATB,AAATC,AAATD,AAATE,AAATF,AAATG,AAATH,AAATI,AAATJ,AAATK,AAATL,AAATM,AAATN,AAATO,AAATP,AAATQ,AAATR,AAATS,AAATT,AAATU,AAATV,AAATW,AAATX,AAATY,AAATZ,AAAUA,AAAUB,AAAUC,AAAUD,AAAUE,AAAUF,AAAUG,AAAUH,AAAUI,AAAUJ,AAAUK,AAAUL,AAAUM,AAAUN,AAAUO,AAAUP,AAAUQ,AAAUR,AAAUS,AAAUT,AAAUU,AAAUV,AAAUW,AAAUX,AAAUY,AAAUZ,AAAVA,AAAVB,AAAVC,AAAVD,AAAVE,AAAVF,AAAVG,AAAVH,AAAVI,AAAVJ,AAAVK,AAAVL,AAAVM,AAAVN,AAAVO,AAAVP,AAAVQ,AAAVR,AAAVS,AAAVT,AAAVU,AAAVV,AAAVW,AAAVX,AAAVY,AAAVZ,AAAWA,AAAWB,AAAWC,AAAWD,AAAWE,AAAWF,AAAWG,AAAWH,AAAWI,AAAWJ,AAAWK,AAAWL,AAAWM,AAAWN,AAAWO,AAAWP,AAAWQ,AAAWR,AAAWS,AAAWT,AAAWU,AAAWV,AAAWW,AAAWX,AAAWY,AAAWZ,AAAXA,AAAXB,AAAXC,AAAXD,AAAXE,AAAXF,AAAXG,AAAXH,AAAXI,AAAXJ,AAAXK,AAAXL,AAAXM,AAAXN,AAAXO,AAAXP,AAAXQ,AAAXR,AAAXS,AAAXT,AAAXU,AAAXV,AAAXW,AAAXX,AAAXY,AAAXZ,AAAYA,AAAYB,AAAYC,AAAYD,AAAYE,AAAYF,AAAYG,AAAYH,AAAYI,AAAYJ,AAAYK,AAAYL,AAAYM,AAAYN,AAAYO,AAAYP,AAAYQ,AAAYR,AAAYS,AAAYT,AAAYU,AAAYV,AAAYW,AAAYX,AAAYY,AAAYZ,AAAZA,AAAZB,AAAZC,AAAZD,AAAZE,AAAZF,AAAZG,AAAZH,AAAZI,AAAZJ,AAAZK,AAAZL,AAAZM,AAAZN,AAAZO,AAAZP,AAAZQ,AAAZR,AAAZS,AAAZT,AAAZU,AAAZV,AAAZW,AAAZX,AAAZY,AAAZZ,AABAA,AABAB,AABAC,AABAD,AABAE,AABAF,AABAG,AABAH,AABAI,AABAJ,AABAK,AABAL,AABAM,AABAN,AABAO,AABAP,AABAQ,AABAR,AABAS,AABAT,AABAU,AABAV,AABAW,AABAX,AABAY,AABAZ,AABBA,AABBB,AABBC,AABBD,AABBE,AABBF,AABBG,AABBH,AABBI,AABBJ,AABBK,AABBL,AABBM,AABBN,AABBO,AABBP,AABBQ,AABBR,AABBS,AABBT,AABBU,AABBV,AABBW,AABBX,AABBY,AABBZ,AABCA,AABCB,AABCC,AABCD,AABCE,AABCF,AABCG,AABCH,AABCI,AABCJ,AABCK,AABCL,AABCM,AABCN,AABCO,AABCP,AABCQ,AABCR,AABCS,AABCT,AABCU,AABCV,AABCW,AABCX,AABCY,AABCZ,AABDA,AABDB,AABDC,AABDD,AABDE,AABDF,AABDG,AABDH,AABDI,AABDJ,AABDK,AABDL,AABDM,AABDN,AABDO,AABDP,AABDQ,AABDR,AABDS,AABDT,AABDU,AABDV,AABDW,AABDX,AABDY,AABDZ,AABEA,AABEB,AABEC,AABED,AABEE,AABEF,AABEG,AABEH,AABEI,AABEJ,AABEK,AABEL,AABEM,AABEN,AABEO,AABEP,AABEQ,AABER,AABES,AABET,AABEU,AABEV,AABEW,AABEX,AABEY,AABEZ,AABFA,AABFB,AABFC,AABFD,AABFE,AABFF,AABFG,AABFH,AABFI,AABFJ,AABFK,AABFL,AABFM,AABFN,AABFO,AABFP,AABFQ,AABFR,AABFS,AABFT,AABFU,AABFV,AABFW,AABFX,AABFY,AABFZ,AABGA,AABGB,AABGC,AABGD,AABGE,AABGF,AABGG,AABGH,AABGI,AABGJ,AABGK,AABGL,AABGM,AABGN,AABGO,AABGP,AABGQ,AABGR,AABGS,AABGT,AABGU,AABGV,AABGW,AABGX,AABGY,AABGZ,AABHA,AABHB,AABHC,AABHD,AABHE,AABHF,AABHG,AABHH,AABHI,AABHJ,AABHK,AABHL,AABHM,AABHN,AABHO,AABHP,AABHQ,AABHR,AABHS,AABHT,AABHU,AABHV,AABHW,AABHX,AABHY,AABHZ,AABIA,AABIB,AABIC,AABID,AABIE,AABIF,AABIG,AABIH,AABII,AABIJ,AABIK,AABIL,AABIM,AABIN,AABIO,AABIP,AABIQ,AABIR,AABIS,AABIT,AABIU,AABIV,AABIW,AABIX,AABIY,AABIZ,AABJA,AABJB,AABJC,AABJD,AABJE,AABJF,AABJG,AABJH,AABJI,AABJJ,AABJK,AABJL,AABJM,AABJN,AABJO,AABJP,AABJQ,AABJR,AABJS,AABJT,AABJU,AABJV,AABJW,AABJX,AABJY,AABJZ,AABKA,AABKB,AABKC,AABKD,AABKE,AABKF,AABKG,AABKH,AABKI,AABKJ,AABKK,AABKL,AABKM,AABKN,AABKO,AABKP,AABKQ,AABKR,AABKS,AABKT,AABKU,AABKV,AABKW,AABKX,AABKY,AABKZ,AABLA,AABLB,AABLC,AABLD,AABLE,AABLF,AABLG,AABLH,AABLI,AABLJ,AABLK,AABLL,AABLM,AABLN,AABLO,AABLP,AABLQ,AABLR,AABLS,AABLT,AABLU,AABLV,AABLW,AABLX,AABLY,AABLZ,AABMA,AABMB,AABMC,AABMD,AABME,AABMF,AABMG,AABMH,AABMI,AABMJ,AABMK,AABML}'::text[])))",
+                  "Rows Removed by Filter": 10000,
+                  "Shared Hit Blocks": 0,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 128,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0
+                }
+              ]
+            },
+            "Planning": {
+              "Shared Hit Blocks": 0,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0
+            },
+            "Planning Time": 2.847,
+            "Triggers": [],
+            "Execution Time": 3.591
+          },
+          "sample_ms": [
+            3.591,
+            3.686,
+            3.597
+          ],
+          "median_ms": 3.597
+        }
+      }
+    },
+    "v8": {
+      "storage": {
+        "variant": "v8",
+        "index_bytes": 1884160
+      },
+      "queries": {
+        "20": {
+          "result_count": 20,
+          "result_sha256": "066a4ecd48b12d682e2e4e76ad3e941da87a5a273efa1abf6e88a7160039c8ca",
+          "representative_plan": {
+            "Plan": {
+              "Node Type": "Aggregate",
+              "Strategy": "Hashed",
+              "Partial Mode": "Simple",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 218.83,
+              "Total Cost": 220.65,
+              "Plan Rows": 182,
+              "Plan Width": 10,
+              "Actual Startup Time": 0.074,
+              "Actual Total Time": 0.076,
+              "Actual Rows": 20,
+              "Actual Loops": 1,
+              "Group Key": [
+                "answer"
+              ],
+              "Planned Partitions": 0,
+              "HashAgg Batches": 1,
+              "Peak Memory Usage": 40,
+              "Disk Usage": 0,
+              "Shared Hit Blocks": 0,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 14,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0,
+              "Plans": [
+                {
+                  "Node Type": "Bitmap Heap Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Relation Name": "daily_puzzles",
+                  "Alias": "daily_puzzles",
+                  "Startup Cost": 79.85,
+                  "Total Cost": 216.83,
+                  "Plan Rows": 200,
+                  "Plan Width": 10,
+                  "Actual Startup Time": 0.029,
+                  "Actual Total Time": 0.044,
+                  "Actual Rows": 200,
+                  "Actual Loops": 1,
+                  "Recheck Cond": "(((language)::text = 'en'::text) AND ((answer)::text = ANY ('{AAAAA,AAAAB,AAAAC,AAAAD,AAAAE,AAAAF,AAAAG,AAAAH,AAAAI,AAAAJ,AAAAK,AAAAL,AAAAM,AAAAN,AAAAO,AAAAP,AAAAQ,AAAAR,AAAAS,AAAAT}'::text[])))",
+                  "Rows Removed by Index Recheck": 0,
+                  "Exact Heap Blocks": 12,
+                  "Lossy Heap Blocks": 0,
+                  "Shared Hit Blocks": 0,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 14,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0,
+                  "Plans": [
+                    {
+                      "Node Type": "Bitmap Index Scan",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Index Name": "idx_puzzles_language_answer_date",
+                      "Startup Cost": 0.0,
+                      "Total Cost": 79.75,
+                      "Plan Rows": 200,
+                      "Plan Width": 0,
+                      "Actual Startup Time": 0.026,
+                      "Actual Total Time": 0.026,
+                      "Actual Rows": 200,
+                      "Actual Loops": 1,
+                      "Index Cond": "(((language)::text = 'en'::text) AND ((answer)::text = ANY ('{AAAAA,AAAAB,AAAAC,AAAAD,AAAAE,AAAAF,AAAAG,AAAAH,AAAAI,AAAAJ,AAAAK,AAAAL,AAAAM,AAAAN,AAAAO,AAAAP,AAAAQ,AAAAR,AAAAS,AAAAT}'::text[])))",
+                      "Shared Hit Blocks": 0,
+                      "Shared Read Blocks": 0,
+                      "Shared Dirtied Blocks": 0,
+                      "Shared Written Blocks": 0,
+                      "Local Hit Blocks": 2,
+                      "Local Read Blocks": 0,
+                      "Local Dirtied Blocks": 0,
+                      "Local Written Blocks": 0,
+                      "Temp Read Blocks": 0,
+                      "Temp Written Blocks": 0
+                    }
+                  ]
+                }
+              ]
+            },
+            "Planning": {
+              "Shared Hit Blocks": 0,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0
+            },
+            "Planning Time": 0.07,
+            "Triggers": [],
+            "Execution Time": 0.09
+          },
+          "sample_ms": [
+            0.09,
+            0.238,
+            0.085
+          ],
+          "median_ms": 0.09
+        },
+        "1000": {
+          "result_count": 1000,
+          "result_sha256": "ccd7767758d04a16106917699855a0f3c88c4a3333fb7e6ba90c23b20263ee28",
+          "representative_plan": {
+            "Plan": {
+              "Node Type": "Aggregate",
+              "Strategy": "Hashed",
+              "Partial Mode": "Simple",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Startup Cost": 472.91,
+              "Total Cost": 482.9,
+              "Plan Rows": 999,
+              "Plan Width": 10,
+              "Actual Startup Time": 3.147,
+              "Actual Total Time": 3.227,
+              "Actual Rows": 1000,
+              "Actual Loops": 1,
+              "Group Key": [
+                "answer"
+              ],
+              "Planned Partitions": 0,
+              "HashAgg Batches": 1,
+              "Peak Memory Usage": 129,
+              "Disk Usage": 0,
+              "Shared Hit Blocks": 0,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 168,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0,
+              "Plans": [
+                {
+                  "Node Type": "Bitmap Heap Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Relation Name": "daily_puzzles",
+                  "Alias": "daily_puzzles",
+                  "Startup Cost": 171.02,
+                  "Total Cost": 409.68,
+                  "Plan Rows": 6323,
+                  "Plan Width": 10,
+                  "Actual Startup Time": 0.953,
+                  "Actual Total Time": 1.61,
+                  "Actual Rows": 10000,
+                  "Actual Loops": 1,
+                  "Recheck Cond": "(((language)::text = 'en'::text) AND ((answer)::text = ANY ('{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AABEU,AABEV,AABEW,AABEX,AABEY,AABEZ,AABFA,AABFB,AABFC,AABFD,AABFE,AABFF,AABFG,AABFH,AABFI,AABFJ,AABFK,AABFL,AABFM,AABFN,AABFO,AABFP,AABFQ,AABFR,AABFS,AABFT,AABFU,AABFV,AABFW,AABFX,AABFY,AABFZ,AABGA,AABGB,AABGC,AABGD,AABGE,AABGF,AABGG,AABGH,AABGI,AABGJ,AABGK,AABGL,AABGM,AABGN,AABGO,AABGP,AABGQ,AABGR,AABGS,AABGT,AABGU,AABGV,AABGW,AABGX,AABGY,AABGZ,AABHA,AABHB,AABHC,AABHD,AABHE,AABHF,AABHG,AABHH,AABHI,AABHJ,AABHK,AABHL,AABHM,AABHN,AABHO,AABHP,AABHQ,AABHR,AABHS,AABHT,AABHU,AABHV,AABHW,AABHX,AABHY,AABHZ,AABIA,AABIB,AABIC,AABID,AABIE,AABIF,AABIG,AABIH,AABII,AABIJ,AABIK,AABIL,AABIM,AABIN,AABIO,AABIP,AABIQ,AABIR,AABIS,AABIT,AABIU,AABIV,AABIW,AABIX,AABIY,AABIZ,AABJA,AABJB,AABJC,AABJD,AABJE,AABJF,AABJG,AABJH,AABJI,AABJJ,AABJK,AABJL,AABJM,AABJN,AABJO,AABJP,AABJQ,AABJR,AABJS,AABJT,AABJU,AABJV,AABJW,AABJX,AABJY,AABJZ,AABKA,AABKB,AABKC,AABKD,AABKE,AABKF,AABKG,AABKH,AABKI,AABKJ,AABKK,AABKL,AABKM,AABKN,AABKO,AABKP,AABKQ,AABKR,AABKS,AABKT,AABKU,AABKV,AABKW,AABKX,AABKY,AABKZ,AABLA,AABLB,AABLC,AABLD,AABLE,AABLF,AABLG,AABLH,AABLI,AABLJ,AABLK,AABLL,AABLM,AABLN,AABLO,AABLP,AABLQ,AABLR,AABLS,AABLT,AABLU,AABLV,AABLW,AABLX,AABLY,AABLZ,AABMA,AABMB,AABMC,AABMD,AABME,AABMF,AABMG,AABMH,AABMI,AABMJ,AABMK,AABML}'::text[])))",
+                  "Rows Removed by Index Recheck": 0,
+                  "Exact Heap Blocks": 128,
+                  "Lossy Heap Blocks": 0,
+                  "Shared Hit Blocks": 0,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 168,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0,
+                  "Plans": [
+                    {
+                      "Node Type": "Bitmap Index Scan",
+                      "Parent Relationship": "Outer",
+                      "Parallel Aware": false,
+                      "Async Capable": false,
+                      "Index Name": "idx_puzzles_language_answer_date",
+                      "Startup Cost": 0.0,
+                      "Total Cost": 166.94,
+                      "Plan Rows": 6323,
+                      "Plan Width": 0,
+                      "Actual Startup Time": 0.942,
+                      "Actual Total Time": 0.942,
+                      "Actual Rows": 10000,
+                      "Actual Loops": 1,
+                      "Index Cond": "(((language)::text = 'en'::text) AND ((answer)::text = ANY ('{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AABEU,AABEV,AABEW,AABEX,AABEY,AABEZ,AABFA,AABFB,AABFC,AABFD,AABFE,AABFF,AABFG,AABFH,AABFI,AABFJ,AABFK,AABFL,AABFM,AABFN,AABFO,AABFP,AABFQ,AABFR,AABFS,AABFT,AABFU,AABFV,AABFW,AABFX,AABFY,AABFZ,AABGA,AABGB,AABGC,AABGD,AABGE,AABGF,AABGG,AABGH,AABGI,AABGJ,AABGK,AABGL,AABGM,AABGN,AABGO,AABGP,AABGQ,AABGR,AABGS,AABGT,AABGU,AABGV,AABGW,AABGX,AABGY,AABGZ,AABHA,AABHB,AABHC,AABHD,AABHE,AABHF,AABHG,AABHH,AABHI,AABHJ,AABHK,AABHL,AABHM,AABHN,AABHO,AABHP,AABHQ,AABHR,AABHS,AABHT,AABHU,AABHV,AABHW,AABHX,AABHY,AABHZ,AABIA,AABIB,AABIC,AABID,AABIE,AABIF,AABIG,AABIH,AABII,AABIJ,AABIK,AABIL,AABIM,AABIN,AABIO,AABIP,AABIQ,AABIR,AABIS,AABIT,AABIU,AABIV,AABIW,AABIX,AABIY,AABIZ,AABJA,AABJB,AABJC,AABJD,AABJE,AABJF,AABJG,AABJH,AABJI,AABJJ,AABJK,AABJL,AABJM,AABJN,AABJO,AABJP,AABJQ,AABJR,AABJS,AABJT,AABJU,AABJV,AABJW,AABJX,AABJY,AABJZ,AABKA,AABKB,AABKC,AABKD,AABKE,AABKF,AABKG,AABKH,AABKI,AABKJ,AABKK,AABKL,AABKM,AABKN,AABKO,AABKP,AABKQ,AABKR,AABKS,AABKT,AABKU,AABKV,AABKW,AABKX,AABKY,AABKZ,AABLA,AABLB,AABLC,AABLD,AABLE,AABLF,AABLG,AABLH,AABLI,AABLJ,AABLK,AABLL,AABLM,AABLN,AABLO,AABLP,AABLQ,AABLR,AABLS,AABLT,AABLU,AABLV,AABLW,AABLX,AABLY,AABLZ,AABMA,AABMB,AABMC,AABMD,AABME,AABMF,AABMG,AABMH,AABMI,AABMJ,AABMK,AABML}'::text[])))",
+                      "Shared Hit Blocks": 0,
+                      "Shared Read Blocks": 0,
+                      "Shared Dirtied Blocks": 0,
+                      "Shared Written Blocks": 0,
+                      "Local Hit Blocks": 40,
+                      "Local Read Blocks": 0,
+                      "Local Dirtied Blocks": 0,
+                      "Local Written Blocks": 0,
+                      "Temp Read Blocks": 0,
+                      "Temp Written Blocks": 0
+                    }
+                  ]
+                }
+              ]
+            },
+            "Planning": {
+              "Shared Hit Blocks": 0,
+              "Shared Read Blocks": 0,
+              "Shared Dirtied Blocks": 0,
+              "Shared Written Blocks": 0,
+              "Local Hit Blocks": 0,
+              "Local Read Blocks": 0,
+              "Local Dirtied Blocks": 0,
+              "Local Written Blocks": 0,
+              "Temp Read Blocks": 0,
+              "Temp Written Blocks": 0
+            },
+            "Planning Time": 2.58,
+            "Triggers": [],
+            "Execution Time": 3.272
+          },
+          "sample_ms": [
+            3.272,
+            3.079,
+            3.197
+          ],
+          "median_ms": 3.197
+        }
+      }
+    }
+  }
+}

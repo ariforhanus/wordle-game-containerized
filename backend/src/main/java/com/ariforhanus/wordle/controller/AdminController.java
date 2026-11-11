@@ -6,6 +6,7 @@ import com.ariforhanus.wordle.entity.User;
 import com.ariforhanus.wordle.repository.ScoreRepository;
 import com.ariforhanus.wordle.repository.UserRepository;
 import com.ariforhanus.wordle.service.WordService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,9 +16,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Admin-only endpoints. Protected by ROLE_ADMIN in SecurityConfig.
- */
+/** Admin-only endpoints. Protected by ROLE_ADMIN in SecurityConfig. */
 @RestController
 @RequestMapping("/api/v1/admin")
 public class AdminController {
@@ -26,15 +25,28 @@ public class AdminController {
     private final ScoreRepository scoreRepo;
     private final WordService wordService;
     private final ZoneId appZone;
+    private final java.time.Clock clock;
+    private final com.ariforhanus.wordle.service.AuditService audit;
 
-    public AdminController(UserRepository userRepo,
-                           ScoreRepository scoreRepo,
-                           WordService wordService,
-                           @org.springframework.beans.factory.annotation.Value("${app.timezone:Europe/Istanbul}") String timezone) {
+    public AdminController(
+            UserRepository userRepo,
+            ScoreRepository scoreRepo,
+            WordService wordService,
+            com.ariforhanus.wordle.service.AuditService audit,
+            @org.springframework.beans.factory.annotation.Value("${app.timezone:Europe/Istanbul}")
+                    String timezone,
+            java.time.Clock clock) {
+        this.audit = audit;
+        this.clock = clock;
         this.userRepo = userRepo;
         this.scoreRepo = scoreRepo;
         this.wordService = wordService;
         this.appZone = ZoneId.of(timezone);
+    }
+
+    @GetMapping("/audit")
+    public Object audit(@RequestParam(defaultValue = "0") int page) {
+        return audit.recent(page);
     }
 
     // ── Dashboard stats ─────────────────────────────────────
@@ -44,22 +56,10 @@ public class AdminController {
         long totalUsers = userRepo.count();
         long totalGames = scoreRepo.count();
 
-        LocalDate today = ZonedDateTime.now(appZone).toLocalDate();
+        LocalDate today = ZonedDateTime.now(clock.withZone(appZone)).toLocalDate();
 
-        // Today's players
-        long todayPlayers = scoreRepo.findAll().stream()
-                .filter(s -> s.getPlayedAt().equals(today))
-                .map(s -> s.getUserId())
-                .distinct()
-                .count();
-
-        // Active users (played in last 7 days)
-        LocalDate weekAgo = today.minusDays(7);
-        long activeUsers = scoreRepo.findAll().stream()
-                .filter(s -> !s.getPlayedAt().isBefore(weekAgo))
-                .map(s -> s.getUserId())
-                .distinct()
-                .count();
+        long todayPlayers = scoreRepo.countPlayersOn(today);
+        long activeUsers = scoreRepo.countPlayersSince(today.minusDays(6));
 
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("totalUsers", totalUsers);
@@ -74,39 +74,41 @@ public class AdminController {
 
     @GetMapping("/users")
     public ResponseEntity<?> listUsers(
-            @RequestParam(value = "search", required = false) String search
-    ) {
-        List<User> allUsers;
-        if (search != null && !search.isBlank()) {
-            String q = search.trim().toLowerCase();
-            allUsers = userRepo.findAll().stream()
-                    .filter(u -> u.getUsername().toLowerCase().contains(q)
-                            || u.getEmail().toLowerCase().contains(q)
-                            || (u.getFirstName() != null && u.getFirstName().toLowerCase().contains(q))
-                            || (u.getLastName() != null && u.getLastName().toLowerCase().contains(q)))
-                    .collect(Collectors.toList());
-        } else {
-            allUsers = userRepo.findAll();
-        }
+            @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "page", defaultValue = "0") int page) {
+        var pageable =
+                org.springframework.data.domain.PageRequest.of(
+                        Math.max(0, page), 50, org.springframework.data.domain.Sort.by("id"));
+        List<User> allUsers =
+                (search == null || search.isBlank()
+                                ? userRepo.findAll(pageable)
+                                : userRepo.search(search.trim(), pageable))
+                        .getContent();
 
         // Map to DTOs (exclude sensitive fields like passwordHash, avatar bytes)
-        List<Map<String, Object>> result = allUsers.stream()
-                .map(u -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("id", u.getId());
-                    m.put("username", u.getUsername());
-                    m.put("email", u.getEmail());
-                    m.put("role", u.getRole());
-                    m.put("firstName", u.getFirstName());
-                    m.put("lastName", u.getLastName());
-                    m.put("nationality", u.getNationality());
-                    m.put("createdAt", u.getCreatedAt() != null ? u.getCreatedAt().toString() : null);
-                    // Count games for this user
-                    long gameCount = scoreRepo.findByUserId(u.getId()).size();
-                    m.put("totalGames", gameCount);
-                    return m;
-                })
-                .collect(Collectors.toList());
+        List<Map<String, Object>> result =
+                allUsers.stream()
+                        .map(
+                                u -> {
+                                    Map<String, Object> m = new LinkedHashMap<>();
+                                    m.put("id", u.getId());
+                                    m.put("username", u.getUsername());
+                                    m.put("email", u.getEmail());
+                                    m.put("role", u.getRole());
+                                    m.put("firstName", u.getFirstName());
+                                    m.put("lastName", u.getLastName());
+                                    m.put("nationality", u.getNationality());
+                                    m.put(
+                                            "createdAt",
+                                            u.getCreatedAt() != null
+                                                    ? u.getCreatedAt().toString()
+                                                    : null);
+                                    // Count games for this user
+                                    long gameCount = scoreRepo.countByUserId(u.getId());
+                                    m.put("totalGames", gameCount);
+                                    return m;
+                                })
+                        .collect(Collectors.toList());
 
         return ResponseEntity.ok(result);
     }
@@ -127,42 +129,55 @@ public class AdminController {
         m.put("lastName", u.getLastName());
         m.put("nationality", u.getNationality());
         m.put("createdAt", u.getCreatedAt() != null ? u.getCreatedAt().toString() : null);
-        m.put("totalGames", scoreRepo.findByUserId(u.getId()).size());
+        m.put("totalGames", scoreRepo.countByUserId(u.getId()));
         return ResponseEntity.ok(m);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     @PutMapping("/users/{id}/role")
     public ResponseEntity<?> changeRole(
             @PathVariable Long id,
-            @RequestBody Map<String, String> body
-    ) {
+            @RequestBody Map<String, String> body,
+            org.springframework.security.core.Authentication actor) {
         String newRole = body.get("role");
         if (newRole == null || (!newRole.equals("USER") && !newRole.equals("ADMIN"))) {
             return ResponseEntity.badRequest().body(Map.of("error", "invalid_role"));
         }
 
-        var opt = userRepo.findById(id);
+        Long actorId = userRepo.findByUsername(actor.getName()).orElseThrow().getId();
+        var opt =
+                userRepo.lockForAdministration(List.of(actorId, id)).stream()
+                        .filter(candidate -> candidate.getId().equals(id))
+                        .findFirst();
         if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-
         User user = opt.get();
         user.setRole(newRole);
+        user.setAuthVersion(user.getAuthVersion() + 1);
         userRepo.save(user);
+        audit.record(actorId, "ADMIN_ROLE_" + newRole, id);
 
-        return ResponseEntity.ok(Map.of(
-                "id", user.getId(),
-                "username", user.getUsername(),
-                "role", user.getRole()
-        ));
+        return ResponseEntity.ok(
+                Map.of(
+                        "id", user.getId(),
+                        "username", user.getUsername(),
+                        "role", user.getRole()));
     }
 
+    @org.springframework.transaction.annotation.Transactional
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
-        var opt = userRepo.findById(id);
+    public ResponseEntity<?> deleteUser(
+            @PathVariable Long id, org.springframework.security.core.Authentication actor) {
+        Long actorId = userRepo.findByUsername(actor.getName()).orElseThrow().getId();
+        var opt =
+                userRepo.lockForAdministration(List.of(actorId, id)).stream()
+                        .filter(candidate -> candidate.getId().equals(id))
+                        .findFirst();
         if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        audit.record(actorId, "ADMIN_USER_DELETED", id);
         userRepo.deleteById(id);
         return ResponseEntity.ok(Map.of("deleted", true, "id", id));
     }

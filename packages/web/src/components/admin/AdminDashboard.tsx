@@ -16,7 +16,7 @@ export default function AdminDashboard() {
   }, []);
 
   if (loading) {
-    return <div className="admin-loading"><div className="spinner" /></div>;
+    return <div className="admin-loading"><div className="spinner" role="status" aria-label={t("a11y.loading")} /></div>;
   }
 
   const cards = [
@@ -33,7 +33,7 @@ export default function AdminDashboard() {
         {cards.map((c) => (
           <div key={c.label} className="admin-stat-card">
             <div className="admin-stat-icon">
-              <i className={`fas ${c.icon}`} />
+              <i aria-hidden="true" className={`fas ${c.icon}`} />
             </div>
             <div className="admin-stat-value">{c.value}</div>
             <div className="admin-stat-label">{c.label}</div>

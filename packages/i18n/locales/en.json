@@ -27,7 +27,22 @@
     "themes": "Themes",
     "backToGame": "Back to game",
     "switchLang": "TR",
-    "menu": "Menu"
+    "menu": "Menu",
+    "language": "Language"
+  },
+  "feedback": {
+    "backspace": "Delete last letter",
+    "correct": "correct position",
+    "present": "in the word, different position",
+    "absent": "not in the word",
+    "hidden": "Feedback hidden until the game ends",
+    "row": "Guess {{row}}",
+    "legend": "✓ Correct position · • Different position · × Not in the word"
+  },
+  "modes": {
+    "compare": "Daily or practice?",
+    "daily": "One ranked game per language each day. Start begins the timer, which keeps running while you are away. Finish before midnight in the game time zone. A connection is required to start and submit guesses.",
+    "practice": "Unlimited practice rounds without a ranked timer or leaderboard points. After the app and word lists have loaded online, cached practice can work offline; the first visit needs a connection."
   },
   "game": {
     "congrats": "Congratulations!",
@@ -44,7 +59,7 @@
     "share": "Share Result",
     "copied": "Copied to clipboard!",
     "howToPlay": "How To Play",
-    "howToPlayDesc": "Guess the word in 6 tries. After each guess, the color of the tiles will change to show how close your guess was to the word.",
+    "howToPlayDesc": "Guess the word in 6 tries. Feedback uses color, symbols and text: ✓ correct position, • different position, × not in the word.",
     "howCorrect": "is in the word and in the correct spot.",
     "howPresent": "is in the word but in the wrong spot.",
     "howAbsent": "is not in the word in any spot.",
@@ -56,6 +71,7 @@
     "hardModeLocked": "Modes can only be changed at the start of a game",
     "hardModeCorrect": "{{pos}}. letter must be {{letter}}",
     "hardModePresent": "Guess must contain {{letter}}",
+    "hardModeCount": "Guess must contain at least {{count}} copies of {{letter}}",
     "blindMode": "Blind",
     "blindModeOn": "Blind Mode ON",
     "blindModeOff": "Blind Mode OFF",
@@ -66,6 +82,9 @@
     "loadError": "Could not load word. Check your connection."
   },
   "daily": {
+    "languageStats": "{{lang}} statistics",
+    "statsUnavailable": "Statistics are temporarily unavailable. Your game result is saved.",
+    "statsLoading": "Loading statistics…",
     "title": "Daily Challenge",
     "desc": "A new word every day. Everyone gets the same word — guess it in 6 tries and compete on the leaderboard!",
     "startGame": "Start Game",
@@ -75,9 +94,44 @@
     "timer": "Time",
     "goToLeaderboard": "Go to Leaderboard",
     "loginRequired": "You need to login to play the daily challenge.",
-    "playTodayFirst": "Play today's challenge to unlock the leaderboard."
+    "playTodayFirst": "Play today's challenge to unlock the leaderboard.",
+    "start": "Start today's game",
+    "resume": "Resume today's game",
+    "viewResult": "View today's result",
+    "resumeTitle": "Your daily game is in progress",
+    "startRule": "The timer starts when you press Start. Once started, it keeps running even if you close the page, disconnect, or switch devices. Time affects your score.",
+    "resumeRule": "Your timer has kept running while you were away. Resume continues the same game without resetting the timer.",
+    "finishedRule": "Today's game is complete. View your saved result; the timer and score will not change.",
+    "loading": "Checking today's game…",
+    "statusError": "Could not check today's game. Retry before starting or resuming.",
+    "retryStatus": "Check again",
+    "dayChanged": "The game day has changed. Unfinished games from previous days can no longer be played. Review today’s game and press Start when ready.",
+    "puzzleDay": "Puzzle day: {{date}} ({{timeZone}})",
+    "nextGame": "Next daily game",
+    "nextGameLoading": "Checking the server calendar…",
+    "nextGameUnavailable": "Could not check the next game time. Your result is saved.",
+    "nextGameCheck": "Check today’s game",
+    "nextGameReady": "The countdown has ended. Check today’s game; a new game starts only when you press Start.",
+    "nextGameZone": "Game time zone: {{timeZone}}",
+    "offlineRule": "You are offline. Your timer keeps running. Your draft stays in this tab; guesses require a connection.",
+    "pendingRule": "This guess has not been confirmed. Keep the same word and turn until the server confirms it; retry sends only that guess.",
+    "reconnected": "Saved game refreshed. Review the board before submitting. No guess was sent automatically.",
+    "checkSaved": "Check saved game",
+    "rolloverRule": "Finish before midnight in the game time zone. Unfinished games expire when the day changes and cannot be resumed. Each new day requires an explicit Start.",
+    "startResume": "Start / resume today’s game",
+    "saveError": "Could not confirm the request. Check your connection and retry.",
+    "elapsed": "Elapsed time",
+    "retry": "Retry guess",
+    "confirmedScore": "Saved score: {{score}}"
   },
   "leaderboard": {
+    "dailyScore": "Daily game score",
+    "totalPoints": "Total points",
+    "wins": "Wins",
+    "dailyExplanation": "Today's highest game scores in the selected language.",
+    "weeklyExplanation": "Points from all your wins in the selected language since Monday. Each player appears once.",
+    "monthlyExplanation": "Points from all your wins in the selected language this month. Each player appears once.",
+    "totalTieRule": "Equal totals are ranked by the earlier final win in the period; remaining ties keep a stable order.",
     "title": "Daily Leaderboard",
     "rank": "#",
     "player": "Player",
@@ -115,10 +169,11 @@
     "usernameRequired": "Username is required.",
     "passwordRequired": "Password is required.",
     "emailRequired": "Enter a valid email.",
-    "passwordMinLength": "Password must be at least 6 characters.",
+    "passwordMinLength": "Password must be at least 12 characters.",
     "countryRequired": "Please select a country."
   },
   "profile": {
+    "statisticsScope": "Score/time cards cover all languages. Streak and guess distribution: {{lang}}.",
     "title": "Profile",
     "stats": "Statistics",
     "achievements": "Achievements",
@@ -156,6 +211,10 @@
     "lang_games_10": { "title": "Local Hero", "desc": "Play 10 games in this language." }
   },
   "themes": {
+    "loading": "Loading themed words",
+    "loadError": "Could not load this theme’s word list.",
+    "retry": "Retry word list",
+
     "title": "Themes",
     "pickTheme": "Pick a theme and guess the word!",
     "back": "All Themes",
@@ -167,6 +226,7 @@
     "light": "Light Mode"
   },
   "api": {
+    "rate_limited": "Too many attempts. Please wait before trying again.",
     "required_fields": "Username, email and password are required.",
     "username_taken": "This username is already taken.",
     "email_taken": "This email is already registered.",
@@ -209,5 +269,49 @@
     "noAccess": "You don't have admin access.",
     "back": "Back to App",
     "nav": "Admin"
+  },
+  "account": {
+    "auditTitle": "Security audit",
+    "auditWhen": "Time",
+    "auditAction": "Action",
+    "auditActor": "Actor ID",
+    "auditTarget": "Target ID",
+    "previous": "Previous page",
+    "next": "Next page",
+    "title": "Account security",
+    "forgotTitle": "Forgot password?",
+    "resetTitle": "Reset password",
+    "verifyTitle": "Verify email",
+    "continue": "Continue",
+    "emailSent": "Request received. Email delivery is attempted for eligible addresses. If no email arrives, check spam or try again later.",
+    "newLinkRule": "A newly issued link replaces earlier links for the same purpose. Delivery can be delayed; check spam before requesting again.",
+    "completed": "Completed. You can now sign in.",
+    "newPassword": "New password (at least 12 characters)",
+    "currentPassword": "Current password",
+    "passwordMismatch": "Use at least 12 characters and enter matching passwords.",
+    "invalidLink": "This link is missing or invalid. Request a new email.",
+    "failed": "The request could not be completed. Check your details or request a new link.",
+    "mailUnavailable": "Email delivery is currently unavailable. Please try again later.",
+    "rateLimited": "Too many attempts. Please wait before trying again.",
+    "changePassword": "Change password",
+    "logoutAll": "Sign out of all devices",
+    "deleteTitle": "Delete account",
+    "deleteWarning": "This deletes your profile, avatar, games, scores and recovery links from the active service. Your existing sessions will stop working.",
+    "deleteSecurityRetention": "Security events may remain without links to your deleted account until the scheduled 90-day cleanup. Temporary abuse-prevention records may also remain.",
+    "deleteBackupRetention": "Deletion does not immediately erase older backup copies. Their retention period is set by the service operator, who must reapply deletions before reopening a restored service.",
+    "deleteConfirm": "I understand that this cannot be undone.",
+    "verified": "Email verified",
+    "unverified": "Email not verified",
+    "sendVerification": "Send verification email",
+    "verifyToPlay": "Verify your email to play ranked games"
+  },
+  "a11y": {
+    "close": "Close",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "loadError": "Could not load this page. Please try again.",
+    "skip": "Skip to content",
+    "locked": "Locked",
+    "unlocked": "Unlocked"
   }
 }
