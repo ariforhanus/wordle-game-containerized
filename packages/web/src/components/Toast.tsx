@@ -82,7 +82,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             className={`toast-item toast-${t.type} ${t.exiting ? "toast-exit" : ""}`}
             onClick={() => removeToast(t.id)}
           >
-            <i className={`fas ${ICONS[t.type]}`} />
+            <i aria-hidden="true" className={`fas ${ICONS[t.type]}`} />
             <span className="toast-message">{t.message}</span>
           </div>
         ))}

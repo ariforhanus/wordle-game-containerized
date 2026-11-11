@@ -84,7 +84,7 @@ it("does not label stale English stats as Turkish when the Turkish request fails
     vi.mocked(scoreApi.getMyStats).mockRejectedValueOnce(new Error("offline"));
     locale.language = "tr";
     view.rerender(tree());
-    await screen.findByText("profile.noStats");
+    await screen.findByText("a11y.loadError");
     expect(screen.queryByText("profile.currentStreak")).toBeNull();
   } finally {
     log.mockRestore();

@@ -1,6 +1,6 @@
 # Game and account accessibility checkpoint
 
-Implemented 2026-11-10; this is a tested improvement scope, not a WCAG certification.
+Updated 2026-11-11; this is a tested improvement scope, not a WCAG certification.
 
 ## Feedback and blind mode
 
@@ -12,7 +12,7 @@ Rows/cells identify their guess and status, and a polite atomic live region summ
 
 CSS respects prefers-reduced-motion across animation/transition/scroll behavior. Board reveal timers are skipped and confetti particles are not generated; live preference changes are observed and old timers/listeners cleaned up. Normal-mode reveals are retained. Loading states remain labeled even when their spinner is static.
 
-Correct/present tiles use dark text, absent tiles use a darker gray, dark-theme idle keys use dark text, and header/action gradients are darker. Real computed board/key foreground/background ratios are tested at >=4.5:1 in light/dark themes. Header/game scoped Axe checks supplement this; gradients, every page/component and every interaction still need a full audit. Focus outlines are visible, with white outlines on the header.
+Correct/present tiles use dark text, absent tiles use a darker gray, dark-theme idle keys use dark text, and header/action gradients are darker. Real computed board/key foreground/background ratios are tested at >=4.5:1 in light/dark themes. Header/game scoped Axe checks supplement the final full-page account/theme/admin scans below. Automated coverage remains limited to the enumerated interactions; it does not certify every page or assistive technology. Focus outlines are visible, with white outlines on the header.
 
 ## Focus and keyboard
 
@@ -47,6 +47,37 @@ colors, retaining the theme color as a border. The shared result-share button
 was corrected after Axe detected insufficient contrast; scoped dialog scans now
 check light/dark and normal/hover states on two successive rounds.
 
+## Final account/theme acceptance — 2026-11-11
+
+The final audit exercises login, registration, forgotten/reset password, verification,
+account security (including expanded deletion notices), profile, edit/achievements
+dialogs, the existing theme selector and both existing themed games. EN/TR and
+light/dark combinations use full-page Axe WCAG 2 A/AA + 2.1 AA checks. Admin
+navigation/users/words/audit and delete-cancel focus are included in both appearances.
+Mobile icon-only admin links retain explicit names. The application owns one main
+landmark, with a translated skip link and heading/main focus after SPA navigation.
+
+Native achievement buttons work with Enter/Space. Dialogs have names, labels,
+Escape/Tab trapping, inert background and restored trigger focus. Account fields
+have labels/autocomplete; validation identifies/focuses the invalid field and API
+errors receive focus. Busy submits retain their names. Network read failures offer
+explicit retry; avatar upload failures are announced and do not claim full success.
+Registration stays busy through its separate upload and retains the created account
+with a visible warning if only the photo fails. Recovery routes remount independently
+so one flow's completion/token/password cannot appear in the next route.
+
+320px narrow and 736px landscape viewports with root text at 200% check horizontal
+reflow, keyboard reachability and profile dialogs. Long usernames wrap and stat/theme
+grids can shrink without clipping labels. Actual rendered header/button/stat gradients
+are separately sampled for text contrast because Axe reports gradients as incomplete;
+stat label opacity is included. Theme accents remain borders around readable cards.
+No theme or language was added. See VALIDATION.md for engine results and fixture gates.
+
+The browser audit waits for visible modal opacity to settle; it does not await all
+browser-owned animations (Firefox caret promises can remain pending). Assertions and
+production animations remain enabled. Local trace recording is off to fit the workspace;
+CI retains its existing failure-trace policy.
+
 See VALIDATION.md for exact counts/limits. New tests cover reduced motion/live changes, no blind-mode leakage, names/descriptions/symbols, modal focus/Escape/Tab/storage failure and native keyboard controls. Browser checks inspect rendered pseudo-content and accessibility names, perform scoped Axe checks and measure actual styles; JSDOM alone cannot catch pseudo-content/font accessible-name behavior.
 
-Remaining: real NVDA/VoiceOver speech and browse-mode review, color-vision simulation/user testing, full site/complete account-flow focus/contrast review, physical mobile devices and full browser zoom. Firefox now passes locally (25 tests; SMTP and two production-only cases skipped); WebKit/Chromium checks remain emulated engine coverage. Production Nginx/offline and full release capacity/CI gates are separate. This accessibility work does not change scoring or daily rights/expiry; the concurrent backend rotation/V8 work is documented separately in `WORD_ROTATION.md`.
+Remaining manual acceptance: real NVDA/VoiceOver speech/browse mode, physical iOS/Android keyboards and Safari, actual browser/OS zoom, and color-vision simulation/user testing. Automated full-page scans cover the account/theme/admin routes above; they do not prove full-site WCAG conformance or replace human review. Production ingress, release image/CI checks and capacity gates are tracked separately in TODO.md and VALIDATION.md. Scoring, daily rights and expiry behavior are unchanged by the accessibility work.

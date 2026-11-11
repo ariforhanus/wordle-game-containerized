@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.ariforhanus.wordle.config.MailOutboxProperties;
 import com.ariforhanus.wordle.service.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,7 +25,10 @@ class OutboxCipherTest {
     }
 
     private OutboxCipher cipher(String active, String keys) {
-        return new OutboxCipher(config(active, keys), new ObjectMapper(), "unrelated-jwt-test-key");
+        return new OutboxCipher(
+                config(active, keys),
+                tools.jackson.databind.json.JsonMapper.builder().build(),
+                "unrelated-jwt-test-key");
     }
 
     private OutboxCipher.Context context() {
@@ -158,8 +160,45 @@ class OutboxCipherTest {
     void jwtKeyReuseIsRejectedAndDisabledModeNeedsNoSecret() {
         assertThrows(
                 IllegalStateException.class,
-                () -> new OutboxCipher(config("test-v1", RING), new ObjectMapper(), FIRST));
+                () ->
+                        new OutboxCipher(
+                                config("test-v1", RING),
+                                tools.jackson.databind.json.JsonMapper.builder().build(),
+                                FIRST));
         var disabled = new MailOutboxProperties(false, true, "", "", 4, 3, 30, 10, 1000);
-        assertTrue(new OutboxCipher(disabled, new ObjectMapper(), "jwt").keyIds().isEmpty());
+        assertTrue(
+                new OutboxCipher(
+                                disabled,
+                                tools.jackson.databind.json.JsonMapper.builder().build(),
+                                "jwt")
+                        .keyIds()
+                        .isEmpty());
+    }
+
+    @Test
+    void decryptsPersistedV9PayloadWrittenByThePreUpgradeJackson2Producer() throws Exception {
+        try (var input = getClass().getResourceAsStream("/legacy-outbox-v9.json")) {
+            assertNotNull(input);
+            var fixture = tools.jackson.databind.json.JsonMapper.builder().build().readTree(input);
+            var old =
+                    new OutboxCipher.Context(
+                            java.util.UUID.fromString(fixture.path("id").asText()),
+                            fixture.path("userId").asLong(),
+                            fixture.path("purpose").asText(),
+                            fixture.path("tokenHash").asText(),
+                            java.time.Instant.parse(fixture.path("expiresAt").asText()),
+                            fixture.path("messageId").asText());
+            var secret =
+                    cipher("test-v1", RING)
+                            .decrypt(
+                                    old,
+                                    fixture.path("keyId").asText(),
+                                    java.util.Base64.getDecoder()
+                                            .decode(fixture.path("nonce").asText()),
+                                    java.util.Base64.getDecoder()
+                                            .decode(fixture.path("payload").asText()));
+            assertEquals(fixture.path("expectedEmail").asText(), secret.email());
+            assertEquals(fixture.path("expectedToken").asText(), secret.token());
+        }
     }
 }

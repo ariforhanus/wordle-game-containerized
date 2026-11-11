@@ -4,6 +4,17 @@ Bu liste `fix/security-game-integrity` dalının mevcut kodu ve `VALIDATION.md` 
 
 Önerilen geliştirme sırası: **süre adaleti → toplam puan sıralaması → dil bazlı streak → veri modeli/performans → günlük oyun UX/erişilebilirlik → mevcut dillerin kelime rotasyonu → hesap/operasyon politikaları**. Kullanıcının son kararıyla yeni dil ekleme ertelendi. CI ve yayın güvenliği engelleri bu sıraya paralel çözülür ve production çıkışını engeller. Yerel uygulama/test adımları ile dış ortamda gereken doğrulamaları ayrı izliyoruz.
 
+## Son teknik kabul — 2026-11-11
+
+Kapsam: kalan hesap/tema erişilebilirliği, yerel teknik doğrulama ve `fix/security-game-integrity` dalının tamamının son incelemesi. Yeni dil, tanım, tema, mobil uygulama veya mikroservis eklenmez. PR hedefi **develop**; main'e otomatik merge ve deploy yapılmaz. Production çalışmaları kullanıcı kararıyla **ertelendi**; aşağıdaki açık altyapı işleri tamamlanmış sayılmaz.
+
+- [x] Hesap/profil/tema/yönetici kontrollerine erişilebilir adlar, gerçek etiketler, klavye odağı, modal Escape/Tab/geri dönüşü, yükleme/hata/retry ve açık/koyu kontrast düzeltmelerini uygula.
+- [x] Gerçek PostgreSQL'de yönetici rol değiştirme ile outbox retry arasındaki ters kilit sırasını regresyon testiyle doğrula ve sabit kullanıcı-ID sırasıyla gider.
+- [x] Güvenlik taramasında bulunan bağımlılık açıklarını desteklenen Spring Boot BOM'u ile gider; eski şifreli V9 outbox payload'ının okunmasını ve tüm migration/testleri doğrula.
+- [x] Son tarayıcı/operatör kontrollerini sonuçlarıyla kaydet ve tüm diff incelemesini tamamla: `VALIDATION.md`, `docs/FINAL_BRANCH_REVIEW.md`. `develop`, main’in `b1fb004` commit’inden oluşturuldu; PR hedefi develop, otomatik merge/deploy yok.
+
+Bilinen açık **kod seviyesi engel yok**. Sıradaki iş insan incelemesi ve gerekli uzak CI sonuçlarıdır; aşağıdaki altyapı/staging/production ve manuel erişilebilirlik işleri ayrı, ertelenmiş kabul kapılarıdır. Paylaşılan yerel `.env` fixture değerleri bu tur değiştirilmedi; secret taraması istisnaları `VALIDATION.md` içinde açıkça kayıtlıdır.
+
 ## P0.1 — Günlük oyun süresi ve adalet
 
 Mevcut temel: oyun kaydı Start isteğinde sunucuda oluşturuluyor; skor süresi kalıcı `started_at` üzerinden hesaplanıyor. Ekran salt okunur durum sorgusuyla Start, Resume ve kayıtlı sonuç durumlarını ayırıyor. Aşağıdaki işler bu temeli koruyarak tamamlanacak.
@@ -14,9 +25,9 @@ Mevcut temel: oyun kaydı Start isteğinde sunucuda oluşturuluyor; skor süresi
 - [x] Eşzamanlı Start/Resume, farklı oturumlar/cihazlar, yinelenen istekler ve yanıt kaybında aynı oyun ve tek skor garantisini birlikte test et; mevcut satır kilidi ve idempotency kontrollerini koru.
 - [x] Uygulama zaman diliminde gece yarısı geçişini test et: gece yarısından önce başlayan oyun, sonra gelen tahmin/retry, eski oyunun süresi ve sonraki günün oyunu. Tamamlama/kapanma politikasını açıkça belgele; puzzle günü, skor günü ve sıralama tutarlı olsun.
 
-## P0.2 — CI ve production çıkış engelleri
+## Ertelenen altyapı / staging / production işleri (önceki P0.2)
 
-Bu maddeler geliştirme sırasında izlenir; production çıkışı tamamı doğrulanana kadar yapılmaz.
+Bu maddeler kod TODO’sundan ayrıdır ve kullanıcı kararıyla ertelenmiştir. Yerel test başarısı bunları kapatmaz; production çıkışı için ayrıca doğrulanırlar.
 
 - [ ] Açığa çıkmış canlı veritabanı, yönetici ve JWT kimlik bilgilerini yetkili production ortamında döndür; eski bilgilerin artık çalışmadığını doğrula.
 - [ ] GitHub runner sorununu çöz ve backend/frontend/E2E/security işlerinin gerçekten çalışıp geçtiğini doğrula. Son gözlenen uzak koşu hiçbir adım başlamadan başarısız oldu.
@@ -73,12 +84,14 @@ V6 dönem indeksi ve sentetik önce/sonra okuma planları tamamlandı (`docs/per
 - [x] Oyun sonunda seçili dilin istatistiklerini, tahmin dağılımını ve sunucunun gün/zaman dilimiyle uyumlu sonraki oyuna geri sayımı göster; gün değişiminde eski oyunu yanlışlıkla başlatma.
 - [x] Günlük ve serbest oyunun farkını açıkla: sıralama, günlük hak, süre ve çevrimdışı kullanım kuralları.
 - [x] Ağ hatasında yazılmış/iletilmiş tahminleri koru; retry sırasında çift tahmin oluşturma. Mevcut kayıp yanıt testine yazılmakta olan tahmin, offline/online geçişi ve yeniden bağlantı senaryolarını ekle.
-- [ ] Mobil klavye/tahta, yatay ekran, yakınlaştırma ve odak davranışını doğrula; emülasyona ek fiziksel cihaz kontrolü yap.
+- [x] Dar/yatay ekran, 200% metin büyütme, mobil klavye/tahta ve hesap/tema reflow/odak davranışını otomatik gerçek tarayıcı motorlarında doğrula.
+- [ ] **Manuel:** fiziksel mobil cihaz, gerçek tarayıcı zoom’u ve OS klavyesiyle kullanılabilirlik kontrolü yap.
 - [x] Reduced-motion tercihi, kalıcı renk dışı semboller, EN/TR ekran okuyucu geri bildirimi ve kör mod gizliliği; yardım/ipucu/sonuç odağı ve native klavye davranışı iyileştirildi. Açık/koyu tahta ve tuş kontrastı gerçek tarayıcıda en az 4,5:1 kontrol edildi.
-- [ ] Tüm sayfa/hesap/temalı mod akışlarının kapsamlı odak ve kontrast denetimini, gerçek NVDA/VoiceOver ve renk görme simülasyonu/kullanıcı kontrollerini tamamla; kapsam/sınırlar `docs/ACCESSIBILITY.md` içinde.
+- [x] EN/TR açık/koyu hesap, kurtarma, profil, mevcut temalar ve yönetici ekranlarında tam sayfa Axe, metin gradyanı kontrastı ve klavye/modal kontrollerini tamamla; otomatik kapsam `docs/ACCESSIBILITY.md` içinde.
+- [ ] **Manuel:** gerçek NVDA/VoiceOver konuşma/browse-mode ve renk görme simülasyonu/kullanıcı denetimini tamamla; otomatik test WCAG sertifikası değildir.
 - [x] Hesap şifre onayı hatalarında alan odağı/erişilebilir hata ilişkisini; temalı oyunda sonuç odağını, açık/koyu paylaşım kontrastını, aynı cevapla tekrar oynamayı ve kelime listesi hata/retry akışını component ve tarayıcı testleriyle doğrula. Bu otomatik kapsam tam site/gerçek yardımcı teknoloji denetimi yerine geçmez.
 - [x] Yeni Start/Resume, dönem toplamları, dil streak'i ve oyun sonu akışları için backend/frontend/E2E kabul testlerini tamamla; frontend kapsamını mevcut %22,20 satır / %24,22 dal kapsamını özellikle UI hata yollarında genişlet.
-- [x] Firefox'ta başarılı yerel tarayıcı koşusu: 25 geçti, gerçek SMTP/production Nginx gerektiren 3 senaryo atlandı. Komut sandbox'ı dışında profil erişimiyle çalıştı; repo/CI tarayıcı güvenlik ayarları gevşetilmedi. Atlananlar ve gerçek yardımcı teknoloji/fiziksel Safari kontrolleri hâlâ açık.
+- [x] Firefox genel suite: 39 geçti / 5 ayrı-fixture atlaması; son hesap/tema/yönetici erişilebilirlik tekrarında 7 geçti. Gerçek TLS/AUTH (1), senkron SMTP arızası (2) ve production Nginx/offline (2) ayrıca geçti. Dört motorun genel suite toplamı 156 geçti; ayrıntı/tekrar sınırları `VALIDATION.md` içinde. Gerçek yardımcı teknoloji/fiziksel Safari kontrolleri manuel açık.
 
 Oyun sonu istatistikleri, tahmin dağılımı ve sunucu takvimine bağlı geri sayım tamamlandı. Sayaç bitince yalnızca bugünün durumunu kontrol etme seçeneği açılır; otomatik Start yoktur. Günlük/serbest oyun karşılaştırması EN/TR olarak iki oyun ekranına eklendi; ağ kesintisi/taslak/reconnect akışı ve erişilebilirlik/mobil geliştirme adımı tamamlandı. Dil seçimi bayrak/kod tekrarı yerine kendi adlarıyla native seçim kullanıyor; mobil kapalı menü inert ve menü simgesi fonttan bağımsız SVG. Güncel frontend kapsamı %57,69 satır / %56,50 dal. Firefox yerel koşusu geçti; kapsamlı manuel erişilebilirlik, fiziksel cihaz ve production Nginx/SMTP kontrolü açık. 320×568 / 736×320 ve %200 metin emülasyonu kontrol edildi; bu gerçek cihaz veya tam tarayıcı zoom provası değildir. Taslaklar sekme içi best-effort saklanır; API sonucu/cevap/oturum bilgisi saklanmaz, otomatik hamle kuyruğu yoktur.
 

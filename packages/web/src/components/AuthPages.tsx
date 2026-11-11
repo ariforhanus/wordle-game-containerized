@@ -1,4 +1,4 @@
-import { useState, useRef, type FormEvent } from "react";
+import { useState, useRef, useEffect, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
@@ -18,17 +18,26 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const errorRef = useRef<HTMLDivElement>(null);
+  const invalidField = useRef<string | null>(null);
+  useEffect(() => { if (error && !invalidField.current) errorRef.current?.focus(); }, [error]);
 
   async function handleSubmit(e: FormEvent) {
+    if (loading) { e.preventDefault(); return; }
     e.preventDefault();
     setError("");
+    invalidField.current = null;
 
     if (!username.trim()) {
       setError(t("auth.usernameRequired"));
+      invalidField.current = "login-username";
+      document.getElementById("login-username")?.focus();
       return;
     }
     if (!password) {
       setError(t("auth.passwordRequired"));
+      invalidField.current = "login-password";
+      document.getElementById("login-password")?.focus();
       return;
     }
 
@@ -45,23 +54,28 @@ export function LoginPage() {
 
   return (
     <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit} noValidate aria-label={t("auth.loginTitle") as string}>
+      <form className="auth-card" onSubmit={handleSubmit} aria-busy={loading} noValidate aria-label={t("auth.loginTitle") as string}>
         <h1>{t("auth.loginTitle")}</h1>
-        {error && <div className="auth-error" role="alert">{error}</div>}
+        {error && <div ref={errorRef} tabIndex={-1} id="auth-error" className="auth-error" role="alert">{error}</div>}
 
         <label htmlFor="login-username">{t("auth.username")}</label>
         <input
           id="login-username"
+          aria-invalid={error === t("auth.usernameRequired") || undefined}
+          aria-describedby={error ? "auth-error" : undefined}
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
+          maxLength={64}
           autoFocus
         />
 
         <label htmlFor="login-password">{t("auth.password")}</label>
         <input
           id="login-password"
+          aria-invalid={error === t("auth.passwordRequired") || undefined}
+          aria-describedby={error ? "auth-error" : undefined}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -69,7 +83,7 @@ export function LoginPage() {
         />
 
         <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? <span className="btn-spinner" /> : t("auth.loginBtn")}
+          {loading && <span aria-hidden="true" className="btn-spinner" />}{t("auth.loginBtn")}
         </button>
 
         <p className="auth-switch">
@@ -85,7 +99,9 @@ export function RegisterPage() {
   const { t, i18n } = useTranslation();
   usePageTitleKey("seo.register");
   const navigate = useNavigate();
-  const { register, loading } = useAuth();
+  const { register, loading: authLoading } = useAuth();
+  const [uploading, setUploading] = useState(false);
+  const loading = authLoading || uploading;
   const toastCtx = useToast();
   const [form, setForm] = useState({
     username: "",
@@ -97,6 +113,9 @@ export function RegisterPage() {
     nationality: "",
   });
   const [error, setError] = useState("");
+  const errorRef = useRef<HTMLDivElement>(null);
+  const invalidField = useRef<string | null>(null);
+  useEffect(() => { if (error && !invalidField.current) errorRef.current?.focus(); }, [error]);
   const avatarRef = useRef<HTMLInputElement>(null);
 
   const countries = COUNTRIES[i18n.language as "en" | "tr"] ?? COUNTRIES.en;
@@ -106,27 +125,39 @@ export function RegisterPage() {
   }
 
   async function handleSubmit(e: FormEvent) {
+    if (loading) { e.preventDefault(); return; }
     e.preventDefault();
     setError("");
+    invalidField.current = null;
 
     if (!form.username.trim()) {
       setError(t("auth.usernameRequired"));
+      invalidField.current = "reg-username";
+      document.getElementById("reg-username")?.focus();
       return;
     }
     if (!form.email.trim()) {
       setError(t("auth.emailRequired"));
+      invalidField.current = "reg-email";
+      document.getElementById("reg-email")?.focus();
       return;
     }
     if (form.password.length < 12) {
       setError(t("auth.passwordMinLength"));
+      invalidField.current = "reg-password";
+      document.getElementById("reg-password")?.focus();
       return;
     }
     if (form.password !== form.confirmPassword) {
       setError(t("auth.passwordMismatch"));
+      invalidField.current = "reg-confirm";
+      document.getElementById("reg-confirm")?.focus();
       return;
     }
     if (!form.nationality) {
       setError(t("auth.countryRequired"));
+      invalidField.current = "reg-country";
+      document.getElementById("reg-country")?.focus();
       return;
     }
 
@@ -134,6 +165,8 @@ export function RegisterPage() {
     const avatarFile = avatarRef.current?.files?.[0];
     if (avatarFile && avatarFile.size > MAX_AVATAR_BYTES) {
       setError(t("auth.avatarTooLarge"));
+      invalidField.current = "reg-avatar";
+      document.getElementById("reg-avatar")?.focus();
       return;
     }
 
@@ -149,10 +182,13 @@ export function RegisterPage() {
     if (res.success) {
       // Upload avatar after successful registration (separate endpoint)
       if (avatarFile) {
+        setUploading(true);
         try {
           await authApi.uploadAvatar(avatarFile);
-        } catch (err) {
-          console.warn("Avatar upload failed:", err);
+        } catch {
+          toastCtx.warning(t("api.upload_failed"));
+        } finally {
+          setUploading(false);
         }
       }
       toastCtx.success(t("auth.registerSuccess"));
@@ -166,50 +202,62 @@ export function RegisterPage() {
 
   return (
     <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit} noValidate aria-label={t("auth.registerTitle") as string}>
+      <form className="auth-card" onSubmit={handleSubmit} aria-busy={loading} noValidate aria-label={t("auth.registerTitle") as string}>
         <h1>{t("auth.registerTitle")}</h1>
-        {error && <div className="auth-error" role="alert">{error}</div>}
+        {error && <div ref={errorRef} tabIndex={-1} id="auth-error" className="auth-error" role="alert">{error}</div>}
 
         <label htmlFor="reg-username">{t("auth.username")} *</label>
         <input
           id="reg-username"
+          aria-invalid={error === t("auth.usernameRequired") || undefined}
+          aria-describedby={error ? "auth-error" : undefined}
           type="text"
           value={form.username}
           onChange={(e) => update("username", e.target.value)}
           required
           autoComplete="username"
+          maxLength={64}
           autoFocus
         />
 
         <label htmlFor="reg-email">{t("auth.email")} *</label>
         <input
           id="reg-email"
+          aria-invalid={error === t("auth.emailRequired") || undefined}
+          aria-describedby={error ? "auth-error" : undefined}
           type="email"
           value={form.email}
           onChange={(e) => update("email", e.target.value)}
           required
           autoComplete="email"
+          maxLength={120}
         />
 
         <label htmlFor="reg-password">{t("auth.password")} *</label>
         <input
           id="reg-password"
+          aria-invalid={error === t("auth.passwordMinLength") || undefined}
+          aria-describedby={error ? "auth-error" : undefined}
           type="password"
           value={form.password}
           onChange={(e) => update("password", e.target.value)}
           required
           minLength={12}
           autoComplete="new-password"
+          maxLength={72}
         />
 
         <label htmlFor="reg-confirm">{t("auth.confirmPassword")} *</label>
         <input
           id="reg-confirm"
+          aria-invalid={error === t("auth.passwordMismatch") || undefined}
+          aria-describedby={error ? "auth-error" : undefined}
           type="password"
           value={form.confirmPassword}
           onChange={(e) => update("confirmPassword", e.target.value)}
           required
           autoComplete="new-password"
+          maxLength={72}
         />
 
         <label htmlFor="reg-firstname">{t("auth.firstName")}</label>
@@ -233,6 +281,8 @@ export function RegisterPage() {
         <label htmlFor="reg-country">{t("auth.country")} *</label>
         <select
           id="reg-country"
+          aria-invalid={error === t("auth.countryRequired") || undefined}
+          aria-describedby={error ? "auth-error" : undefined}
           value={form.nationality}
           onChange={(e) => update("nationality", e.target.value)}
           required
@@ -250,12 +300,12 @@ export function RegisterPage() {
         <input
           id="reg-avatar"
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           ref={avatarRef}
         />
 
         <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? <span className="btn-spinner" /> : t("auth.registerBtn")}
+          {loading && <span aria-hidden="true" className="btn-spinner" />}{t("auth.registerBtn")}
         </button>
 
         <p className="auth-switch">

@@ -57,7 +57,7 @@
   gap: 12px;
   padding: 12px 16px;
   border-radius: 10px;
-  color: rgba(255, 255, 255, 0.75);
+  color: #fff;
   text-decoration: none;
   font-weight: 500;
   font-size: 0.95rem;
@@ -65,12 +65,12 @@
 }
 
 .admin-nav-link:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.15);
   color: #fff;
 }
 
 .admin-nav-link.active {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.15);
   color: #fff;
   font-weight: 600;
 }
@@ -87,18 +87,21 @@
 }
 
 .admin-back-link {
-  color: rgba(255, 255, 255, 0.6) !important;
+  color: #fff !important;
   font-size: 0.9rem;
 }
 
 /* ── Content ────────────────────────────────── */
 .admin-content {
+  min-width: 0;
   flex: 1;
   margin-left: 240px;
   padding: 32px;
   min-height: 100vh;
   overflow-y: auto;
 }
+
+.admin-content:focus-visible { outline: 2px solid var(--text-primary); outline-offset: -2px; }
 
 /* ── Dashboard ────────────────────────────── */
 .admin-page-title {
@@ -148,7 +151,7 @@
 
 .admin-stat-label {
   font-size: 0.85rem;
-  color: var(--text-muted, #888);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -234,7 +237,7 @@
 }
 
 .role-badge.admin {
-  background: linear-gradient(135deg, #e91e63, #9c27b0);
+  background: var(--accent-gradient);
   color: #fff;
 }
 
@@ -263,7 +266,7 @@
 }
 
 .admin-btn.role-btn {
-  background: var(--accent);
+  background: var(--accent-gradient);
   color: #fff;
 }
 
@@ -272,7 +275,7 @@
 }
 
 .admin-btn.delete-btn {
-  background: #e53935;
+  background: #b91c1c;
   color: #fff;
 }
 
@@ -299,7 +302,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--accent);
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 
@@ -313,7 +316,7 @@
 
 .admin-word-def {
   font-size: 0.9rem;
-  color: var(--text-muted, #888);
+  color: var(--text-secondary);
   font-style: italic;
 }
 

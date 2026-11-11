@@ -12,7 +12,7 @@ import com.ariforhanus.wordle.config.*;
 import com.ariforhanus.wordle.jwt.JwtUtil;
 import com.ariforhanus.wordle.service.*;
 import com.ariforhanus.wordle.support.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
@@ -20,7 +20,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;

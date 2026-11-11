@@ -1,7 +1,7 @@
 package com.ariforhanus.wordle.service;
 
 import com.ariforhanus.wordle.config.MailOutboxProperties;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;

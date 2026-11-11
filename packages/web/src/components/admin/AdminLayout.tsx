@@ -34,7 +34,7 @@ export default function AdminLayout() {
   if (loading) {
     return (
       <div className="admin-loading">
-        <div className="spinner" />
+        <div className="spinner" role="status" aria-label={t("a11y.loading")} />
       </div>
     );
   }
@@ -49,46 +49,52 @@ export default function AdminLayout() {
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <div className="admin-sidebar-brand">
-          <i className="fas fa-shield-alt" />
+          <i aria-hidden="true" className="fas fa-shield-alt" />
           <span>{t("admin.title")}</span>
         </div>
 
-        <nav className="admin-nav">
+        <nav className="admin-nav" aria-label={t("admin.title")}>
           <Link
             to="/admin"
+            aria-label={t("admin.dashboard")}
             className={`admin-nav-link ${isActive("/admin") ? "active" : ""}`}
           >
-            <i className="fas fa-chart-pie" />
+            <i aria-hidden="true" className="fas fa-chart-pie" />
             <span>{t("admin.dashboard")}</span>
           </Link>
           <Link
             to="/admin/users"
+            aria-label={t("admin.users")}
             className={`admin-nav-link ${isActive("/admin/users") ? "active" : ""}`}
           >
-            <i className="fas fa-users" />
+            <i aria-hidden="true" className="fas fa-users" />
             <span>{t("admin.users")}</span>
           </Link>
           <Link
             to="/admin/words"
+            aria-label={t("admin.words")}
             className={`admin-nav-link ${isActive("/admin/words") ? "active" : ""}`}
           >
-            <i className="fas fa-book" />
+            <i aria-hidden="true" className="fas fa-book" />
             <span>{t("admin.words")}</span>
           </Link>
-        <Link className="admin-nav-link" to="/admin/audit">{t("account.auditTitle")}</Link>
+          <Link className="admin-nav-link" to="/admin/audit" aria-label={t("account.auditTitle")}>
+            <i aria-hidden="true" className="fas fa-clipboard-list" />
+            <span>{t("account.auditTitle")}</span>
+          </Link>
         </nav>
 
         <div className="admin-sidebar-footer">
-          <Link to="/" className="admin-nav-link admin-back-link">
-            <i className="fas fa-arrow-left" />
+          <Link to="/" aria-label={t("admin.back")} className="admin-nav-link admin-back-link">
+            <i aria-hidden="true" className="fas fa-arrow-left" />
             <span>{t("admin.back")}</span>
           </Link>
         </div>
       </aside>
 
-      <main className="admin-content">
+      <section className="admin-content" tabIndex={0} aria-label={t("admin.title")}>
         <Outlet />
-      </main>
+      </section>
     </div>
   );
 }

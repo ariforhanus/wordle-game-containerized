@@ -1,7 +1,7 @@
 package com.ariforhanus.wordle.config;
 
 import com.ariforhanus.wordle.service.AccountService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
@@ -106,7 +106,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
                         node == null
                                 ? ""
                                 : node.path(field).asText("").trim().toLowerCase(Locale.ROOT);
-            } catch (IOException ignored) {
+            } catch (tools.jackson.core.JacksonException ignored) {
                 /* Validation returns a controlled error later. */
             }
             if (!identity.isEmpty()

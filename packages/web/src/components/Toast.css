@@ -48,11 +48,11 @@
 
 /* ── Types ── */
 .toast-success {
-  background: linear-gradient(135deg, #43a047, #66bb6a);
+  background: linear-gradient(135deg, #276a2d, #1b5e20);
 }
 
 .toast-error {
-  background: linear-gradient(135deg, #e53935, #ef5350);
+  background: linear-gradient(135deg, #b91c1c, #991b1b);
 }
 
 .toast-info {
@@ -60,7 +60,7 @@
 }
 
 .toast-warning {
-  background: linear-gradient(135deg, #f57c00, #ffa726);
+  background: linear-gradient(135deg, #914500, #7c3900);
 }
 
 /* ── Animations ── */

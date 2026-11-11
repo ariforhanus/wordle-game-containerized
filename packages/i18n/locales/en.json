@@ -303,5 +303,14 @@
     "unverified": "Email not verified",
     "sendVerification": "Send verification email",
     "verifyToPlay": "Verify your email to play ranked games"
+  },
+  "a11y": {
+    "close": "Close",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "loadError": "Could not load this page. Please try again.",
+    "skip": "Skip to content",
+    "locked": "Locked",
+    "unlocked": "Unlocked"
   }
 }

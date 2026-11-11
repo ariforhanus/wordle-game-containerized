@@ -34,6 +34,7 @@ export function clearToken(): void {
 }
 
 export function isAuthenticated(): boolean {
+  try {
   const token = getToken();
   const expiry = localStorage.getItem(EXPIRY_KEY);
   if (token && expiry) {
@@ -44,16 +45,19 @@ export function isAuthenticated(): boolean {
     clearToken();
   }
   return false;
+  } catch { return false; }
 }
 
-/** Extract the username (sub) from the JWT without a library */
+/** Read the display username claim; authorization always belongs to the server. */
 export function getTokenUsername(): string | null {
   const token = getToken();
   if (!token) return null;
   try {
     const payload = token.split(".")[1];
-    const decoded = JSON.parse(atob(payload));
-    return decoded.sub ?? null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const bytes = Uint8Array.from(atob(normalized), character => character.charCodeAt(0));
+    const decoded = JSON.parse(new TextDecoder().decode(bytes));
+    return typeof decoded.username === "string" ? decoded.username : null;
   } catch {
     return null;
   }

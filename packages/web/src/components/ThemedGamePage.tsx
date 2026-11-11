@@ -22,7 +22,7 @@ export default function ThemedGamePage() {
     return <Navigate to="/themes" replace />;
   }
 
-  return <ThemedGame theme={theme} />;
+  return <ThemedGame key={theme.id} theme={theme} />;
 }
 
 // ── Inner component (theme is guaranteed) ──
@@ -117,7 +117,7 @@ function ThemedGame({ theme }: { theme: ThemeConfig }) {
       <Confetti active={won} />
 
       {/* Theme header badge */}
-      <div
+      <h1
         className="theme-badge"
         style={{
           borderColor: theme.color,
@@ -125,7 +125,7 @@ function ThemedGame({ theme }: { theme: ThemeConfig }) {
       >
         <i aria-hidden="true" className={`fas ${theme.icon}`} />
         <span>{theme.name}</span>
-      </div>
+      </h1>
 
       <Board state={state} shakeRow={shakeRow} />
       <Keyboard

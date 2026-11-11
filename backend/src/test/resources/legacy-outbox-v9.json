@@ -1,0 +1,14 @@
+{
+  "producer" : "Pre-upgrade OutboxCipher with Jackson 2; synthetic fixture only",
+  "id" : "00000000-0000-0000-0000-000000000001",
+  "userId" : 42,
+  "purpose" : "RESET",
+  "tokenHash" : "0f007385b6f9d4b7eeb2748605afe1a984a0a3bfa3f014d09e2a784ce9e5cd1a",
+  "expiresAt" : "2024-01-15T10:30:00Z",
+  "messageId" : "<legacy-fixture@localhost>",
+  "keyId" : "test-v1",
+  "nonce" : "SoyEDjBwAHDXAy0J",
+  "payload" : "IS+p4K7pey456UxheDnjgdtQWIXRUiQuMzWlW9XaZMq/IWKM/u9IOLkSodBQxZ5p7hBz/jkXYKodfgxQ1xi0iUoEbd8RyZDTkAGQ19IPU5KON7+BTjS56sUtEe0xxLlOG2Ii6Ck=",
+  "expectedEmail" : "legacy@example.test",
+  "expectedToken" : "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+}

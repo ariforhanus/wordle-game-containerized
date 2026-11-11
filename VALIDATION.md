@@ -1,6 +1,110 @@
 # Validation of the readiness changes
 
-## Latest checkpoint — real SMTP TLS/AUTH acceptance, 2026-11-10
+## Latest checkpoint — final branch acceptance, 2026-11-11
+
+| Check actually executed | Result |
+| --- | --- |
+| Java 21 full real-PostgreSQL `mvn verify` | **265 passed**, zero skips/failures/errors; includes security, transactions/concurrency, migration rollback and real TLS/worker integration |
+| Frontend unit/component coverage | **111 passed**, 25 files, no unhandled errors |
+| TypeScript / release Vite build / built service-worker tests | Build passed; **8 passed** |
+| Complete desktop + mobile Chromium E2E | **78 passed**, 10 fixture-gated skips |
+| Complete Firefox general E2E; final accessibility rerun | **39 passed**, 5 fixture-gated skips; **7 passed** on final account/theme/admin changes |
+| Complete WebKit E2E | **39 passed**, 5 fixture-gated skips |
+| Real TLS/AUTH verification/reset/single-use/revocation E2E | **3 passed**: desktop/mobile Chromium + Firefox; six secure/authenticated messages |
+| Real refused-SMTP privacy/retry, EN/TR | **8 passed** across all four browser projects; outbox disabled for these synchronous cases |
+| Actual production Nginx headers/offline cache checks | **8 passed** across four projects; Chromium/mobile additionally repeated 4 checks on the freshly built image |
+| Real EN/TR queued outage → application restart → recovery | **1 combined Chromium scenario passed**; four messages delivered, same persisted capabilities |
+| Actual encrypted pending-mail backup / isolated restore | **1 passed**; source unchanged, restored revocation removed ciphertext |
+| Actual deploy backup.sh / restore-check.sh happy path | Both passed against the owned PostgreSQL fixture; custom dump/checksum/isolated restore, source retained |
+| Operator checks | All **19 distinct Python operator cases** exercised: default 15 passed/4 fixture skips, then all 4 gated cases explicitly passed (proxy 2, benchmark rollback 1, encrypted restore 1) |
+| Preview failure/repeat-start suite; local env/key setup | **6 Python + 9 Node passed** |
+| Docker E2E image from release assets and existing ignore | **Build passed** with cached Nginx base; built image ran unprivileged/read-only with all capabilities dropped; **4 Chromium/mobile headers/offline reruns passed** |
+| Base / preview / operations Compose; shell syntax; whitespace | All three `config --quiet` checks, **8 shell syntax checks**, `git diff --check` passed |
+| npm dependency audit | **0 advisories** |
+| Maven OSV / actual built JAR OSV | **0 advisories** in 111 resolved-tree coordinates; **all 106 packaged runtime jars independently checked**, also 0 |
+| Gitleaks 8.30.1, redacted | **Recorded exceptions, exit 1**: three owner-approved public local `.env` fixtures and one public legacy-fixture token hash; no unexplained new secret |
+
+JaCoCo: **81.08% lines / 69.47% branches**. Frontend V8: **68.08% lines /
+66.52% branches**. Browser execution is excluded from these unit coverage metrics.
+The complete general E2E matrix contains **156 passing engine/scenario combinations**;
+its 20 skips require different SMTP/restart/production fixtures, not omitted core
+assertions. Those modes were separately exercised above. Additional final-accessibility,
+TLS and built-image runs repeat some combinations and are not added as new coverage.
+The shared EN/TR restart scenario was run on Chromium; identical restart fixtures were
+not rerun in the other three projects.
+
+General E2E uses the same explicit isolated auth-limit disablement as CI, and real
+backend/PostgreSQL/release assets, bootstrap admin and local SMTP capture. Rate-limit
+correctness is separately tested with real PostgreSQL; targeted TLS, synchronous outage
+and production Nginx browser phases enable the backend auth limiter. Frontend 429/lost
+response tests deliberately inject responses and are identified in their test names;
+these do not replace the real server races and transport tests.
+
+The final account/theme/admin audit covers EN/TR × light/dark, full-page WCAG A/AA Axe,
+rendered gradient contrast (including active background/foreground alpha), 320px and
+landscape reflow with 200% text, native controls, error/busy names, SPA state isolation
+and dialog focus. Physical devices, true browser/OS zoom, NVDA/VoiceOver speech and
+color-vision/user acceptance remain manual. See docs/ACCESSIBILITY.md.
+
+A real DB lock regression first failed against the previous admin role implementation:
+it held the higher-ID target while waiting for the lower-ID audit actor. Ordered
+actor/target locks now match outbox retry; both role/delete cases pass in the full suite.
+The framework baseline is now Boot 4.0.9 / Spring 7 / Jackson 3 on Java 21, with only
+necessary import/starter/exception adaptations. The old-producer V9 encrypted fixture
+decrypts successfully. No existing SQL migration, root `.env` or CI/Jenkins configuration
+was changed by final acceptance. All nine branch migration checksums still validate;
+real preflight/migration failures roll back without destructive auto-repair.
+
+The Maven tree hides some repeated dependency nodes; scanning the produced executable
+JAR independently avoids missing Spring core/security modules. The packaged scan covers
+every BOOT-INF/lib entry via embedded metadata/resolved coordinates and explicit Spring
+artifact mappings. Published affected versions were checked against OSV, without blanket
+suppression; this is not proof of exploitability or absence of unknown vulnerabilities.
+Gitleaks exceptions are deliberately reported rather than called a clean pass. These
+local public credentials are not authorized for staging/production.
+
+Fixture corrections before final passing runs: a cross-file CSS copy was removed;
+profile text/grid overflow and actual admin/active-navigation contrast/name failures
+were fixed; the JSDOM focus assertion waits for its effect; browser audits wait only for
+visible modal opacity rather than Firefox caret animations. The first restart harness
+also stopped the SMTP capture and broke polling; the corrected harness restarts only
+the application and keeps capture/preview continuous. The E2E Docker ignore was already
+correct: an experiment without its override was not a repo defect and the unnecessary
+edit was reverted before the successful final image build.
+
+Local traces were off to fit disk; production assertions/animations and CI failure-trace
+policy were preserved. Firefox ran outside the command sandbox only for its established
+profile access, with normal browser security. WebKit uses official task-local Debian
+libraries linked into its downloaded runtime directory (its launcher resets LD_LIBRARY_PATH).
+The host checker only sees system ldconfig entries and missed the successfully loadable
+GLES library; its metadata-only precheck was skipped locally after dependency/runtime
+proof. No browser security flags or repository/CI workaround were added.
+
+**Code-level blockers:** none known in the authorized scope after these fixes and checks.
+**Review/merge:** prepared for human review into **develop**, created at main's exact
+`b1fb0042f554bcef5841db2c2516c53e7c63e57b`. Main was not advanced. Merge remains subject to
+review and required remote checks; no merge or deployment was performed.
+
+**Infrastructure / manual / production-only:** full separate backend/frontend multi-stage
+Docker image builds and high/critical OS-image scans were not completed in this workspace
+quota; the E2E image build is not a substitute. Successful remote Actions/runner execution,
+staging capacity, actual-provider SMTP/PKI/delivery, domain/HTTPS/real ingress, real-data
+migration/rollback, offsite encrypted backups/deletion journal/key operations/alarms and
+manual accessibility remain open/deferred in TODO.md. Production was explicitly deferred
+by the owner, not declared ready. See docs/FINAL_BRANCH_REVIEW.md for ranked findings,
+complete-diff scope and prioritized remediation.
+
+Raw artifacts: `/workspace/work/final-review/` — `backend-final.log`, `frontend-release.log`,
+`build-release.log`, `chromium-full-final.log`, `firefox-accepted.log`,
+`firefox-a11y-final.log`, `webkit-full-final.log`, `tls-*-final.log`,
+`smtp-failure-*-final.log`, `production-*-e2e.log`, `outbox-recovery-final.log`,
+`encrypted-restore-final.log`, `backup-script-final.log`, `restore-script-final.log`, `ops-*.log`, `preview-python.log`, `proxy-headers.log`,
+`benchmark-safety.log`, `docker-e2e-build-final.log`, `built-image-chromium-e2e.log`,
+`security-packaged-runtime.log`, `packaged-runtime-osv.json`, `npm-audit-final.json`
+and redacted `gitleaks-*.json`. Workspace artifacts may be discarded; this summary is durable.
+
+
+## Previous checkpoint — real SMTP TLS/AUTH acceptance, 2026-11-10
 
 | Check | Result |
 | --- | --- |

@@ -107,3 +107,8 @@
   outline: 2px solid var(--text-primary);
   outline-offset: 2px;
 }
+
+.auth-card { min-width: 0; overflow-wrap: anywhere; }
+.auth-card :is(input, select) { min-width: 0; max-width: 100%; }
+.auth-card button { max-width: 100%; overflow-wrap: anywhere; }
+@media (max-width: 420px) { .auth-card { padding: 24px 20px; } }

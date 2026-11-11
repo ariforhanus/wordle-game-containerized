@@ -144,19 +144,19 @@ public class AdminController {
             return ResponseEntity.badRequest().body(Map.of("error", "invalid_role"));
         }
 
-        var opt = userRepo.findById(id);
+        Long actorId = userRepo.findByUsername(actor.getName()).orElseThrow().getId();
+        var opt =
+                userRepo.lockForAdministration(List.of(actorId, id)).stream()
+                        .filter(candidate -> candidate.getId().equals(id))
+                        .findFirst();
         if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-
         User user = opt.get();
         user.setRole(newRole);
         user.setAuthVersion(user.getAuthVersion() + 1);
         userRepo.save(user);
-        audit.record(
-                userRepo.findByUsername(actor.getName()).orElseThrow().getId(),
-                "ADMIN_ROLE_" + newRole,
-                id);
+        audit.record(actorId, "ADMIN_ROLE_" + newRole, id);
 
         return ResponseEntity.ok(
                 Map.of(
@@ -169,14 +169,15 @@ public class AdminController {
     @DeleteMapping("/users/{id}")
     public ResponseEntity<?> deleteUser(
             @PathVariable Long id, org.springframework.security.core.Authentication actor) {
-        var opt = userRepo.findById(id);
+        Long actorId = userRepo.findByUsername(actor.getName()).orElseThrow().getId();
+        var opt =
+                userRepo.lockForAdministration(List.of(actorId, id)).stream()
+                        .filter(candidate -> candidate.getId().equals(id))
+                        .findFirst();
         if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        audit.record(
-                userRepo.findByUsername(actor.getName()).orElseThrow().getId(),
-                "ADMIN_USER_DELETED",
-                id);
+        audit.record(actorId, "ADMIN_USER_DELETED", id);
         userRepo.deleteById(id);
         return ResponseEntity.ok(Map.of("deleted", true, "id", id));
     }

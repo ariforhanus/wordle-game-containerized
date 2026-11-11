@@ -6,6 +6,8 @@ import {
   isAuthenticated,
   authApi,
   getAvatarDataUrl,
+  ApiError,
+  clearToken,
   type UserStats,
   type UserProfile,
 } from "@wordle/api";
@@ -13,6 +15,7 @@ import { useToast } from "./Toast";
 import { usePageTitleKey } from "../hooks/usePageTitle";
 import { MAX_AVATAR_BYTES } from "../constants";
 import { formatScore } from "../utils/formatScore";
+import { useDialogFocus } from "../hooks/useDialogFocus";
 import GuessDistribution from "./GuessDistribution";
 import { COUNTRIES } from "../data/countries";
 import "./UserPage.css";
@@ -96,7 +99,10 @@ export default function UserPage() {
   const [loading, setLoading] = useState(true);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const achievementsRef = useDialogFocus(showAchievements, () => setShowAchievements(false));
 
+  const restoreEditFocus = useRef(false);
+  useEffect(() => { if (!loading && restoreEditFocus.current) { document.querySelector<HTMLElement>(".edit-profile-btn")?.focus(); restoreEditFocus.current = false; } }, [loading, showEditProfile]);
   const dataVersion = useRef(0);
   const selectedLanguage = useRef(lang);
   selectedLanguage.current = lang;
@@ -118,7 +124,7 @@ export default function UserPage() {
         setStats(userStats);
       }
     } catch (err) {
-      console.error("Failed to load profile:", err);
+      if (err instanceof ApiError && err.status === 401) { clearToken(); navigate("/login"); }
     } finally {
       if (version === dataVersion.current) setLoading(false);
     }
@@ -138,7 +144,7 @@ export default function UserPage() {
   if (loading) {
     return (
       <div className="page-center">
-        <div className="spinner" />
+        <div className="spinner" role="status" aria-label={t("a11y.loading")} />
       </div>
     );
   }
@@ -146,7 +152,7 @@ export default function UserPage() {
   if (!user || !stats) {
     return (
       <div className="page-center">
-        <p>{t("profile.noStats")}</p>
+        <div className="result-card"><h1>{t("seo.profile")}</h1><p role="alert">{t("a11y.loadError")}</p><button onClick={() => void loadData()}>{t("a11y.retry")}</button></div>
       </div>
     );
   }
@@ -219,7 +225,7 @@ export default function UserPage() {
           <img className="avatar" src={avatarUrl} alt={user.username} />
         ) : (
           <div className="avatar avatar-placeholder">
-            <i className="fas fa-user" />
+            <i aria-hidden="true" className="fas fa-user" />
           </div>
         )}
         <h1>{user.username}</h1>
@@ -230,7 +236,7 @@ export default function UserPage() {
           className="edit-profile-btn"
           onClick={() => setShowEditProfile(true)}
         >
-          <i className="fas fa-pencil" /> {t("profile.editProfile")}
+          <i aria-hidden="true" className="fas fa-pencil" /> {t("profile.editProfile")}
         </button>
       </div>
 
@@ -240,8 +246,9 @@ export default function UserPage() {
       <p>{t("profile.statisticsScope", { lang: lang.toUpperCase() })}</p>
       {/* Overall score cards and selected-language streaks. */}
       <div className="stats-grid">
-        {statCards.map((card, i) => (
-          <div
+        {statCards.map((card, i) => {
+          const Card = card.clickable ? "button" : "div";
+          return <Card
             key={i}
             className={`stat-card-gradient ${card.clickable ? "stat-card-clickable" : ""}`}
             style={{ background: STAT_GRADIENTS[i % STAT_GRADIENTS.length] }}
@@ -250,14 +257,14 @@ export default function UserPage() {
             }
           >
             <div className="stat-icon">
-              <i className={`fas ${card.icon}`} />
+              <i aria-hidden="true" className={`fas ${card.icon}`} />
             </div>
             <div className="stat-content">
               <div className="stat-label-g">{card.label}</div>
               <div className="stat-value-g">{card.value}</div>
             </div>
-          </div>
-        ))}
+          </Card>;
+        })}
       </div>
 
       {/* Guess distribution chart */}
@@ -274,18 +281,19 @@ export default function UserPage() {
           onClick={() => setShowAchievements(false)}
         >
           <div
+            ref={achievementsRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="achievements-title"
             className="modal-card achievements-modal"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
-              <h2>
-                <i className="fas fa-medal" /> {t("profile.achievements")}
+              <h2 id="achievements-title">
+                <i aria-hidden="true" className="fas fa-medal" /> {t("profile.achievements")}
               </h2>
               <button
-                className="modal-close"
+                aria-label={t("a11y.close")} className="modal-close"
                 onClick={() => setShowAchievements(false)}
               >
-                <i className="fas fa-xmark" />
+                <i aria-hidden="true" className="fas fa-xmark" />
               </button>
             </div>
             <p className="achievements-progress">
@@ -298,11 +306,12 @@ export default function UserPage() {
                   className={`achievement-item ${a.unlocked ? "achievement-unlocked" : "achievement-locked"}`}
                 >
                   <div className="achievement-icon-wrap">
-                    <i className={`fas ${a.icon}`} />
+                    <i aria-hidden="true" className={`fas ${a.icon}`} />
                   </div>
                   <div className="achievement-text">
                     <div className="achievement-title">{a.title}</div>
                     <div className="achievement-desc">{a.desc}</div>
+                    <span className="achievement-status">{t(a.unlocked ? "a11y.unlocked" : "a11y.locked")}</span>
                   </div>
                 </li>
               ))}
@@ -318,7 +327,8 @@ export default function UserPage() {
           onClose={() => setShowEditProfile(false)}
           onSaved={() => {
             setShowEditProfile(false);
-            loadData();
+            restoreEditFocus.current = true;
+            void loadData();
           }}
         />
       )}
@@ -339,6 +349,7 @@ function EditProfileModal({
 }) {
   const { t, i18n } = useTranslation();
   const toastCtx = useToast();
+  const dialogRef = useDialogFocus(true, onClose);
   const countries = COUNTRIES[i18n.language as "en" | "tr"] ?? COUNTRIES.en;
 
   const [form, setForm] = useState({
@@ -350,6 +361,8 @@ function EditProfileModal({
   const [msg, setMsg] = useState("");
   const [msgType, setMsgType] = useState<"error" | "success">("error");
   const [saving, setSaving] = useState(false);
+  const messageRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (msg && msg !== t("auth.usernameRequired")) messageRef.current?.focus(); }, [msg, t]);
   const avatarRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     getAvatarDataUrl(user),
@@ -375,13 +388,15 @@ function EditProfileModal({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setMsg("");
     setSaving(true);
 
-    if (!form.username.trim() || form.username.trim().length < 3) {
+    if (!form.username.trim() || form.username.trim().length < 2) {
       setMsg(t("auth.usernameRequired"));
       setMsgType("error");
       setSaving(false);
+      document.getElementById("edit-username")?.focus();
       return;
     }
 
@@ -399,7 +414,9 @@ function EditProfileModal({
         try {
           await authApi.uploadAvatar(file);
         } catch (err) {
-          console.warn("Avatar upload failed:", err);
+          setMsg(t("api.upload_failed"));
+          setMsgType("error");
+          return;
         }
       }
 
@@ -426,19 +443,20 @@ function EditProfileModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
+        ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="edit-profile-title"
         className="modal-card edit-modal"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h2>
-            <i className="fas fa-pencil" /> {t("profile.editProfile")}
+          <h2 id="edit-profile-title">
+            <i aria-hidden="true" className="fas fa-pencil" /> {t("profile.editProfile")}
           </h2>
-          <button className="modal-close" onClick={onClose}>
-            <i className="fas fa-xmark" />
+          <button type="button" aria-label={t("a11y.close")} className="modal-close" onClick={onClose}>
+            <i aria-hidden="true" className="fas fa-xmark" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="edit-form">
+        <form onSubmit={handleSubmit} aria-busy={saving} className="edit-form">
           {/* Avatar */}
           <div className="edit-avatar-section">
             {avatarPreview ? (
@@ -449,64 +467,67 @@ function EditProfileModal({
               />
             ) : (
               <div className="edit-avatar-placeholder">
-                <i className="fas fa-user" />
+                <i aria-hidden="true" className="fas fa-user" />
               </div>
             )}
-            <label className="edit-avatar-btn">
-              <i className="fas fa-camera" /> {t("profile.choosePhoto")}
+            <button type="button" className="edit-avatar-btn" onClick={() => avatarRef.current?.click()}>
+              <i aria-hidden="true" className="fas fa-camera" /> {t("profile.choosePhoto")}
+              </button>
               <input
-                type="file"
+                aria-label={t("profile.choosePhoto")} type="file"
                 accept="image/jpeg,image/png,image/webp"
                 ref={avatarRef}
                 onChange={handleFileChange}
                 hidden
               />
-            </label>
             <small className="edit-avatar-hint">
               {t("profile.avatarHint")}
             </small>
           </div>
 
           {/* Fields */}
-          <label>{t("auth.username")} *</label>
+          <label htmlFor="edit-username">{t("auth.username")} *</label>
           <input
             type="text"
+            id="edit-username" aria-invalid={msg === t("auth.usernameRequired") || undefined} aria-describedby={msg ? "edit-profile-error" : undefined}
             value={form.username}
             onChange={(e) => update("username", e.target.value)}
             required
-            minLength={3}
+            minLength={2} maxLength={64} autoComplete="username"
           />
 
           <div className="edit-row">
             <div className="edit-col">
-              <label>{t("auth.firstName")}</label>
+              <label htmlFor="edit-firstname">{t("auth.firstName")}</label>
               <input
                 type="text"
+                id="edit-firstname" maxLength={64} autoComplete="given-name"
                 value={form.firstName}
                 onChange={(e) => update("firstName", e.target.value)}
               />
             </div>
             <div className="edit-col">
-              <label>{t("auth.lastName")}</label>
+              <label htmlFor="edit-lastname">{t("auth.lastName")}</label>
               <input
                 type="text"
+                id="edit-lastname" maxLength={64} autoComplete="family-name"
                 value={form.lastName}
                 onChange={(e) => update("lastName", e.target.value)}
               />
             </div>
           </div>
 
-          <label>{t("auth.email")}</label>
+          <label htmlFor="edit-email">{t("auth.email")}</label>
           <input
             type="email"
-            value={user.email ?? ""}
+            id="edit-email" autoComplete="email" value={user.email ?? ""}
             readOnly
             className="input-readonly"
           />
 
-          <label>{t("auth.country")}</label>
+          <label htmlFor="edit-country">{t("auth.country")}</label>
           <select
-            value={form.nationality}
+            id="edit-country" autoComplete="country-name" value={form.nationality}
             onChange={(e) => update("nationality", e.target.value)}
           >
             <option value="">{t("auth.selectCountry")}</option>
@@ -517,14 +538,14 @@ function EditProfileModal({
             ))}
           </select>
 
-          {msg && <div className={`edit-msg ${msgType}`}>{msg}</div>}
+          {msg && <div ref={messageRef} tabIndex={-1} id="edit-profile-error" role={msgType === "error" ? "alert" : "status"} className={`edit-msg ${msgType}`}>{msg}</div>}
 
           <div className="edit-actions">
             <button type="button" className="btn-cancel" onClick={onClose}>
               {t("profile.cancel")}
             </button>
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? <span className="btn-spinner" /> : t("profile.save")}
+              {saving && <span aria-hidden="true" className="btn-spinner" />}{t("profile.save")}
             </button>
           </div>
         </form>

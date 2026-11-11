@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useRef, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -35,16 +35,21 @@ export function RecoveryPage({
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  const [invalidField, setInvalidField] = useState<string | null>(null);
   // Remove link secrets from browser history without consuming them on GET or page load.
   useEffect(() => {
     if (window.location.hash)
-      window.history.replaceState(null, "", window.location.pathname);
+      window.history.replaceState(window.history.state, "", window.location.pathname);
   }, []);
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setError("");
+    setInvalidField(null);
     if (mode === "reset" && (password.length < 12 || password !== confirm)) {
       setError(t("account.passwordMismatch"));
+      setInvalidField(password.length < 12 ? "new-password" : "confirm-password");
       document.getElementById(password.length < 12 ? "new-password" : "confirm-password")?.focus();
       return;
     }
@@ -63,6 +68,7 @@ export function RecoveryPage({
       setBusy(false);
     }
   }
+  useEffect(() => { if (error && !invalidField) errorRef.current?.focus(); }, [error, invalidField]);
   return (
     <div className="auth-page">
       <form className="auth-card" onSubmit={submit}>
@@ -94,26 +100,28 @@ export function RecoveryPage({
                 <label htmlFor="new-password">{t("account.newPassword")}</label>
                 <input
                   id="new-password"
+                  aria-invalid={invalidField === "new-password" || undefined}
+                  aria-describedby={invalidField === "new-password" ? "recovery-error" : undefined}
                   type="password"
                   autoComplete="new-password"
                   minLength={12}
                   maxLength={72}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setError(""); setInvalidField(null); }}
                 />
                 <label htmlFor="confirm-password">
                   {t("auth.confirmPassword")}
                 </label>
                 <input
                   id="confirm-password"
-                  aria-invalid={error === t("account.passwordMismatch") || undefined}
-                  aria-describedby={error ? "recovery-error" : undefined}
+                  aria-invalid={invalidField === "confirm-password" || undefined}
+                  aria-describedby={invalidField === "confirm-password" ? "recovery-error" : undefined}
                   type="password"
                   autoComplete="new-password"
                   required
                   value={confirm}
-                  onChange={(e) => { setConfirm(e.target.value); setError(""); }}
+                  onChange={(e) => { setConfirm(e.target.value); setError(""); setInvalidField(null); }}
                 />
               </>
             )}
@@ -128,7 +136,7 @@ export function RecoveryPage({
             </button>
           </>
         )}
-        {error && <p id="recovery-error" role="alert">{error}</p>}
+        {error && <p ref={errorRef} tabIndex={-1} id="recovery-error" role="alert">{error}</p>}
         <Link to="/login">{t("auth.loginTitle")}</Link>
       </form>
     </div>
@@ -139,6 +147,9 @@ export function AccountSecurityPage() {
   const navigate = useNavigate();
   const errorText = useAccountError();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileAttempt, setProfileAttempt] = useState(0);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileFailed, setProfileFailed] = useState(false);
   const [current, setCurrent] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -152,11 +163,15 @@ export function AccountSecurityPage() {
       navigate("/login");
       return;
     }
-    authApi
-      .getMe()
-      .then(setProfile)
-      .catch(() => navigate("/login"));
-  }, [navigate]);
+    let cancelled = false;
+    setProfileLoading(true); setProfileFailed(false);
+    authApi.getMe().then((value) => { if (!cancelled) setProfile(value); })
+      .catch((failure) => { if (!cancelled) {
+        if (failure instanceof ApiError && failure.status === 401) { clearToken(); navigate("/login"); }
+        else setProfileFailed(true);
+      } }).finally(() => { if (!cancelled) setProfileLoading(false); });
+    return () => { cancelled = true; };
+  }, [navigate, profileAttempt]);
   async function action(operation: () => Promise<void>, logout = false) {
     if (busy) return;
     setBusy(true);
@@ -176,6 +191,7 @@ export function AccountSecurityPage() {
   }
   function change(e: FormEvent) {
     e.preventDefault();
+    if (busy) return;
     if (password !== confirm) {
       setError(t("account.passwordMismatch"));
       document.getElementById("security-confirm")?.focus();
@@ -187,6 +203,8 @@ export function AccountSecurityPage() {
     <div className="auth-page">
       <div className="auth-card">
         <h1>{t("account.title")}</h1>
+        {profileLoading && <p role="status">{t("a11y.loading")}</p>}
+        {profileFailed && <div><p role="alert">{t("a11y.loadError")}</p><button onClick={() => setProfileAttempt((value) => value + 1)}>{t("a11y.retry")}</button></div>}
         {profile && (
           <>
             <p>

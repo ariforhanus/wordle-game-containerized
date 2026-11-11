@@ -12,17 +12,18 @@ import com.ariforhanus.wordle.repository.UserRepository;
 import com.ariforhanus.wordle.service.DailyGameService;
 import com.ariforhanus.wordle.support.MutableClock;
 import com.ariforhanus.wordle.support.TestClockConfiguration;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.*;
 import java.util.concurrent.*;
@@ -43,8 +44,87 @@ class SecurityAndGameIntegrationTest {
     @Autowired com.ariforhanus.wordle.service.ScoreService scores;
     @Autowired MutableClock clock;
     @Autowired ObjectMapper json;
+    @Autowired com.ariforhanus.wordle.controller.AdminController admin;
     User user;
     String token;
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"role", "delete"})
+    void adminMutationsLockActorBeforeHigherIdTarget(String operation) throws Exception {
+        user.setRole("ADMIN");
+        users.save(user);
+        var target = new User();
+        target.setUsername("other_admin");
+        target.setEmail("other_admin@example.test");
+        target.setPasswordHash("unused");
+        target.setRole("ADMIN");
+        target.setCreatedAt(clock.instant());
+        Long targetId = users.save(target).getId();
+        var actor =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        user.getUsername(), null);
+        var pool = Executors.newSingleThreadExecutor();
+        try (var blocker = dataSource.getConnection()) {
+            blocker.setAutoCommit(false);
+            int blockerId;
+            try (var query = blocker.createStatement();
+                    var row = query.executeQuery("SELECT pg_backend_pid()")) {
+                row.next();
+                blockerId = row.getInt(1);
+            }
+            try (var lock =
+                    blocker.prepareStatement("SELECT id FROM users WHERE id=? FOR UPDATE")) {
+                lock.setLong(1, user.getId());
+                lock.executeQuery().close();
+            }
+            var pending =
+                    pool.submit(
+                            () ->
+                                    operation.equals("role")
+                                            ? admin.changeRole(
+                                                    targetId,
+                                                    java.util.Map.of("role", "USER"),
+                                                    actor)
+                                            : admin.deleteUser(targetId, actor));
+            try {
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                boolean waiting;
+                do {
+                    waiting =
+                            Boolean.TRUE.equals(
+                                    db.queryForObject(
+                                            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE ?"
+                                                + " = ANY(pg_blocking_pids(pid)))",
+                                            Boolean.class,
+                                            blockerId));
+                    if (waiting) break;
+                    Thread.sleep(10);
+                } while (System.nanoTime() < deadline);
+                assertTrue(waiting, "admin mutation must really wait for the actor lock");
+                // The mail retry path locks the same two users in ascending ID order.
+                // Holding the target before waiting for the actor can deadlock that path.
+                try (var probe =
+                        blocker.prepareStatement(
+                                "SELECT id FROM users WHERE id=? FOR UPDATE NOWAIT")) {
+                    probe.setLong(1, targetId);
+                    assertDoesNotThrow(() -> probe.executeQuery().close());
+                }
+            } finally {
+                blocker.rollback();
+            }
+            assertEquals(200, pending.get(10, TimeUnit.SECONDS).getStatusCode().value());
+            assertEquals(
+                    1,
+                    db.queryForObject(
+                            "SELECT count(*) FROM security_audit WHERE actor_id=? AND action=?",
+                            Integer.class,
+                            user.getId(),
+                            operation.equals("role") ? "ADMIN_ROLE_USER" : "ADMIN_USER_DELETED"));
+        } finally {
+            pool.shutdown();
+            assertTrue(pool.awaitTermination(10, TimeUnit.SECONDS));
+        }
+    }
 
     @BeforeEach
     void reset() {
@@ -1013,7 +1093,7 @@ class SecurityAndGameIntegrationTest {
         return sessions;
     }
 
-    private com.fasterxml.jackson.databind.JsonNode gameRequest(
+    private tools.jackson.databind.JsonNode gameRequest(
             org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
             String session)
             throws Exception {
@@ -1069,7 +1149,7 @@ class SecurityAndGameIntegrationTest {
                             .asText());
         }
         Instant startedAt = clock.instant();
-        var starts = new java.util.ArrayList<Callable<com.fasterxml.jackson.databind.JsonNode>>();
+        var starts = new java.util.ArrayList<Callable<tools.jackson.databind.JsonNode>>();
         for (String session : sessions)
             starts.add(
                     () ->
@@ -1081,7 +1161,7 @@ class SecurityAndGameIntegrationTest {
         clock.set(startedAt.plusSeconds(30));
         var resumes =
                 race(
-                        java.util.List.<Callable<com.fasterxml.jackson.databind.JsonNode>>of(
+                        java.util.List.<Callable<tools.jackson.databind.JsonNode>>of(
                                 () ->
                                         gameRequest(
                                                 post("/api/v1/daily/games").param("lang", language),
@@ -1733,7 +1813,7 @@ class SecurityAndGameIntegrationTest {
         LocalDate day = LocalDate.now(clock.withZone(APP_ZONE));
         db.update(
                 "INSERT INTO daily_puzzles(id,played_at,language,answer) VALUES (?,?,?,?) ON"
-                    + " CONFLICT DO NOTHING",
+                        + " CONFLICT DO NOTHING",
                 day + "_" + language,
                 day,
                 language,

@@ -303,5 +303,14 @@
     "unverified": "E-posta doğrulanmadı",
     "sendVerification": "Doğrulama e-postası gönder",
     "verifyToPlay": "Sıralamalı oyun için e-postanızı doğrulayın"
+  },
+  "a11y": {
+    "close": "Kapat",
+    "loading": "Yükleniyor…",
+    "retry": "Tekrar dene",
+    "loadError": "Bu sayfa yüklenemedi. Lütfen tekrar deneyin.",
+    "skip": "İçeriğe geç",
+    "locked": "Kilitli",
+    "unlocked": "Kazanıldı"
   }
 }

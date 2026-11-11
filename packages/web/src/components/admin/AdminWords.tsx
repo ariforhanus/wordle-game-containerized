@@ -17,7 +17,7 @@ export default function AdminWords() {
   }, []);
 
   if (loading) {
-    return <div className="admin-loading"><div className="spinner" /></div>;
+    return <div className="admin-loading"><div className="spinner" role="status" aria-label={t("a11y.loading")} /></div>;
   }
 
   return (
