@@ -15,14 +15,14 @@ import Keyboard from "./Keyboard";
 import "./GamePage.css";
 import { useDialogFocus } from "../hooks/useDialogFocus";
 
-async function loadDictionary(lang: string): Promise<string[]> {
-  const response = await fetch(`/words_${lang}_possible.txt`);
-  if (!response.ok) throw new Error("Practice dictionary unavailable");
+async function loadWordList(lang: string, purpose: "answers" | "guesses"): Promise<string[]> {
+  const response = await fetch(`/words_${lang}${purpose === "guesses" ? "_possible" : ""}.txt`);
+  if (!response.ok) throw new Error("Practice word list unavailable");
   const words = (await response.text()).split("\n")
     .map(word => toUpperCase(word.trim(), lang))
     .filter(word => word.length === 5 && Array.from(word).every(letter => isValidLetter(letter, lang)));
-  if (!words.length) throw new Error("Practice dictionary is empty");
-  return words;
+  if (!words.length) throw new Error("Practice word list is empty");
+  return [...new Set(words)];
 }
 
 export default function GamePage() {
@@ -98,16 +98,21 @@ export default function GamePage() {
     setShowHintConfirm(false);
     setShowHintText(false);
     try {
-      // One generation owns the answer AND dictionary. An offline answer uses
-      // exactly the same selected-language word list as guess validation.
+      // One generation owns the answer and guess dictionary. Only a failed or
+      // unusable API answer needs the selected language's curated fallback pool.
       const [remote, words] = await Promise.all([
         wordApi.getRandomWord(lang).catch(() => null),
-        loadDictionary(lang),
+        loadWordList(lang, "guesses"),
       ]);
       if (request !== wordRequest.current) return;
       const candidate = typeof remote?.word === "string" ? toUpperCase(remote.word, lang) : "";
       const online = candidate.length === 5 && Array.from(candidate).every(letter => isValidLetter(letter, lang));
-      const word = online ? candidate : words[Math.floor(Math.random() * words.length)];
+      let word = candidate;
+      if (!online) {
+        const answers = await loadWordList(lang, "answers");
+        if (request !== wordRequest.current) return;
+        word = answers[Math.floor(Math.random() * answers.length)];
+      }
       const hint = online && typeof remote?.definition === "string" ? remote.definition : "";
       setAnswer(word);
       setDefinition(hint);

@@ -51,9 +51,27 @@ describe("the built production service worker", () => {
     const run = worker();
     await lifecycle(run, "install");
     expect(run.stored).toContain("/");
+    expect(run.stored).toContain("/words_en.txt");
+    expect(run.stored).toContain("/words_tr.txt");
     expect(run.stored).toContain("/words_tr_possible.txt");
     expect(run.stored.some((path) => path.startsWith("/api/"))).toBe(false);
     expect(run.stored.some((path) => path.endsWith(".js"))).toBe(true);
+  });
+  it.each(["en", "tr"])("ships the backend's exact curated %s answer pool in the release", (lang) => {
+    const shipped = readFileSync(new URL(`../../dist/words_${lang}.txt`, import.meta.url), "utf8");
+    const backend = readFileSync(new URL(`../../../../backend/src/main/resources/words/words_${lang}.txt`, import.meta.url), "utf8");
+    expect(shipped).toBe(backend);
+  });
+  it.each(["en", "tr"])("serves the cached curated %s answer file without a network request", async (lang) => {
+    const run = worker();
+    let response: Promise<Response> | undefined;
+    run.handlers.get("fetch")!({
+      request: { method: "GET", url: `https://wordle.example/words_${lang}.txt`, mode: "cors" },
+      respondWith: (pending: Promise<Response>) => { response = pending; },
+    });
+    expect(await response).toBe(run.fallback);
+    expect(run.caches.match).toHaveBeenCalled();
+    expect(run.fetch).not.toHaveBeenCalled();
   });
   it("activation removes old versions and private API caches without deleting unrelated caches", async () => {
     const run = worker();

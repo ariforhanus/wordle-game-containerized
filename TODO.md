@@ -4,6 +4,14 @@ Bu liste `fix/security-game-integrity` dalının mevcut kodu ve `VALIDATION.md` 
 
 Önerilen geliştirme sırası: **süre adaleti → toplam puan sıralaması → dil bazlı streak → veri modeli/performans → günlük oyun UX/erişilebilirlik → mevcut dillerin kelime rotasyonu → hesap/operasyon politikaları**. Kullanıcının son kararıyla yeni dil ekleme ertelendi. CI ve yayın güvenliği engelleri bu sıraya paralel çözülür ve production çıkışını engeller. Yerel uygulama/test adımları ile dış ortamda gereken doğrulamaları ayrı izliyoruz.
 
+## PR #1 sonrası — offline cevap havuzu, 2026-11-11
+
+Kapsam: `develop@7d70f57` üzerinden `fix/offline-curated-answers`; yeni PR hedefi develop.
+
+- [x] EN/TR offline practice cevaplarını mevcut `words_<lang>.txt` cevap havuzundan seç; tahminleri `words_<lang>_possible.txt` ile doğrulamaya devam et. Locale-aware normalizasyon, tekrar temizliği ve seçilen cevabın tahmin setine dahil edilmesini koru.
+- [x] Cevap dosyalarını release/offline cache'e ekle; backend kaynaklarıyla birebir eşitliklerini test et. Eksik/boş/geçersiz/erişilemeyen cevap dosyasında mevcut hata/Retry akışını göster; geniş tahmin havuzuna veya başka dile geçme.
+- [x] 147 frontend, TypeScript/build, 12 worker/artifact ve 20 desktop/mobile Chromium E2E kontrolü geçti. Gerçek ağ kesilmesiyle EN/TR curated cevapla kazanma dahil; ayrıntılar VALIDATION.md'nin yeni checkpoint'inde. Merge/deploy yapılmadı.
+
 ## Son odaklı PR inceleme düzeltmeleri — 2026-11-11
 
 Bu tur yalnızca A–D inceleme bulguları ve yakın entegrasyonları kapsar. CI bütçesi/runner araştırması talep dışıdır; aşağıdaki eski altyapı kapıları bu tur uygulama hatası olarak değerlendirilmez.

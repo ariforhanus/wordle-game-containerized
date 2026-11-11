@@ -15,6 +15,8 @@ function offlinePublicAssets(): Plugin {
           .map((name) => `/${name}`),
         "/manifest.json",
         "/icons/icon-192.svg",
+        "/words_en.txt",
+        "/words_tr.txt",
         "/words_en_possible.txt",
         "/words_tr_possible.txt",
         "/themes/marvel.json",
