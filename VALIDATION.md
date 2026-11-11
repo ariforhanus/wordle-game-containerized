@@ -80,6 +80,20 @@ The host checker only sees system ldconfig entries and missed the successfully l
 GLES library; its metadata-only precheck was skipped locally after dependency/runtime
 proof. No browser security flags or repository/CI workaround were added.
 
+**Remote CI observation for tested code checkpoint `12d3b28`:**
+[PR #1](https://github.com/ariforhanus/wordle-game-containerized/pull/1) is a draft
+against develop, with no content conflict. The
+[push run 42976079101](https://github.com/ariforhanus/wordle-game-containerized/actions/runs/42976079101)
+and [PR run 42976248845](https://github.com/ariforhanus/wordle-game-containerized/actions/runs/42976248845)
+reported failure. Dedicated step reads returned **empty step arrays** for backend,
+frontend, E2E and preview; security was skipped. No job log was available (backend
+log retrieval returned 404 BlobNotFound). No remote build/test executed or passed.
+This is a CI execution/startup gate; the connector does not expose its exact
+account/provider reason. Owner runner/account investigation is required rather
+than treating it as a failing application assertion. CI/Jenkins was not changed.
+Any later documentation-only commit does not supersede this explicitly identified
+code-checkpoint observation or claim a successful remote run.
+
 **Code-level blockers:** none known in the authorized scope after these fixes and checks.
 **Review/merge:** prepared for human review into **develop**, created at main's exact
 `b1fb0042f554bcef5841db2c2516c53e7c63e57b`. Main was not advanced. Merge remains subject to

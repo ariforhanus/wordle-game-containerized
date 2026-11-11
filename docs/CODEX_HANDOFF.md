@@ -26,6 +26,12 @@ The E2E Docker ignore was already correct. An unnecessary edit was reverted; do 
 - All 19 distinct operator cases exercised (default 15 + 4 explicit opt-in); preview 6 Python + local env/key 9 Node; Compose base/preview/ops and 8 shell syntax checks passed.
 - npm 0 advisories; OSV 111 resolved-tree coordinates: 0 + all 106 packaged runtime jars: 0. The Maven tree omits repeated nodes, so do not rely only on it. Gitleaks exits 1 for 4 documented public fixtures/hash, not a clean secret-scan pass.
 
+## Publication and remote CI
+
+[Draft PR #1](https://github.com/ariforhanus/wordle-game-containerized/pull/1) targets develop. Tested application code is commit `12d3b28190052e20b08b4bdfa5cbf36826ecfcb4`; the published tree exactly matched the staged/tested source. A follow-up records CI observations only; no application source changed. GitHub reports the PR mergeable without content conflicts but unstable/draft, not approved to merge.
+
+At code checkpoint 12d3b28, push run 42976079101 and PR run 42976248845 failed with **no steps** in backend/frontend/E2E/preview; security skipped. Dedicated step tools confirmed empty arrays; no backend log exists (404 BlobNotFound). This is a remote execution gate, not evidence of failed application tests. The connector does not expose the exact account/provider reason. Do not invent billing explanations, change CI/Jenkins or merge to work around it. The owner must investigate runner/account availability and obtain required green runs.
+
 ## Remaining work
 
 No new code feature is queued. Finish human branch review and required successful remote checks; then merge to develop only when the owner/review process allows. No automatic merge/main update/deploy. Infrastructure: fresh full release image builds/scans, runner readiness, real-data staging migration/rollback, capacity, SMTP/provider/PKI/domain/HTTPS/ingress, offsite backups/restore/deletion journal/key operations/alarms. Manual: physical phones/Safari/OS keyboards, real browser zoom, NVDA/VoiceOver and color-vision/user review. Deferred languages remain unchecked and are not code blockers in this scope.

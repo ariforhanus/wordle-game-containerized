@@ -30,7 +30,7 @@ Mevcut temel: oyun kaydı Start isteğinde sunucuda oluşturuluyor; skor süresi
 Bu maddeler kod TODO’sundan ayrıdır ve kullanıcı kararıyla ertelenmiştir. Yerel test başarısı bunları kapatmaz; production çıkışı için ayrıca doğrulanırlar.
 
 - [ ] Açığa çıkmış canlı veritabanı, yönetici ve JWT kimlik bilgilerini yetkili production ortamında döndür; eski bilgilerin artık çalışmadığını doğrula.
-- [ ] GitHub runner sorununu çöz ve backend/frontend/E2E/security işlerinin gerçekten çalışıp geçtiğini doğrula. Son gözlenen uzak koşu hiçbir adım başlamadan başarısız oldu.
+- [ ] GitHub runner/hesap yürütme engelini çöz ve zorunlu uzak kontrolleri geçir. 2026-11-11: test edilen `12d3b28` için push `42976079101` ve PR `42976248845` başarısız; backend/frontend/E2E/preview adım listeleri boş, security atlandı, backend log’u yok (404). Uygulama test hatası olarak yorumlanmadı; sağlayıcı/hesap kök nedeni araçta görünmüyor. PR #1 develop hedefli taslak; merge bu kapı çözülene kadar bekliyor.
   Kullanıcı Jenkins kurulumunu daha sonra kendisinin ele alacağını belirtti; bu tur CI/Jenkins yapılandırması değiştirilmedi. Çalışan ve başarılı CI koşusu yayın şartı olarak açık.
 - [ ] `.github/rulesets/main.json` kurallarını GitHub ayarlarında etkinleştir; PR incelemesi ve başarılı zorunlu kontroller olmadan main'e birleşmeyi engelle. Yönetim erişimi gerekir.
 - [ ] Gerçek production verisinin yetkili bir kopyasıyla migration/preflight ve rollback provasını tamamla; eski kayıtları silmeden uyumsuzlukları gider.

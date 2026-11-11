@@ -106,7 +106,9 @@ No known unresolved code-level blocker remains after the acceptance fixes, subje
 to the exact final results in VALIDATION.md. This is not production approval.
 
 1. **Before merging into develop:** human review of the whole branch, especially
-   the dependency baseline/legacy adoption; obtain the required successful remote
+   the dependency baseline/legacy adoption; PR #1 is draft and the code-checkpoint
+   Actions runs fail before any job step (exact run evidence in VALIDATION.md).
+   Obtain the required successful remote
    checks once runner infrastructure is available. Local source/JAR/assets tests
    cannot replace fresh full release-image builds and high/critical image scans.
 2. **Manual accessibility:** NVDA/VoiceOver speech and browse mode, physical mobile
